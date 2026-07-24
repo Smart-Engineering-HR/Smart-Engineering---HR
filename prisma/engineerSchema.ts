@@ -1,0 +1,22 @@
+import { z } from "zod";
+
+// هذا هو "الكود الإنشائي" للأمان (محدث للإصدارات الأخيرة من Zod)
+export const engineerSchema = z.object({
+  fullName: z
+    .string()
+    .min(5, { message: "الاسم الكامل يجب أن يكون 5 أحرف على الأقل" })
+    .max(100),
+
+  email: z
+    .string()
+    .email({ message: "يرجى إدخال بريد إلكتروني صحيح" }),
+
+  experienceYears: z
+    .number()
+    .min(0, { message: "سنوات الخبرة لا يمكن أن تكون أقل من صفر" })
+    .max(50, { message: "يرجى التأكد من سنوات الخبرة" }),
+
+  specialization: z.enum(["Civil", "Structural", "Architectural"], {
+    message: "يرجى اختيار تخصص هندسي صحيح",
+  }),
+});

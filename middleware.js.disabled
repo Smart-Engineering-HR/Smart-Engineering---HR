@@ -1,0 +1,27 @@
+import { NextResponse } from 'next/server';
+
+export function middleware(request) {
+  const { pathname } = request.nextUrl;
+
+  // 1. التحقق من المسارات التي تبدأ بـ admin
+  if (pathname.startsWith('/admin')) {
+    
+    // 2. محاولة استخراج توكن الإدارة من الكوكيز
+    const adminToken = request.cookies.get('admin_token');
+
+    // 3. إذا لم يوجد التوكن، نقوم بإعادة التوجيه (Redirect) إلى صفحة تسجيل الدخول
+    if (!adminToken) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // هنا يمكنك إضافة منطق إضافي للتحقق من صحة التوكن (JWT) إذا لزم الأمر
+  }
+
+  // 4. السماح بمرور الطلب إذا كان المسار ليس admin أو إذا كان هناك توكن
+  return NextResponse.next();
+}
+
+// اختياري: تحديد المسارات التي يعمل عليها الميدل وير لزيادة الأداء
+export const config = {
+  matcher: ['/admin/:path*'],
+};

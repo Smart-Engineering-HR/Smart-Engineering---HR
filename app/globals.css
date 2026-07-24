@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* تعريف المتغيرات التقليدية لضمان توافق الألوان */
+:root {
+  --background: #030712; /* الأسود الغامق للموقع */
+  --foreground: #ffffff; /* الأبيض للنصوص */
+  --primary: #3b82f6; /* الأزرق الذكي SMART ENG */
+  --primary-foreground: #ffffff;
+  --secondary: #1f2937; /* الرمادي الغامق للخلفيات الثانوية */
+  --card: #111827; /* لون الكروت في لوحة التحكم */
+  --border: #374151; /* لون الخطوط الفاصلة */
+  --sidebar: #111827; /* خلفية القائمة الجانبية */
+}
+
+/* تنسيقات أساسية للموقع */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif; /* الخط التقليدي */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* تنسيقات خاصة بلوحة التحكم Dashboard */
+.admin-card {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.admin-sidebar {
+  background-color: var(--sidebar);
+  border-left: 1px solid var(--border);
+}
+
+.text-primary {
+  color: var(--primary);
+}
+
+.border-default {
+  border-color: var(--border);
+}

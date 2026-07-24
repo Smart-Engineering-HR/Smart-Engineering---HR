@@ -1,0 +1,240 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// 1. إدارة المستخدمين والتحكم بالوصول (مدمج ومنظم)
+// ==========================================
+
+model User {
+  id               String    @id @default(uuid())
+  name             String    @default("غير محدد")
+  email            String    @unique
+  password         String
+  role             String    @default("admin") // "job-seeker", "supplier", "admin"
+  phone            String    @default("")
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// ==========================================
+// 2. التوظيف والمناقصات التفصيلية
+// ==========================================
+
+model Posting {
+  id                String   @id @default(uuid())
+  type              String   // "job" أو "tender"
+  title             String
+  company           String
+  category          String
+  location          String
+  createdAt         DateTime @default(now())
+  expiryDate        String
+  status            String   @default("PENDING")
+  reportsTo         String?
+  companyBio        String?
+  jobBio            String?
+  duties            String?
+  requirements      String?
+  skills            String?
+  notes             String?
+  tenderNumber      String?
+  projectName       String?
+  components        String?
+  fundingBody       String?
+  currency          String?
+  validity          String?
+  guaranteeValidity String?
+  executionPeriod   String?
+  guaranteeValue    String?
+  openingSession    String?
+  conditions        String?
+  documentsLink     String?
+  applicationMethod String?
+  attachments       String?
+  sourceLink        String?
+  contactInfo       String?
+}
+
+// ==========================================
+// 3. طلبات ومساحات الإعلانات التجارية للشركات
+// ==========================================
+
+model Advertisement {
+  id            String   @id @default(uuid())
+  companyName   String
+  contactPerson String
+  phone         String
+  email         String
+  address       String?
+  website       String?
+  advertiseType String
+  moreInfo      String?
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+}
+
+// ==========================================
+// 4. قسم الأكاديمية والتدريب
+// ==========================================
+
+model AcademyItem {
+  id          String   @id @default(uuid())
+  title       String
+  category    String
+  subCategory String
+  description String
+  link        String?
+  createdAt   DateTime @default(now())
+}
+
+model TrainingItem {
+  id            String                 @id @default(uuid())
+  title         String
+  type          String
+  category      String
+  price         String
+  requirements  String
+  fileUrl       String?
+  createdAt     DateTime               @default(now())
+  registrations TrainingRegistration[]
+}
+
+model TrainingRegistration {
+  id             String       @id @default(uuid())
+  trainingItemId String
+  trainingItem   TrainingItem @relation(fields: [trainingItemId], references: [id], onDelete: Cascade)
+  fullName       String
+  email          String
+  phone          String
+  paymentStatus  String       @default("PENDING")
+  status         String       @default("PENDING")
+  createdAt      DateTime     @default(now())
+}
+
+// ==========================================
+// 5. قسم المنح الدراسية
+// ==========================================
+
+model Scholarship {
+  id           String                   @id @default(uuid())
+  title        String
+  country      String
+  level        String
+  funding      String
+  publishDate  DateTime                 @default(now())
+  deadline     DateTime
+  details      String
+  createdAt    DateTime                 @default(now())
+  applications ScholarshipApplication[]
+}
+
+model ScholarshipApplication {
+  id            String      @id @default(uuid())
+  scholarshipId String
+  scholarship   Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+  fullName      String
+  email         String
+  phone         String
+  cvUrl         String
+  status        String      @default("PENDING")
+  createdAt     DateTime    @default(now())
+}
+
+// ==========================================
+// 6. المكتبة والبرمجيات
+// ==========================================
+
+model StructuralCode {
+  id        String   @id @default(uuid())
+  title     String
+  category  String
+  fileUrl   String
+  createdAt DateTime @default(now())
+}
+
+model SoftwareTool {
+  id        String   @id @default(uuid())
+  title     String
+  subTitle  String
+  badge     String
+  phase     String
+  category  String
+  videoUrl  String?
+  pdfPath   String?
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// 7. الخدمات الهندسية والمحتوى العلمي
+// ==========================================
+
+model EngineeringService {
+  id          String   @id @default(uuid())
+  title       String
+  type        String
+  subType     String
+  description String
+  createdAt   DateTime @default(now())
+}
+
+model Article {
+  id          String   @id @default(uuid())
+  title       String
+  category    String
+  level       String
+  problem     String
+  science     String
+  smartIdea   String
+  application String
+  toolLink    String?
+  createdAt   DateTime @default(now())
+}
+
+// ==========================================
+// 8. التواصل، الدعم الفني وتجربة المستخدم
+// ==========================================
+
+model UserFeedback {
+  id          String   @id @default(uuid())
+  name        String?
+  specialty   String
+  type        String
+  serviceName String?
+  quality     Int?
+  commitment  Int?
+  response    Int?
+  improvement String?
+  scriptIdea  String?
+  uxRating    String?
+  screenshot  String?
+  message     String
+  sharePublic Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model ContactMessage {
+  id          String   @id @default(uuid())
+  fullName    String
+  email       String
+  subject     String
+  message     String
+  filePath    String?
+  bookingDate String?
+  createdAt   DateTime @default(now())
+}
+
+model ContactRequest {
+  id        String   @id @default(uuid())
+  type      String   // "AD", "JOB_SEEKER", "SUPPLIER", "LOGIN"
+  data      String   // تخزين البيانات بصيغة JSON
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+}
