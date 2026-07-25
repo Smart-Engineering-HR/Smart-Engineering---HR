@@ -2,9 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-// إجبار Next.js على جلب البيانات ديناميكياً بدون Caching
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 export default function JobsTendersPublic() {
   const router = useRouter();
   
