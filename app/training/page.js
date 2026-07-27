@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-
+export const revalidate = 0;
 export default function TrainingPublicPage() {
   const [activeTab, setActiveTab] = useState("tracks");
   const [selectedItem, setSelectedItem] = useState(null);

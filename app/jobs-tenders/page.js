@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+export const revalidate = 0; // إجبار الصفحة على جلب أحدث البيانات دائماً (Dynamic Rendering)
 export const dynamic = 'force-dynamic';
 export default function JobsTendersPublic() {
   const router = useRouter();
