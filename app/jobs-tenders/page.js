@@ -12,11 +12,48 @@ export default function JobsTendersPublic() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState(null); // لعرض تفاصيل الوظيفة أو المناقصة بالكامل في صفحة جديدة/عرض منفصل
 
-  // مصفوفات البيانات التي يتم ربطها وتحكم الأدمن بها ديناميكياً (مخزنة محلياً للمثال لتعمل فوراً)
-  const [jobs, setJobs] = useState([
-    { id: 1, title: 'مهندس موقع مدني أول', company: 'شركة الإعمار الذكي للإنشاءات', publishDate: '2026/06/25', endDate: '2026/07/25', category: 'الهندسة المدنية', location: 'الموقع الرئيسي - صنعاء', reportsTo: 'مدير المشاريع الإنشائية', companyBio: 'شركة رائدة في مجال التطوير العقاري والبنية التحتية والمباني الذكية.', jobBio: 'الإشراف الكامل على التنفيذ الهندسي ومطابقة المخططات في الموقع.', duties: 'متابعة المقاولين، رفع التقارير الدورية، ضبط الجودة، وفحص المواد المستلمة.', qualifications: 'بكالوريوس هندسة مدنية + خبرة لا تقل عن 7 سنوات في المشاريع الكبرى.', skills: 'إجادة برامج AutoCAD, Primavera، ومهارات قيادة فرق العمل الميدانية.', notes: 'الأولوية لمن يمتلك سيارة خاصة ورخصة قيادة سارية المفعول.', applyMethod: 'email', applyEmail: 'smartengineering.hr.global@gmail.com' },
-    { id: 2, title: 'مطور واجهات Next.js محترف', company: 'منصة الهندسة الذكية التقنية', publishDate: '2026/06/28', endDate: '2026/08/10', category: 'تكنولوجيا المعلومات', location: 'عن بعد / الهجين', reportsTo: 'رئيس قسم التطوير البرمجي', companyBio: 'منصة هندسية تقنية متكاملة تهدف لأتمتة العمليات الهندسية وقطاع التوظيف.', jobBio: 'بناء وتطوير واجهات برمجية سريعة ومتجاوبة ومستقرة للبوابات الإلكترونية.', duties: 'تحويل التصاميم إلى أكواد، تحسين أداء الصفحات، وتكامل الـ APIs مع محركات الإشعارات.', qualifications: 'خبرة عملية مثبته لا تقل عن 3 سنوات في React وNext.js App Router.', skills: 'اتقان Tailwind CSS، التعامل مع معالجة الحالات المستقرة، وتحسين SEO.', notes: 'يجب إرفاق معرض الأعمال السابقة والمشاريع التي تم تنفيذها بالكامل.', applyMethod: 'url', applyUrl: 'http://localhost:3000/jobs-tenders/apply' }
-  ]);
+
+  import { prisma } from "@/lib/prisma"; // تأكد من مسار استدعاء prisma لديك
+
+// 1. تعطيل الكاش لضمان تحديث الوظائف أونلاين فور نشرها
+export const revalidate = 0;
+
+export default async function JobsPage() {
+  // 2. جلب الوظائف الحقيقية مباشرة من جدول Posting في Supabase
+  let jobs = [];
+  try {
+    jobs = await prisma.posting.findMany({
+      orderBy: {
+        createdAt: 'desc', // ترتيب الوظائف من الأحدث للأقدم
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching jobs:", error);
+  }
+
+  return (
+    <main className="container mx-auto py-8">
+      <h1 className="text-2xl font-bold mb-6">الوظائف والمناقصات</h1>
+
+      {/* 3. عرض الوظائف جلب البيانات */}
+      {jobs.length === 0 ? (
+        <p className="text-gray-500">لا توجد وظائف معلنة حالياً.</p>
+      ) : (
+        <div className="grid gap-4">
+          {jobs.map((job) => (
+            <div key={job.id} className="p-4 border rounded-lg shadow-sm">
+              <h2 className="text-xl font-semibold">{job.title}</h2>
+              <p className="text-gray-600">{job.company} - {job.category}</p>
+              <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                {job.type}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </main>
+  );
+}
 
   const [tenders, setTenders] = useState([
     { id: 1, title: 'توريد وتركيب منظومات طاقة شمسية ذكية للمجمع الهندسي', company: 'وزارة الأشغال العامة والمشاريع', publishDate: '2026/06/20', endDate: '2026/07/30', location: 'تعز، اليمن', announcement: 'تعلن الوزارة عن طرح مناقصة عامة للشركات المؤهلة لتوريد منظومات طاقة نظيفة ومتكاملة.', tenderNumber: 'SE-TEND-2026-004', projectName: 'مشروع الطاقة المستدامة للمرافق الحيوية', components: 'ألواح شمسية عالية الجودة، إنفرترات ذكية، بطاريات ليثيوم، كابلات وهياكل تثبيت مجلفنة.', fundingBody: 'صندوق الدعم الإنمائي المشترك', currency: 'دولار أمريكي', validity: '90 يوماً من تاريخ فتح المظاريف', guaranteeValidity: '120 يوماً من تاريخ التقديم', executionPeriod: '60 يوماً تقويمياً', guaranteeValue: '5000 دولار أمريكي كضمان بنكي مشروط', openingDetails: 'التاريخ: 2026/08/01 - الوقت: 10:00 صباحاً - المكان: قاعة الاجتماعات الرئيسية بمبنى الوزارة.', conditions: 'تقديم السجل التجاري والبطاقة الضريبية والتأمينية سارية المفعول، وخبرة سابقة في مجالات مشابهة.', documentsLink: 'https://smart-engineering.com/docs/tender-004', applyMethod: 'تسليم يدوي في مظاريف مغلقة بالشمع الأحمر إلى مقر اللجنة العليا للمناقصات.', attachments: 'كراسة الشروط والمواصفات وجداول الكميات التفصيلية.', accessLink: 'https://smart-engineering.com/tenders/buy-004', contactInfo: 'Smart.Engineering.Global@proton.me', notes: 'لا تقبل العطاءات التي ترد بعد الموعد المحدد أو غير المصحوبة بضمان العطاء.' }
