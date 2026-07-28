@@ -1,6 +1,7 @@
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -29,38 +30,25 @@ model User {
 // ==========================================
 
 model Posting {
-  id                String   @id @default(uuid())
-  type              String   // "job" أو "tender"
-  title             String
-  company           String
-  category          String
-  location          String
-  createdAt         DateTime @default(now())
-  expiryDate        String
-  status            String   @default("PENDING")
-  reportsTo         String?
-  companyBio        String?
-  jobBio            String?
-  duties            String?
-  requirements      String?
-  skills            String?
-  notes             String?
-  tenderNumber      String?
-  projectName       String?
-  components        String?
-  fundingBody       String?
-  currency          String?
-  validity          String?
-  guaranteeValidity String?
-  executionPeriod   String?
-  guaranteeValue    String?
-  openingSession    String?
-  conditions        String?
-  documentsLink     String?
-  applicationMethod String?
-  attachments       String?
-  sourceLink        String?
-  contactInfo       String?
+  id             String   @id @default(uuid())
+  itemType       String   // "job" أو "tender"
+  title          String
+  company        String
+  category       String?
+  type           String?
+  location       String?
+  publishDate    String?
+  endDate        String?
+  duties         String?
+  qualifications String?
+  tenderNumber   String?
+  projectName    String?
+  applyMethod    String?
+  applyEmail     String?
+  applyUrl       String?
+  documentsLink  String?
+  notes          String?
+  createdAt      DateTime @default(now())
 }
 
 // ==========================================

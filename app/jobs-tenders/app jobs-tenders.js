@@ -12,43 +12,36 @@ export default function JobsTendersPublic() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   
-  // حالات البيانات (تبدأ فارغة لجلب البيانات الحقيقية فقط من Supabase)
+  // حالات البيانات
   const [jobs, setJobs] = useState([]);
-  const [tenders, setTenders] = useState([]);
+  const [tenders, setTenders] = useState([
+    { id: 1, title: 'توريد وتركيب منظومات طاقة شمسية ذكية للمجمع الهندسي', company: 'وزارة الأشغال العامة والمشاريع', publishDate: '2026/06/20', endDate: '2026/07/30', location: 'تعز، اليمن', announcement: 'تعلن الوزارة عن طرح مناقصة عامة للشركات المؤهلة لتوريد منظومات طاقة نظيفة ومتكاملة.', tenderNumber: 'SE-TEND-2026-004', projectName: 'مشروع الطاقة المستدامة للمرافق الحيوية', components: 'ألواح شمسية عالية الجودة، إنفرترات ذكية، بطاريات ليثيوم، كابلات وهياكل تثبيت مجلفنة.', fundingBody: 'صندوق الدعم الإنمائي المشترك', currency: 'دولار أمريكي', validity: '90 يوماً من تاريخ فتح المظاريف', guaranteeValidity: '120 يوماً من تاريخ التقديم', executionPeriod: '60 يوماً تقويمياً', guaranteeValue: '5000 دولار أمريكي كضمان بنكي مشروط', openingDetails: 'التاريخ: 2026/08/01 - الوقت: 10:00 صباحاً - المكان: قاعة الاجتماعات الرئيسية بمبنى الوزارة.', conditions: 'تقديم السجل التجاري والبطاقة الضريبية والتأمينية سارية المفعول، وخبرة سابقة في مجالات مشابهة.', documentsLink: 'https://smart-engineering.com/docs/tender-004', applyMethod: 'تسليم يدوي في مظاريف مغلقة بالشمع الأحمر إلى مقر اللجنة العليا للمناقصات.', attachments: 'كراسة الشروط والمواصفات وجداول الكميات التفصيلية.', accessLink: 'https://smart-engineering.com/tenders/buy-004', contactInfo: 'Smart.Engineering.Global@proton.me', notes: 'لا تقبل العطاءات التي ترد بعد الموعد المحدد أو غير المصحوبة بضمان العطاء.' }
+  ]);
   const [loading, setLoading] = useState(true);
 
-  // جلب كافة البيانات الحقيقية من قاعدة البيانات فوراً عند تحميل الصفحة أو التنقل
+  // جلب البيانات من قاعدة البيانات فوراً عند تحميل الصفحة
   useEffect(() => {
-    const fetchAllData = async () => {
+    const fetchJobs = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/jobs-tenders', { 
-          cache: 'no-store',
-          headers: {
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache'
-          }
-        });
-
+        const res = await fetch('/api/jobs', { cache: 'no-store' }); // منع الكاش في المتصفح
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data)) {
-            // تفكيك البيانات الواردة حسب نوعها
-            const apiJobs = data.filter(item => item.itemType === 'job');
-            const apiTenders = data.filter(item => item.itemType === 'tender');
-
-            setJobs(apiJobs);
-            setTenders(apiTenders);
-          }
+          setJobs(data);
         }
       } catch (error) {
-        console.error("فشل في جلب البيانات من السيرفر:", error);
+        console.error("Failed to load jobs from server", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAllData();
+    fetchJobs();
+
+    // جلب المناقصات من LocalStorage كحل مؤقت إذا كان الأدمن يستخدمها للمناقصات
+    const savedTenders = localStorage.getItem('se_tenders');
+    if (savedTenders) setTenders(JSON.parse(savedTenders));
+    
   }, [activeTab]);
 
   // نماذج الإعلان والتسجيل
@@ -110,29 +103,27 @@ export default function JobsTendersPublic() {
     }
   };
 
-  // الفلترة الآمنة للوظائف والمناقصات
+  // الفلترة الآمنة (مع التأكد من وجود الحقل قبل تطبيق includes)
   const filteredJobs = jobs.filter(j => 
-    (j.title && j.title.toLowerCase().includes(searchQuery.toLowerCase())) || 
-    (j.company && j.company.toLowerCase().includes(searchQuery.toLowerCase())) || 
-    (j.location && j.location.toLowerCase().includes(searchQuery.toLowerCase()))
+    (j.title && j.title.includes(searchQuery)) || 
+    (j.company && j.company.includes(searchQuery)) || 
+    (j.location && j.location.includes(searchQuery))
   );
 
   const filteredTenders = tenders.filter(t => 
-    (t.title && t.title.toLowerCase().includes(searchQuery.toLowerCase())) || 
-    (t.company && t.company.toLowerCase().includes(searchQuery.toLowerCase())) || 
-    (t.location && t.location.toLowerCase().includes(searchQuery.toLowerCase()))
+    (t.title && t.title.includes(searchQuery)) || 
+    (t.company && t.company.includes(searchQuery)) || 
+    (t.location && t.location.includes(searchQuery))
   );
 
-  // واجهة عرض التفاصيل الدقيقة (عند النقر على وظيفة أو مناقصة)
+  // واجهة عرض التفاصيل (عند النقر على وظيفة أو مناقصة)
   if (selectedItem) {
-    const isJob = selectedItem.data.itemType === 'job' || selectedItem.type === 'job';
-    const item = selectedItem.data;
-
+    const isJob = selectedItem.type === 'job';
     return (
       <div style={{ direction: 'rtl' }} className="min-h-screen bg-slate-50 text-slate-900 p-8 font-sans">
         <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-700 to-cyan-600 p-6 text-white flex justify-between items-center">
-            <h1 className="text-2xl font-bold">{item.title}</h1>
+            <h1 className="text-2xl font-bold">{selectedItem.data.title}</h1>
             <button onClick={() => setSelectedItem(null)} className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg font-bold transition">
               ← العودة للقائمة السابقة
             </button>
@@ -140,32 +131,21 @@ export default function JobsTendersPublic() {
           <div className="p-8 space-y-6">
             {isJob ? (
               <div className="space-y-4">
-                <div className="p-4 bg-blue-50 text-blue-900 rounded-xl font-bold text-lg border-r-4 border-blue-600">المسمى الوظيفي: {item.title}</div>
-                <div><span className="font-bold text-blue-700">جهة التوظيف:</span> <p className="mt-1">{item.company}</p></div>
-                <div><span className="font-bold text-blue-700">التصنيف / النوع:</span> <p className="mt-1">{item.category} - {item.type}</p></div>
-                {item.location && <div><span className="font-bold text-blue-700">الموقع:</span> <p className="mt-1">{item.location}</p></div>}
-                <div><span className="font-bold text-blue-700">المهام والوصف:</span> <p className="mt-1 whitespace-pre-line">{item.duties || 'لا يوجد تفاصيل إضافية مضافة.'}</p></div>
-                {item.qualifications && <div><span className="font-bold text-blue-700">المؤهلات المطلوبة:</span> <p className="mt-1 whitespace-pre-line">{item.qualifications}</p></div>}
+                <div className="p-4 bg-blue-50 text-blue-900 rounded-xl font-bold text-lg border-r-4 border-blue-600">المسمى الوظيفي: {selectedItem.data.title}</div>
+                <div><span className="font-bold text-blue-700">جهة التوظيف:</span> <p className="mt-1">{selectedItem.data.company}</p></div>
+                <div><span className="font-bold text-blue-700">التصنيف / النوع:</span> <p className="mt-1">{selectedItem.data.category} - {selectedItem.data.type}</p></div>
+                <div><span className="font-bold text-blue-700">المهام / الوصف:</span> <p className="mt-1">{selectedItem.data.duties || selectedItem.data.jobBio || 'لا يوجد تفاصيل إضافية مضافة.'}</p></div>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 bg-emerald-50 text-emerald-900 rounded-xl font-bold text-lg border-r-4 border-emerald-600">إعلان المناقصة: {item.title}</div>
-                <div><span className="font-bold text-emerald-700">الجهة المعلنة:</span> <p className="mt-1">{item.company}</p></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-100 p-4 rounded-xl">
-                  {item.tenderNumber && <div><span className="font-bold">رقم المناقصة:</span> {item.tenderNumber}</div>}
-                  {item.publishDate && <div><span className="font-bold">تاريخ النشر:</span> {item.publishDate}</div>}
-                  {item.endDate && <div><span className="font-bold">تاريخ الانتهاء:</span> {item.endDate}</div>}
-                  {item.location && <div><span className="font-bold">الموقع:</span> {item.location}</div>}
+                <div className="p-4 bg-emerald-50 text-emerald-900 rounded-xl font-bold text-lg border-r-4 border-emerald-600">إعلان المناقصة: {selectedItem.data.title}</div>
+                <div><span className="font-bold text-emerald-700">الجهة المعلنة:</span> <p className="mt-1">{selectedItem.data.company}</p></div>
+                <div className="grid grid-cols-2 gap-4 bg-slate-100 p-4 rounded-xl">
+                  <div><span className="font-bold">رقم المناقصة:</span> {selectedItem.data.tenderNumber}</div>
+                  <div><span className="font-bold">تاريخ الانتهاء:</span> {selectedItem.data.endDate}</div>
                 </div>
-                {item.duties && <div><span className="font-bold text-emerald-700">تفاصيل وتكاليف المناقصة:</span> <p className="mt-1 whitespace-pre-line">{item.duties}</p></div>}
-                {item.applyMethod && <div><span className="font-bold text-emerald-700">طريقة التقديم:</span> <p className="mt-1">{item.applyMethod}</p></div>}
-                {item.documentsLink && (
-                  <div>
-                    <span className="font-bold text-emerald-700">رابط وثائق المناقصة:</span> 
-                    <p className="mt-1"><a href={item.documentsLink} target="_blank" rel="noreferrer" className="text-blue-600 underline">تحميل كراسة الشروط والوثائق</a></p>
-                  </div>
-                )}
-                {item.notes && <div><span className="font-bold text-emerald-700">ملاحظات هامة:</span> <p className="mt-1">{item.notes}</p></div>}
+                <div><span className="font-bold text-emerald-700">تفاصيل:</span> <p className="mt-1">{selectedItem.data.announcement}</p></div>
+                <div><span className="font-bold text-emerald-700">طريقة التقديم:</span> <p className="mt-1">{selectedItem.data.applyMethod}</p></div>
               </div>
             )}
           </div>
@@ -204,14 +184,14 @@ export default function JobsTendersPublic() {
           </div>
         )}
 
-        {/* قائمة الوظائف المباشرة */}
+        {/* قائمة الوظائف */}
         {activeTab === 'jobs' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold border-b border-white/10 pb-2">📂 قائمة أحدث الوظائف</h2>
             {loading ? (
-              <p className="text-center text-blue-400 animate-pulse py-8">جاري تحديث البيانات وجلب الفرص من السيرفر المباشر...</p>
+              <p className="text-center text-blue-400 animate-pulse">جاري تحديث البيانات وجلب الفرص من السيرفر مباشر...</p>
             ) : filteredJobs.length === 0 ? (
-              <p className="text-center text-slate-400 py-8">لا توجد وظائف معلنة حالياً.</p>
+              <p className="text-center text-slate-400">لا توجد وظائف متاحة حالياً.</p>
             ) : (
               <div className="overflow-x-auto bg-slate-900/80 rounded-2xl border border-white/10">
                 <table className="w-full text-right">
@@ -241,44 +221,38 @@ export default function JobsTendersPublic() {
           </div>
         )}
 
-        {/* قائمة المناقصات المباشرة */}
+        {/* قائمة المناقصات */}
         {activeTab === 'tenders' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold border-b border-white/10 pb-2">💼 قائمة أحدث المناقصات</h2>
-            {loading ? (
-              <p className="text-center text-emerald-400 animate-pulse py-8">جاري جلب المناقصات المباشرة من قاعدة البيانات...</p>
-            ) : filteredTenders.length === 0 ? (
-              <p className="text-center text-slate-400 py-8">لا توجد مناقصات معلنة حالياً.</p>
-            ) : (
-              <div className="overflow-x-auto bg-slate-900/80 rounded-2xl border border-white/10">
-                <table className="w-full text-right">
-                  <thead>
-                    <tr className="bg-white/5 border-b border-white/10 text-sm">
-                      <th className="p-4">تاريخ النشر</th>
-                      <th className="p-4">الجهة المعلنة</th>
-                      <th className="p-4">عنوان المناقصة</th>
-                      <th className="p-4 text-center">الإجراء</th>
+            <div className="overflow-x-auto bg-slate-900/80 rounded-2xl border border-white/10">
+              <table className="w-full text-right">
+                <thead>
+                  <tr className="bg-white/5 border-b border-white/10 text-sm">
+                    <th className="p-4">تاريخ النشر</th>
+                    <th className="p-4">الجهة المعلنة</th>
+                    <th className="p-4">عنوان المناقصة</th>
+                    <th className="p-4 text-center">الإجراء</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-sm">
+                  {filteredTenders.map(t => (
+                    <tr key={t.id} className="hover:bg-white/5 transition">
+                      <td className="p-4 text-amber-400">{t.publishDate}</td>
+                      <td className="p-4 font-bold">{t.company}</td>
+                      <td className="p-4 text-emerald-300 font-semibold">{t.title}</td>
+                      <td className="p-4 text-center">
+                        <button onClick={() => setSelectedItem({ type: 'tender', data: t })} className="bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold transition">التفاصيل</button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5 text-sm">
-                    {filteredTenders.map(t => (
-                      <tr key={t.id} className="hover:bg-white/5 transition">
-                        <td className="p-4 text-amber-400">{t.publishDate || 'غير محدد'}</td>
-                        <td className="p-4 font-bold">{t.company}</td>
-                        <td className="p-4 text-emerald-300 font-semibold">{t.title}</td>
-                        <td className="p-4 text-center">
-                          <button onClick={() => setSelectedItem({ type: 'tender', data: t })} className="bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold transition">التفاصيل</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
-        {/* تبويب أعلن معنا */}
+        {/* تبويب أعلن معنا وتكويناتها تبقى كما هي في الكود الأصلي */}
         {activeTab === 'advertise' && (
           <div className="max-w-2xl mx-auto bg-slate-900/90 p-8 rounded-2xl border border-amber-500/30">
             <form onSubmit={handleAdvSubmit} className="space-y-4">
@@ -289,26 +263,6 @@ export default function JobsTendersPublic() {
               <textarea rows={3} value={advForm.moreInfo} onChange={e => setAdvForm({...advForm, moreInfo: e.target.value})} placeholder="تفاصيل الإعلان..." className="w-full bg-white/5 border border-white/15 rounded-lg p-3 text-white outline-none focus:border-amber-400" />
               <button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-lg shadow-xl transition">إرسال الطلب</button>
               {advStatus && <p className="mt-4 text-xs text-amber-300 text-center">{advStatus}</p>}
-            </form>
-          </div>
-        )}
-
-        {/* تبويب التسجيل */}
-        {activeTab === 'register' && (
-          <div className="max-w-2xl mx-auto bg-slate-900/90 p-8 rounded-2xl border border-indigo-500/30">
-            <form onSubmit={handleRegisterSubmit} className="space-y-4">
-              <input type="text" required value={regForm.fullName} onChange={e => setRegForm({...regForm, fullName: e.target.value})} placeholder="الاسم الكامل *" className="w-full bg-white/5 border border-white/15 rounded-lg p-3 text-white outline-none focus:border-indigo-400" />
-              <input type="email" required value={regForm.email} onChange={e => setRegForm({...regForm, email: e.target.value})} placeholder="البريد الإلكتروني *" className="w-full bg-white/5 border border-white/15 rounded-lg p-3 text-white outline-none focus:border-indigo-400" />
-              <div className="grid grid-cols-2 gap-4">
-                <input type="password" required value={regForm.password} onChange={e => setRegForm({...regForm, password: e.target.value})} placeholder="كلمة المرور *" className="w-full bg-white/5 border border-white/15 rounded-lg p-3 text-white outline-none focus:border-indigo-400" />
-                <input type="password" required value={regForm.confirmPassword} onChange={e => setRegForm({...regForm, confirmPassword: e.target.value})} placeholder="تأكيد كلمة المرور *" className="w-full bg-white/5 border border-white/15 rounded-lg p-3 text-white outline-none focus:border-indigo-400" />
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-300 pt-2">
-                <input type="checkbox" id="terms" checked={regForm.agreeTerms} onChange={e => setRegForm({...regForm, agreeTerms: e.target.checked})} />
-                <label htmlFor="terms">أوافق على الشروط والأحكام وسياسة الخصوصية الخاصة بالمنصة</label>
-              </div>
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-xl transition">إنشاء حساب جديد</button>
-              {regStatus && <p className="mt-4 text-xs text-indigo-300 text-center">{regStatus}</p>}
             </form>
           </div>
         )}
