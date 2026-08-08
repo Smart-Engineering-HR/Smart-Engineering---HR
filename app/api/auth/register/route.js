@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import bcrypt from 'bcryptjs'; // 1. استدعاء مكتبة التشفير (إضافة جديدة)
 
 // إعداد Transporter لإرسال البريد الإلكتروني
 const transporter = nodemailer.createTransport({
@@ -45,12 +46,16 @@ export async function POST(req) {
         );
       }
 
+      // 2. تشفير كلمة المرور قبل حفظها في قاعدة البيانات (إضافة جديدة)
+      // الرقم 10 يمثل (Salt Rounds) وهو معيار ممتاز للأمان والسرعة
+      const hashedPassword = await bcrypt.hash(password, 10);
+
       // إنشاء الحساب في قاعدة البيانات عبر Prisma
       const user = await prisma.user.create({
         data: {
           name: name || 'مهندس جديد',
           email,
-          password, // يفضل تشفيرها بـ bcrypt مستقبلاً
+          password: hashedPassword, // 3. تمرير كلمة المرور المشفرة بدلاً من النص العادي
           role: role || 'user'
         }
       });
@@ -106,10 +111,13 @@ export async function POST(req) {
         );
       }
 
+      // 4. تشفير كلمة المرور الجديدة عند إعادة التعيين (إضافة جديدة)
+      const hashedNewPassword = await bcrypt.hash(password, 10);
+
       await prisma.user.update({
         where: { id: user.id },
         data: { 
-          password: password, 
+          password: hashedNewPassword, // تمرير الكلمة الجديدة المشفرة
           resetToken: null, 
           resetTokenExpiry: null 
         }
