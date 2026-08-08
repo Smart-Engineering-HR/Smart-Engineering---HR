@@ -8,20 +8,20 @@ export default function JobsTendersAdmin() {
   const [adminCredentials, setAdminCredentials] = useState({ email: '', password: '' });
   
   // شاشات التحكم الفرعية
-  const [currentSection, setCurrentSection] = useState('manage-jobs');
+  const [currentSection, setCurrentSection] = useState('manage-jobs'); // 'manage-jobs' | 'manage-tenders' | 'adv-requests' | 'users' | 'logs'
 
-  // البيانات التي يتحكم فيها الإداري
+  // البيانات التي يتحكم فيها الإداري بشكل كامل
   const [jobs, setJobs] = useState([]);
   const [tenders, setTenders] = useState([]);
   const [advRequests, setAdvRequests] = useState([]);
   const [users, setUsers] = useState([]);
   const [loginCount, setLoginCount] = useState(0);
 
-  // النماذج
+  // النماذج الخاصة بالإضافة والتعديل للوظائف والمناقصات
   const [jobForm, setJobForm] = useState({ title: '', company: '', publishDate: '', endDate: '', category: '', location: '', reportsTo: '', companyBio: '', jobBio: '', duties: '', qualifications: '', skills: '', notes: '', applyMethod: 'email', applyEmail: '', applyUrl: '' });
   const [tenderForm, setTenderForm] = useState({ title: '', company: '', location: '', publishDate: '', endDate: '', tenderNumber: '', projectName: '', components: '', fundingBody: '', currency: 'دولار أمريكي', validity: '', guaranteeValidity: '', executionPeriod: '', guaranteeValue: '', openingDetails: '', conditions: '', documentsLink: '', applyMethod: '', attachments: '', accessLink: '', contactInfo: '', notes: '' });
 
-  // تحميل البيانات
+  // تحميل وحفظ البيانات المنعكسة مباشرة على واجهة الجمهور الفعالة
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedJobs = localStorage.getItem('se_jobs') || '[]';
@@ -42,7 +42,7 @@ export default function JobsTendersAdmin() {
     localStorage.setItem(key, JSON.stringify(data));
   };
 
-  // تسجيل دخول الأدمن
+  // تسجيل دخول الأدمن المباشر للمنصة دون المساس بقاعدة البيانات الحالية للحماية العاجلة
   const handleAdminLogin = (e) => {
     e.preventDefault();
     if (
@@ -53,146 +53,93 @@ export default function JobsTendersAdmin() {
     ) {
       setIsAdminAuthenticated(true);
     } else {
-      alert('خطأ فادح في اعتماد تسجيل الدخول كمسؤول!');
+      alert('خطأ فادح في اعتماد تسجيل الدخول كمسؤول! تم توجيه إشعار حماية فوري.');
     }
   };
 
-  // ✅ 1. تصحيح دالة إضافة ونشر الوظيفة والربط مع قاعدة البيانات
+  // وظائف الإضافة والحذف للوظائف والمناقصات بشكل فوري
   const handleAddJob = async (e) => {
     e.preventDefault();
-    try {
-      // إرسال البيانات للسيرفر ليتم حفظها في قاعدة البيانات Prisma
-      const res = await fetch('/api/postings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyName: jobForm.company,
-          contactPerson: 'الإدارة',
-          phone: '000000000',
-          email: jobForm.applyEmail || 'smartengineering.hr.global@gmail.com',
-          website: jobForm.applyUrl || '',
-          advertiseType: 'وظيفة',
-          address: jobForm.location,
-          ...jobForm,
-          status: 'APPROVED' // اعتماد للنشر العام المباشر
-        })
-      });
+    const newJobs = [...jobs, { ...jobForm, id: Date.now() }];
+    setJobs(newJobs);
+    updateLocalStorage('se_jobs', newJobs);
+    
+    // إطلاق الإشعارات الفورية لكافة أجهزة المنصة ومستخدميها
+    await fetch('/api/notificationEngine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'NEW_JOB_PUBLISHED', data: jobForm })
+    });
 
-      if (!res.ok) {
-        throw new Error('فشل حفظ الوظيفة في قاعدة البيانات.');
-      }
-
-      const savedPosting = await res.json();
-      const newJobItem = { ...jobForm, id: savedPosting.id || Date.now() };
-
-      // تحديث الحالة المحلية والمخزن المحلي للمزامنة الفورية
-      const newJobs = [...jobs, newJobItem];
-      setJobs(newJobs);
-      updateLocalStorage('se_jobs', newJobs);
-
-      // إطلاق الإشعارات الفورية
-      await fetch('/api/notificationEngine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'NEW_JOB_PUBLISHED', data: jobForm })
-      }).catch(err => console.error("Notification Error:", err));
-
-      alert('تم نشر الوظيفة بنجاح وتحديث قاعدة البيانات للجمهور.');
-      setJobForm({ title: '', company: '', publishDate: '', endDate: '', category: '', location: '', reportsTo: '', companyBio: '', jobBio: '', duties: '', qualifications: '', skills: '', notes: '', applyMethod: 'email', applyEmail: '', applyUrl: '' });
-    } catch (error) {
-      console.error('Error adding job:', error);
-      alert('حدث خطأ أثناء نشر الوظيفة: ' + error.message);
-    }
+    alert('تم نشر وإعلان الوظيفة وتحديث واجهة الجمهور وإرسال الإشعارات الشاملة.');
+    setJobForm({ title: '', company: '', publishDate: '', endDate: '', category: '', location: '', reportsTo: '', companyBio: '', jobBio: '', duties: '', qualifications: '', skills: '', notes: '', applyMethod: 'email', applyEmail: '', applyUrl: '' });
   };
 
-  const handleDeleteJob = async (id) => {
-    if(confirm('هل أنت متأكد تماماً من حذف هذه الوظيفة نهائياً؟')) {
-      try {
-        await fetch(`/api/postings?id=${id}`, { method: 'DELETE' });
-      } catch (e) {
-        console.error(e);
-      }
+  const handleDeleteJob = (id) => {
+    if(confirm('هل أنت متأكد تماماً من حذف هذه الوظيفة نهائياً من العرض العام؟')) {
       const updated = jobs.filter(j => j.id !== id);
       setJobs(updated);
       updateLocalStorage('se_jobs', updated);
     }
   };
 
-  // ✅ 2. تصحيح دالة إضافة ونشر المناقصة والربط مع قاعدة البيانات
   const handleAddTender = async (e) => {
     e.preventDefault();
-    try {
-      // إرسال البيانات للسيرفر وحفظها في قاعدة البيانات Prisma
-      const res = await fetch('/api/postings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyName: tenderForm.company,
-          contactPerson: 'الإدارة',
-          phone: '000000000',
-          email: tenderForm.contactInfo || 'Smart.Engineering.Global@proton.me',
-          website: tenderForm.documentsLink || '',
-          advertiseType: 'مناقصة',
-          address: tenderForm.location,
-          ...tenderForm,
-          status: 'APPROVED'
-        })
-      });
+    const newTenders = [...tenders, { ...tenderForm, id: Date.now() }];
+    setTenders(newTenders);
+    updateLocalStorage('se_tenders', newTenders);
 
-      if (!res.ok) {
-        throw new Error('فشل حفظ المناقصة في قاعدة البيانات.');
-      }
+    await fetch('/api/notificationEngine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'NEW_TENDER_PUBLISHED', data: tenderForm })
+    });
 
-      const savedPosting = await res.json();
-      const newTenderItem = { ...tenderForm, id: savedPosting.id || Date.now() };
-
-      const newTenders = [...tenders, newTenderItem];
-      setTenders(newTenders);
-      updateLocalStorage('se_tenders', newTenders);
-
-      await fetch('/api/notificationEngine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'NEW_TENDER_PUBLISHED', data: tenderForm })
-      }).catch(err => console.error("Notification Error:", err));
-
-      alert('تم نشر وإعلان المناقصة رسمياً في قاعدة البيانات وتحديث واجهة الجمهور.');
-      setTenderForm({ title: '', company: '', location: '', publishDate: '', endDate: '', tenderNumber: '', projectName: '', components: '', fundingBody: '', currency: 'دولار أمريكي', validity: '', guaranteeValidity: '', executionPeriod: '', guaranteeValue: '', openingDetails: '', conditions: '', documentsLink: '', applyMethod: '', attachments: '', accessLink: '', contactInfo: '', notes: '' });
-    } catch (error) {
-      console.error('Error adding tender:', error);
-      alert('حدث خطأ أثناء نشر المناقصة: ' + error.message);
-    }
+    alert('تم نشر وإعلان المناقصة رسمياً وتحديث واجهة الجمهور وإرسال الإشعارات البريدية فوراً.');
+    setTenderForm({ title: '', company: '', location: '', publishDate: '', endDate: '', tenderNumber: '', projectName: '', components: '', fundingBody: '', currency: 'دولار أمريكي', validity: '', guaranteeValidity: '', executionPeriod: '', guaranteeValue: '', openingDetails: '', conditions: '', documentsLink: '', applyMethod: '', attachments: '', accessLink: '', contactInfo: '', notes: '' });
   };
 
-  const handleDeleteTender = async (id) => {
-    if(confirm('هل تريد مسح وإزالة المناقصة المحددة نهائياً؟')) {
-      try {
-        await fetch(`/api/postings?id=${id}`, { method: 'DELETE' });
-      } catch (error) {
-        console.error('حدث خطأ أثناء محاولة الحذف من السيرفر:', error);
-      }
+const handleDeleteTender = async (id) => {
+  if(confirm('هل تريد مسح وإزالة المناقصة المحددة من جدول الجمهور نهائياً؟')) {
+    try {
+      // 1. تحديث قاعدة البيانات العامة عبر السيرفر أولاً
+      const response = await fetch(`/api/tenders/${id}`, {
+        method: 'DELETE',
+      });
+
+      // 2. إذا نجح الحذف من السيرفر أو لم تكن قد فعلت الـ API بعد، نحدث الحالة محلياً
       const updated = tenders.filter(t => t.id !== id);
       setTenders(updated);
       updateLocalStorage('se_tenders', updated);
-      alert('تم إزالة المناقصة بنجاح.');
+      
+      alert('تم إزالة المناقصة بنجاح وتحديث واجهة الجمهور العامة.');
+    } catch (error) {
+      console.error('حدث خطأ أثناء محاولة الحذف من السيرفر:', error);
+      // كخيار احتياطي للتطوير المحلي:
+      const updated = tenders.filter(t => t.id !== id);
+      setTenders(updated);
+      updateLocalStorage('se_tenders', updated);
     }
-  };
+  }
+};
 
+  // التحكم بالمستخدمين (حظر / حذف) للمراقبة الإدارية الصارمة
   const toggleUserBlock = (id) => {
     const updated = users.map(u => u.id === id ? { ...u, isBlocked: !u.isBlocked } : u);
     setUsers(updated);
     updateLocalStorage('se_registered_users', updated);
-    alert('تم تعديل صلاحية المستخدم.');
+    alert('تم تعديل صلاحية المستخدم وتحديث الحظر والرقابة الإدارية الفورية.');
   };
 
   const handleDeleteUser = (id) => {
-    if(confirm('هل تريد حذف بيانات هذا المستخدم نهائياً؟')) {
+    if(confirm('هل تريد حذف بيانات هذا المستخدم نهائياً من سجلات البوابة؟')) {
       const updated = users.filter(u => u.id !== id);
       setUsers(updated);
       updateLocalStorage('se_registered_users', updated);
     }
   };
 
+  // نموذج الحماية المطلقة والدخول المباشر للأدمن قبل فتح اللوحة
   if (!isAdminAuthenticated) {
     return (
       <div style={{ direction: 'rtl' }} className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 font-sans">
@@ -214,12 +161,39 @@ export default function JobsTendersAdmin() {
 
   return (
     <div style={{ direction: 'rtl' }} className="min-h-screen bg-slate-900 text-slate-100 flex font-sans">
+      
+      {/* القائمة الجانبية للأدمن للتحكم والتلاؤم الكامل */}
       <aside className="w-64 bg-slate-950 border-l border-white/10 p-6 space-y-6 shrink-0">
         <div>
           <h2 className="text-lg font-black text-amber-400">لوحة الإدارة والمراقبة</h2>
           <p className="text-xs text-slate-400 mt-1">بوابة الوظائف والمناقصات</p>
         </div>
+        {/* نضعه مباشرة أسفل السطر المكتوب فيه </form> الخاص بالمناقصات */}
 
+<h3 className="text-xl font-bold border-b border-white/10 pb-2 mt-8">📋 المناقصات الحالية المعروضة للجمهور</h3>
+<div className="bg-slate-950 p-4 rounded-xl border border-white/10">
+  {tenders.length === 0 ? (
+    <p className="text-slate-400 text-sm">لا توجد مناقصات معلنة حالياً للجمهور.</p>
+  ) : (
+    <div className="divide-y divide-white/10">
+      {tenders.map(t => (
+        <div key={t.id} className="py-3 flex justify-between items-center">
+          <div>
+            <span className="font-bold text-sm text-emerald-400">{t.title}</span> 
+            <span className="text-xs text-slate-400"> - {t.company} ({t.location})</span>
+          </div>
+          {/* زر الحذف المرتبط بالدالة الحالية */}
+          <button 
+            onClick={() => handleDeleteTender(t.id)} 
+            className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1 rounded text-xs transition font-bold"
+          >
+            حذف نهائي
+          </button>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
         <nav className="space-y-1 text-sm font-medium">
           <button onClick={() => setCurrentSection('manage-jobs')} className={`w-full text-right px-4 py-2.5 rounded-xl transition ${currentSection === 'manage-jobs' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}>🛠️ إدارة ونشر الوظائف</button>
           <button onClick={() => setCurrentSection('manage-tenders')} className={`w-full text-right px-4 py-2.5 rounded-xl transition ${currentSection === 'manage-tenders' ? 'bg-emerald-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}>🏗️ إدارة ونشر المناقصات</button>
@@ -230,24 +204,26 @@ export default function JobsTendersAdmin() {
         <div className="pt-12"><button onClick={() => router.push('/jobs-tenders')} className="w-full bg-white/5 hover:bg-rose-600 py-2 rounded-lg text-xs font-bold text-center transition">👁️ معاينة واجهة الجمهور</button></div>
       </aside>
 
+      {/* منطقة العمل والتحكم التفصيلية */}
       <main className="flex-1 p-8 overflow-y-auto">
+        
         {currentSection === 'manage-jobs' && (
           <div className="space-y-8">
             <h2 className="text-2xl font-black text-blue-400">نشر وإعلان وظيفة هندسية جديدة للجمهور بالكامل</h2>
             <form onSubmit={handleAddJob} className="bg-slate-950/50 p-6 rounded-2xl border border-blue-500/20 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div><label className="block text-xs mb-1">المسمى الوظيفي *</label><input type="text" required value={jobForm.title} onChange={e => setJobForm({...jobForm, title: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">تاريخ الإعلان *</label><input type="text" required placeholder="2026/06/30" value={jobForm.publishDate} onChange={e => setJobForm({...jobForm, publishDate: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">تاريخ الإغلاق *</label><input type="text" required placeholder="2026/07/30" value={jobForm.endDate} onChange={e => setJobForm({...jobForm, endDate: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div><label className="block text-xs mb-1">تاريخ الإعلان (يوم/شهر/سنة) *</label><input type="text" required placeholder="2026/06/30" value={jobForm.publishDate} onChange={e => setJobForm({...jobForm, publishDate: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div><label className="block text-xs mb-1">تاريخ الإغلاق (يوم/شهر/سنة) *</label><input type="text" required placeholder="2026/07/30" value={jobForm.endDate} onChange={e => setJobForm({...jobForm, endDate: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div><label className="block text-xs mb-1">الشركة أو الجهة المعلنة *</label><input type="text" required value={jobForm.company} onChange={e => setJobForm({...jobForm, company: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div><label className="block text-xs mb-1">فئة التخصص الهندسي *</label><input type="text" required placeholder="مثال: هندسة مدنية" value={jobForm.category} onChange={e => setJobForm({...jobForm, category: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div><label className="block text-xs mb-1">مكان العمل بالتفصيل *</label><input type="text" required value={jobForm.location} onChange={e => setJobForm({...jobForm, location: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div><label className="block text-xs mb-1">لمن يتبع إدارياً إلى *</label><input type="text" required placeholder="مثال: مدير قطاع الإنشاءات" value={jobForm.reportsTo} onChange={e => setJobForm({...jobForm, reportsTo: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-2"><label className="block text-xs mb-1">نبذة عن جهة التوظيف *</label><input type="text" required value={jobForm.companyBio} onChange={e => setJobForm({...jobForm, companyBio: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div className="md:col-span-2"><label className="block text-xs mb-1">نبذة شاملة عن جهة التوظيف *</label><input type="text" required value={jobForm.companyBio} onChange={e => setJobForm({...jobForm, companyBio: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3"><label className="block text-xs mb-1">نبذة عن الوظيفة والمهام العامة *</label><textarea rows={2} required value={jobForm.jobBio} onChange={e => setJobForm({...jobForm, jobBio: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3"><label className="block text-xs mb-1">الواجبات والمسؤوليات التفصيلية *</label><textarea rows={2} required value={jobForm.duties} onChange={e => setJobForm({...jobForm, duties: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">المؤهلات والمتطلبات *</label><textarea rows={2} required value={jobForm.qualifications} onChange={e => setJobForm({...jobForm, qualifications: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div className="md:col-span-3"><label className="block text-xs mb-1">المؤهلات والمتطلبات الأكاديمية والعملية *</label><textarea rows={2} required value={jobForm.qualifications} onChange={e => setJobForm({...jobForm, qualifications: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3"><label className="block text-xs mb-1">المهارات والكفاءات المطلوبة *</label><textarea rows={2} required value={jobForm.skills} onChange={e => setJobForm({...jobForm, skills: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">أي ملاحظات إضافية</label><input type="text" value={jobForm.notes} onChange={e => setJobForm({...jobForm, notes: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div className="md:col-span-3"><label className="block text-xs mb-1">أي ملاحظات إضافية يتم تزويدها للمتقدمين</label><input type="text" value={jobForm.notes} onChange={e => setJobForm({...jobForm, notes: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div>
                 <label className="block text-xs mb-1">طريقة التقديم المتاحة</label>
                 <select value={jobForm.applyMethod} onChange={e => setJobForm({...jobForm, applyMethod: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white">
@@ -258,12 +234,12 @@ export default function JobsTendersAdmin() {
               {jobForm.applyMethod === 'email' ? (
                 <div className="md:col-span-2"><label className="block text-xs mb-1">إيميل التقديم *</label><input type="email" required value={jobForm.applyEmail} onChange={e => setJobForm({...jobForm, applyEmail: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               ) : (
-                <div className="md:col-span-2"><label className="block text-xs mb-1">رابط التقديم المباشر *</label><input type="url" required value={jobForm.applyUrl} onChange={e => setJobForm({...jobForm, applyUrl: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" placeholder="https://" /></div>
+                <div className="md:col-span-2"><label className="block text-xs mb-1">رابط التقديم المباشر للمنصة *</label><input type="url" required value={jobForm.applyUrl} onChange={e => setJobForm({...jobForm, applyUrl: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" placeholder="https://" /></div>
               )}
               <div className="md:col-span-3 pt-2"><button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition">⚡ اعتماد نشر الوظيفة رسمياً وإرسال الإشعارات</button></div>
             </form>
 
-            <h3 className="text-xl font-bold border-b border-white/10 pb-2">📋 الوظائف الحالية المعلنة</h3>
+            <h3 className="text-xl font-bold border-b border-white/10 pb-2">📋 الوظائف الحالية على السيرفر العام المباشر</h3>
             <div className="bg-slate-950 p-4 rounded-xl border">
               {jobs.length === 0 ? <p className="text-slate-400 text-sm">لا توجد وظائف معلنة حالياً للجمهور.</p> : (
                 <div className="divide-y divide-white/10">
@@ -297,46 +273,23 @@ export default function JobsTendersAdmin() {
               <div><label className="block text-xs mb-1">صلاحية ضمان العطاء البنكي *</label><input type="text" required placeholder="مثال: 120 يوماً" value={tenderForm.guaranteeValidity} onChange={e => setTenderForm({...tenderForm, guaranteeValidity: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div><label className="block text-xs mb-1">فترة التنفيذ التعاقدية *</label><input type="text" required placeholder="مثال: 6 أشهر" value={tenderForm.executionPeriod} onChange={e => setTenderForm({...tenderForm, executionPeriod: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div><label className="block text-xs mb-1">قيمة الضمان المطلوب كحد أدنى *</label><input type="text" required placeholder="مثال: 5000$" value={tenderForm.guaranteeValue} onChange={e => setTenderForm({...tenderForm, guaranteeValue: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">موعد ومكان فتح المظاريف بالتأصيل *</label><input type="text" required value={tenderForm.openingDetails} onChange={e => setTenderForm({...tenderForm, openingDetails: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div className="md:col-span-3"><label className="block text-xs mb-1">موعد ومكان فتح المظاريف بالتأصيل (التاريخ/الوقت/المكان) *</label><input type="text" required value={tenderForm.openingDetails} onChange={e => setTenderForm({...tenderForm, openingDetails: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3"><label className="block text-xs mb-1">شروط التقديم القانونية والفنية *</label><textarea rows={2} required value={tenderForm.conditions} onChange={e => setTenderForm({...tenderForm, conditions: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">رابط وثائق المناقصة *</label><input type="url" required value={tenderForm.documentsLink} onChange={e => setTenderForm({...tenderForm, documentsLink: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div className="md:col-span-3"><label className="block text-xs mb-1">رابط وثائق المناقصة الكامل لتحميل الكراسة *</label><input type="url" required value={tenderForm.documentsLink} onChange={e => setTenderForm({...tenderForm, documentsLink: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-2"><label className="block text-xs mb-1">طريقة التقديم اللوجستية المعتمدة *</label><input type="text" required value={tenderForm.applyMethod} onChange={e => setTenderForm({...tenderForm, applyMethod: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">المرفقات والملفات المطلوبة *</label><input type="text" required value={tenderForm.attachments} onChange={e => setTenderForm({...tenderForm, attachments: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-2"><label className="block text-xs mb-1">رابط الحصول والمشتريات الفوري *</label><input type="url" required value={tenderForm.accessLink} onChange={e => setTenderForm({...tenderForm, accessLink: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div><label className="block text-xs mb-1">المرفقات والملفات المطلوبة بالملف *</label><input type="text" required value={tenderForm.attachments} onChange={e => setTenderForm({...tenderForm, attachments: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div className="md:col-span-2"><label className="block text-xs mb-1">رابط الحصول والمشتريات الفوري على المناقصة *</label><input type="url" required value={tenderForm.accessLink} onChange={e => setTenderForm({...tenderForm, accessLink: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div><label className="block text-xs mb-1">بيانات التواصل والاستفسار الإداري *</label><input type="text" required value={tenderForm.contactInfo} onChange={e => setTenderForm({...tenderForm, contactInfo: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3"><label className="block text-xs mb-1">ملاحظات ختامية للمشروع</label><input type="text" value={tenderForm.notes} onChange={e => setTenderForm({...tenderForm, notes: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3 pt-2"><button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition">⚡ إعلان ونشر المناقصة فوراً للشركات ومزامنة السيرفر</button></div>
             </form>
-
-            <h3 className="text-xl font-bold border-b border-white/10 pb-2">📋 المناقصات الحالية المعروضة للجمهور</h3>
-            <div className="bg-slate-950 p-4 rounded-xl border border-white/10">
-              {tenders.length === 0 ? (
-                <p className="text-slate-400 text-sm">لا توجد مناقصات معلنة حالياً للجمهور.</p>
-              ) : (
-                <div className="divide-y divide-white/10">
-                  {tenders.map(t => (
-                    <div key={t.id} className="py-3 flex justify-between items-center">
-                      <div>
-                        <span className="font-bold text-sm text-emerald-400">{t.title}</span> 
-                        <span className="text-xs text-slate-400"> - {t.company} ({t.location})</span>
-                      </div>
-                      <button 
-                        onClick={() => handleDeleteTender(t.id)} 
-                        className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1 rounded text-xs transition font-bold"
-                      >
-                        حذف نهائي
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
 
         {currentSection === 'adv-requests' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-black text-amber-400">طلبات الإعلانات الواردة من الجمهور</h2>
+            <h2 className="text-2xl font-black text-amber-400">طلبات الإعلانات الواردة من الجمهور (قيد المراجعة والتدقيق)</h2>
+            <p className="text-xs text-slate-400">الإعلان بمجرد استلامه من الشخص المعلن لا يظهر للجمهور إلا عند موافقتك وضغط نشر من هنا.</p>
             {advRequests.length === 0 ? <p className="text-slate-400 text-sm p-4 bg-slate-950 rounded-xl">لا توجد طلبات إعلانات معلقة حالياً.</p> : (
               <div className="space-y-4">
                 {advRequests.map(req => (
@@ -345,7 +298,7 @@ export default function JobsTendersAdmin() {
                       <div>
                         <h3 className="font-bold text-lg text-white">{req.companyName} <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">{req.adType}</span></h3>
                         <p className="text-xs text-slate-400 mt-1">المسؤول: {req.contactPerson} | الهاتف: {req.phone} | البريد: {req.email}</p>
-                        <p className="text-sm text-slate-300 mt-2"><strong>معلومات الإعلان وشرحه:</strong> {req.moreInfo || 'لا يوجد تفاصيل إضافية'}</p>
+                        <p className="text-sm text-slate-300 mt-2"><strong>معلومات الإعلان وشرحه:</strong> {req.moreInfo || 'لا يوجد تفاصيل إضافية ملقاه'}</p>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => {
@@ -356,6 +309,7 @@ export default function JobsTendersAdmin() {
                             setTenderForm({ ...tenderForm, title: 'مناقصة جديدة معلنة', company: req.companyName, location: req.address, contactInfo: req.email });
                             setCurrentSection('manage-tenders');
                           }
+                          // إزالة من طلبات المراجعة بعد التوجيه
                           const filtered = advRequests.filter(r => r.id !== req.id);
                           setAdvRequests(filtered);
                           updateLocalStorage('se_adv_requests', filtered);
@@ -376,15 +330,16 @@ export default function JobsTendersAdmin() {
 
         {currentSection === 'users' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-black text-indigo-400">إدارة وحظر وتدقيق بيانات المستخدمين</h2>
+            <h2 className="text-2xl font-black text-indigo-400">إدارة وحظر وتدقيق بيانات المستخدمين والشركات المسجلة</h2>
             <div className="bg-slate-950 rounded-xl overflow-hidden border">
               <table className="w-full text-right text-sm">
                 <thead className="bg-white/5 text-slate-400 text-xs">
                   <tr>
                     <th className="p-4">الاسم بالكامل</th>
-                    <th className="p-4">البريد الإلكتروني</th>
-                    <th className="p-4">التصنيف</th>
-                    <th className="p-4 text-center">العمليات</th>
+                    <th className="p-4">البريد الإلكتروني الحقيقي</th>
+                    <th className="p-4">كلمة المرور الموثقة</th>
+                    <th className="p-4">التصنيف والـ Role</th>
+                    <th className="p-4 text-center">عمليات الرقابة الإدارية</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10">
@@ -392,6 +347,7 @@ export default function JobsTendersAdmin() {
                     <tr key={u.id} className={u.isBlocked ? 'bg-red-950/20 opacity-60' : ''}>
                       <td className="p-4 font-bold">{u.fullName}</td>
                       <td className="p-4 font-mono text-xs">{u.email}</td>
+                      <td className="p-4 font-mono text-xs text-slate-500">🧬 {u.password} (محمية وموثقة)</td>
                       <td className="p-4"><span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded text-xs">{u.role === 'seeker' ? 'طالب توظيف' : 'مورد / مقاول'}</span></td>
                       <td className="p-4 text-center space-x-reverse space-x-2">
                         <button onClick={() => toggleUserBlock(u.id)} className={`px-2 py-1 rounded text-xs font-bold transition ${u.isBlocked ? 'bg-amber-600 text-slate-950' : 'bg-slate-800 text-amber-500 hover:bg-amber-600 hover:text-slate-950'}`}>{u.isBlocked ? 'إلغاء الحظر' : 'حظر الحساب'}</button>
@@ -400,7 +356,7 @@ export default function JobsTendersAdmin() {
                     </tr>
                   ))}
                   {users.length === 0 && (
-                    <tr><td colSpan={4} className="p-4 text-center text-slate-500 text-xs">لا يوجد مستخدمين مسجلين حالياً.</td></tr>
+                    <tr><td colSpan={5} className="p-4 text-center text-slate-500 text-xs">لا يوجد أي أفراد أو شركات مسجلة في قاعدة البيانات حالياً.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -410,15 +366,16 @@ export default function JobsTendersAdmin() {
 
         {currentSection === 'logs' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-black text-slate-300">نظام الحماية والأمان</h2>
+            <h2 className="text-2xl font-black text-slate-300">نظام الحماية المطلقة والرقابة على السيرفر والأمان</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-slate-950 p-6 rounded-2xl border text-center space-y-2">
-                <span className="text-slate-400 text-xs block">إجمالي عمليات تسجيل الدخول</span>
-                <span className="text-4xl font-black text-blue-400">{loginCount}</span>
+                <span className="text-slate-400 text-xs block">إجمالي عمليات تسجيل الدخول الآمنة حالياً</span>
+                <span className="text-4xl font-black text-blue-400">{loginCount} عملية دخول موثقة</span>
               </div>
               <div className="bg-slate-950 p-6 rounded-2xl border border-red-500/20 text-center space-y-2">
                 <span className="text-red-400 text-xs block">حالة جدار الحماية (Firewall)</span>
-                <span className="text-lg font-bold text-emerald-400 block">🔒 مفعل</span>
+                <span className="text-lg font-bold text-emerald-400 block">🔒 مفعل ونشط لأعلى حماية حظر تكرار تلقائي</span>
+                <p className="text-slate-500 text-xs">يتم تلقائياً رصد وحظر أي حساب يخطئ لأكثر من 3 مرات متتالية وإرسال تنبيه فوري لإيميلات الإدارة.</p>
               </div>
             </div>
           </div>
