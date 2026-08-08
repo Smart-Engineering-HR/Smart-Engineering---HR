@@ -55,8 +55,8 @@ export async function POST(req) {
       website: body.website || "",
       advertiseType: body.advertiseType || body.type || "وظيفة",
       address: body.address || body.location || "اليمن",
-      moreInfo: JSON.stringify(body),
-      status: "PENDING"
+      moreInfo: typeof body.moreInfo === 'string' ? body.moreInfo : JSON.stringify(body),
+      status: body.status || "PENDING"
     };
 
     const newPosting = await prisma.advertisement.create({ data: dataToSave });
@@ -70,6 +70,10 @@ export async function POST(req) {
 
     try { await transporter.sendMail(mailOptions); } catch (e) { console.error("Email error:", e); }
 
+    if (newPosting.status === 'APPROVED') {
+      processNotifications(newPosting.id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
+    }
+
     return NextResponse.json(newPosting, { status: 201 });
   } catch (error) {
     console.error("خطأ أثناء الحفظ:", error);
@@ -77,14 +81,13 @@ export async function POST(req) {
   }
 }
 
-// 3. دالة التحديث (PUT) - مُعدلة لتفادي خطأ Unknown argument
+// 3. دالة التحديث (PUT)
 export async function PUT(req) {
   try {
     const body = await req.json();
     const { id, status, ...updateData } = body;
     if (!id) return NextResponse.json({ error: "المعرف مطلوب" }, { status: 400 });
 
-    // مصفوفة الحقول المسموح بها في قاعدة البيانات فقط
     const allowedFields = {
       companyName: updateData.companyName,
       contactPerson: updateData.contactPerson,
@@ -93,11 +96,10 @@ export async function PUT(req) {
       website: updateData.website,
       advertiseType: updateData.advertiseType,
       address: updateData.address,
-      moreInfo: updateData.moreInfo,
+      moreInfo: typeof updateData.moreInfo === 'string' ? updateData.moreInfo : JSON.stringify(updateData),
       status: status || updateData.status
     };
 
-    // إزالة القيم غير المعرفة (undefined) لتجنب أخطاء Prisma
     Object.keys(allowedFields).forEach(key => allowedFields[key] === undefined && delete allowedFields[key]);
 
     const updated = await prisma.advertisement.update({
@@ -105,7 +107,6 @@ export async function PUT(req) {
       data: allowedFields
     });
 
-    // التفعيل الذكي للمحرك: إذا وافق المسؤول، ابدأ الإشعارات فوراً
     if (updated.status === 'APPROVED') {
       processNotifications(id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
     }
@@ -127,6 +128,7 @@ export async function DELETE(req) {
     await prisma.advertisement.delete({ where: { id: id } });
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
+    console.error("Error in DELETE API:", error);
     return NextResponse.json({ error: "فشل الحذف" }, { status: 500 });
   }
 }

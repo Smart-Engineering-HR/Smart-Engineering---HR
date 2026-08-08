@@ -7,42 +7,81 @@ export default function JobsTendersAdmin() {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({ email: '', password: '' });
   
-  // شاشات التحكم الفرعية
-  const [currentSection, setCurrentSection] = useState('manage-jobs'); // 'manage-jobs' | 'manage-tenders' | 'adv-requests' | 'users' | 'logs'
+  const [currentSection, setCurrentSection] = useState('manage-jobs');
 
-  // البيانات التي يتحكم فيها الإداري بشكل كامل
   const [jobs, setJobs] = useState([]);
   const [tenders, setTenders] = useState([]);
   const [advRequests, setAdvRequests] = useState([]);
   const [users, setUsers] = useState([]);
   const [loginCount, setLoginCount] = useState(0);
 
-  // النماذج الخاصة بالإضافة والتعديل للوظائف والمناقصات
   const [jobForm, setJobForm] = useState({ title: '', company: '', publishDate: '', endDate: '', category: '', location: '', reportsTo: '', companyBio: '', jobBio: '', duties: '', qualifications: '', skills: '', notes: '', applyMethod: 'email', applyEmail: '', applyUrl: '' });
   const [tenderForm, setTenderForm] = useState({ title: '', company: '', location: '', publishDate: '', endDate: '', tenderNumber: '', projectName: '', components: '', fundingBody: '', currency: 'دولار أمريكي', validity: '', guaranteeValidity: '', executionPeriod: '', guaranteeValue: '', openingDetails: '', conditions: '', documentsLink: '', applyMethod: '', attachments: '', accessLink: '', contactInfo: '', notes: '' });
 
-  // تحميل وحفظ البيانات المنعكسة مباشرة على واجهة الجمهور الفعالة
+  const fetchPostings = async () => {
+    try {
+      const res = await fetch('/api/postings');
+      if (res.ok) {
+        const data = await res.json();
+        const apiJobs = [];
+        const apiTenders = [];
+        const apiPending = [];
+
+        data.forEach(item => {
+          let parsedData = {};
+          try {
+            parsedData = JSON.parse(item.moreInfo || '{}');
+          } catch (e) {
+            parsedData = {};
+          }
+
+          const formattedItem = {
+            id: item.id,
+            companyName: item.companyName,
+            company: item.companyName,
+            contactPerson: item.contactPerson,
+            phone: item.phone,
+            email: item.email,
+            address: item.address,
+            location: item.address,
+            adType: item.advertiseType,
+            status: item.status,
+            ...parsedData,
+            id: item.id
+          };
+
+          if (item.status === 'PENDING') {
+            apiPending.push(formattedItem);
+          } else if (item.advertiseType === 'مناقصة') {
+            apiTenders.push(formattedItem);
+          } else {
+            apiJobs.push(formattedItem);
+          }
+        });
+
+        setJobs(apiJobs);
+        setTenders(apiTenders);
+        setAdvRequests(apiPending);
+      }
+    } catch (e) {
+      console.error("خطأ في جلب البيانات:", e);
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedJobs = localStorage.getItem('se_jobs') || '[]';
-      const savedTenders = localStorage.getItem('se_tenders') || '[]';
-      const savedRequests = localStorage.getItem('se_adv_requests') || '[]';
       const savedUsers = localStorage.getItem('se_registered_users') || '[]';
       const count = localStorage.getItem('se_login_count') || '0';
-
-      setJobs(JSON.parse(savedJobs));
-      setTenders(JSON.parse(savedTenders));
-      setAdvRequests(JSON.parse(savedRequests));
       setUsers(JSON.parse(savedUsers));
       setLoginCount(parseInt(count));
     }
+    fetchPostings();
   }, [currentSection]);
 
   const updateLocalStorage = (key, data) => {
     localStorage.setItem(key, JSON.stringify(data));
   };
 
-  // تسجيل دخول الأدمن المباشر للمنصة دون المساس بقاعدة البيانات الحالية للحماية العاجلة
   const handleAdminLogin = (e) => {
     e.preventDefault();
     if (
@@ -57,73 +96,116 @@ export default function JobsTendersAdmin() {
     }
   };
 
-  // وظائف الإضافة والحذف للوظائف والمناقصات بشكل فوري
   const handleAddJob = async (e) => {
     e.preventDefault();
-    const newJobs = [...jobs, { ...jobForm, id: Date.now() }];
-    setJobs(newJobs);
-    updateLocalStorage('se_jobs', newJobs);
-    
-    // إطلاق الإشعارات الفورية لكافة أجهزة المنصة ومستخدميها
-    await fetch('/api/notificationEngine', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'NEW_JOB_PUBLISHED', data: jobForm })
-    });
+    const payload = {
+      companyName: jobForm.company,
+      contactPerson: jobForm.reportsTo || "المسؤول الإداري",
+      phone: "000000000",
+      email: jobForm.applyEmail || "admin@smart-engineering.com",
+      website: jobForm.applyUrl || "",
+      advertiseType: "وظيفة",
+      address: jobForm.location,
+      moreInfo: JSON.stringify(jobForm),
+      status: "APPROVED"
+    };
 
-    alert('تم نشر وإعلان الوظيفة وتحديث واجهة الجمهور وإرسال الإشعارات الشاملة.');
-    setJobForm({ title: '', company: '', publishDate: '', endDate: '', category: '', location: '', reportsTo: '', companyBio: '', jobBio: '', duties: '', qualifications: '', skills: '', notes: '', applyMethod: 'email', applyEmail: '', applyUrl: '' });
+    try {
+      const res = await fetch('/api/postings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        await fetch('/api/notificationEngine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'NEW_JOB_PUBLISHED', data: jobForm })
+        });
+        alert('تم نشر وإعلان الوظيفة وتحديث واجهة الجمهور وإرسال الإشعارات الشاملة بنجاح!');
+        setJobForm({ title: '', company: '', publishDate: '', endDate: '', category: '', location: '', reportsTo: '', companyBio: '', jobBio: '', duties: '', qualifications: '', skills: '', notes: '', applyMethod: 'email', applyEmail: '', applyUrl: '' });
+        fetchPostings();
+      } else {
+        alert('حدث خطأ أثناء حفظ الوظيفة على السيرفر.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالشبكة.');
+    }
   };
 
-  const handleDeleteJob = (id) => {
+  const handleDeleteJob = async (id) => {
     if(confirm('هل أنت متأكد تماماً من حذف هذه الوظيفة نهائياً من العرض العام؟')) {
-      const updated = jobs.filter(j => j.id !== id);
-      setJobs(updated);
-      updateLocalStorage('se_jobs', updated);
+      try {
+        const res = await fetch(`/api/postings?id=${id}`, { method: 'DELETE' });
+        if(res.ok) {
+          setJobs(jobs.filter(j => j.id !== id));
+          alert('تم حذف الوظيفة بنجاح.');
+        } else {
+          alert('فشل حذف الوظيفة من قاعدة البيانات.');
+        }
+      } catch(err) {
+        console.error(err);
+      }
     }
   };
 
   const handleAddTender = async (e) => {
     e.preventDefault();
-    const newTenders = [...tenders, { ...tenderForm, id: Date.now() }];
-    setTenders(newTenders);
-    updateLocalStorage('se_tenders', newTenders);
+    const payload = {
+      companyName: tenderForm.company,
+      contactPerson: tenderForm.contactInfo || "مسؤول المناقصات",
+      phone: "000000000",
+      email: tenderForm.contactInfo || "admin@smart-engineering.com",
+      website: tenderForm.documentsLink || "",
+      advertiseType: "مناقصة",
+      address: tenderForm.location,
+      moreInfo: JSON.stringify(tenderForm),
+      status: "APPROVED"
+    };
 
-    await fetch('/api/notificationEngine', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'NEW_TENDER_PUBLISHED', data: tenderForm })
-    });
-
-    alert('تم نشر وإعلان المناقصة رسمياً وتحديث واجهة الجمهور وإرسال الإشعارات البريدية فوراً.');
-    setTenderForm({ title: '', company: '', location: '', publishDate: '', endDate: '', tenderNumber: '', projectName: '', components: '', fundingBody: '', currency: 'دولار أمريكي', validity: '', guaranteeValidity: '', executionPeriod: '', guaranteeValue: '', openingDetails: '', conditions: '', documentsLink: '', applyMethod: '', attachments: '', accessLink: '', contactInfo: '', notes: '' });
-  };
-
-const handleDeleteTender = async (id) => {
-  if(confirm('هل تريد مسح وإزالة المناقصة المحددة من جدول الجمهور نهائياً؟')) {
     try {
-      // 1. تحديث قاعدة البيانات العامة عبر السيرفر أولاً
-      const response = await fetch(`/api/tenders/${id}`, {
-        method: 'DELETE',
+      const res = await fetch('/api/postings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      // 2. إذا نجح الحذف من السيرفر أو لم تكن قد فعلت الـ API بعد، نحدث الحالة محلياً
-      const updated = tenders.filter(t => t.id !== id);
-      setTenders(updated);
-      updateLocalStorage('se_tenders', updated);
-      
-      alert('تم إزالة المناقصة بنجاح وتحديث واجهة الجمهور العامة.');
-    } catch (error) {
-      console.error('حدث خطأ أثناء محاولة الحذف من السيرفر:', error);
-      // كخيار احتياطي للتطوير المحلي:
-      const updated = tenders.filter(t => t.id !== id);
-      setTenders(updated);
-      updateLocalStorage('se_tenders', updated);
+      if (res.ok) {
+        await fetch('/api/notificationEngine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'NEW_TENDER_PUBLISHED', data: tenderForm })
+        });
+        alert('تم نشر وإعلان المناقصة رسمياً وتحديث واجهة الجمهور وإرسال الإشعارات البريدية فوراً.');
+        setTenderForm({ title: '', company: '', location: '', publishDate: '', endDate: '', tenderNumber: '', projectName: '', components: '', fundingBody: '', currency: 'دولار أمريكي', validity: '', guaranteeValidity: '', executionPeriod: '', guaranteeValue: '', openingDetails: '', conditions: '', documentsLink: '', applyMethod: '', attachments: '', accessLink: '', contactInfo: '', notes: '' });
+        fetchPostings();
+      } else {
+        alert('حدث خطأ أثناء إعلان المناقصة على السيرفر.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ في الاتصال بالشبكة.');
     }
-  }
-};
+  };
 
-  // التحكم بالمستخدمين (حظر / حذف) للمراقبة الإدارية الصارمة
+  const handleDeleteTender = async (id) => {
+    if(confirm('هل تريد مسح وإزالة المناقصة المحددة من جدول الجمهور نهائياً؟')) {
+      try {
+        const res = await fetch(`/api/postings?id=${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          setTenders(tenders.filter(t => t.id !== id));
+          alert('تم إزالة المناقصة بنجاح وتحديث واجهة الجمهور العامة.');
+        } else {
+          alert('فشل في حذف المناقصة من السيرفر.');
+        }
+      } catch (error) {
+        console.error('حدث خطأ أثناء محاولة الحذف من السيرفر:', error);
+      }
+    }
+  };
+
   const toggleUserBlock = (id) => {
     const updated = users.map(u => u.id === id ? { ...u, isBlocked: !u.isBlocked } : u);
     setUsers(updated);
@@ -139,7 +221,6 @@ const handleDeleteTender = async (id) => {
     }
   };
 
-  // نموذج الحماية المطلقة والدخول المباشر للأدمن قبل فتح اللوحة
   if (!isAdminAuthenticated) {
     return (
       <div style={{ direction: 'rtl' }} className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 font-sans">
@@ -161,39 +242,11 @@ const handleDeleteTender = async (id) => {
 
   return (
     <div style={{ direction: 'rtl' }} className="min-h-screen bg-slate-900 text-slate-100 flex font-sans">
-      
-      {/* القائمة الجانبية للأدمن للتحكم والتلاؤم الكامل */}
       <aside className="w-64 bg-slate-950 border-l border-white/10 p-6 space-y-6 shrink-0">
         <div>
           <h2 className="text-lg font-black text-amber-400">لوحة الإدارة والمراقبة</h2>
           <p className="text-xs text-slate-400 mt-1">بوابة الوظائف والمناقصات</p>
         </div>
-        {/* نضعه مباشرة أسفل السطر المكتوب فيه </form> الخاص بالمناقصات */}
-
-<h3 className="text-xl font-bold border-b border-white/10 pb-2 mt-8">📋 المناقصات الحالية المعروضة للجمهور</h3>
-<div className="bg-slate-950 p-4 rounded-xl border border-white/10">
-  {tenders.length === 0 ? (
-    <p className="text-slate-400 text-sm">لا توجد مناقصات معلنة حالياً للجمهور.</p>
-  ) : (
-    <div className="divide-y divide-white/10">
-      {tenders.map(t => (
-        <div key={t.id} className="py-3 flex justify-between items-center">
-          <div>
-            <span className="font-bold text-sm text-emerald-400">{t.title}</span> 
-            <span className="text-xs text-slate-400"> - {t.company} ({t.location})</span>
-          </div>
-          {/* زر الحذف المرتبط بالدالة الحالية */}
-          <button 
-            onClick={() => handleDeleteTender(t.id)} 
-            className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1 rounded text-xs transition font-bold"
-          >
-            حذف نهائي
-          </button>
-        </div>
-      ))}
-    </div>
-  )}
-</div>
         <nav className="space-y-1 text-sm font-medium">
           <button onClick={() => setCurrentSection('manage-jobs')} className={`w-full text-right px-4 py-2.5 rounded-xl transition ${currentSection === 'manage-jobs' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}>🛠️ إدارة ونشر الوظائف</button>
           <button onClick={() => setCurrentSection('manage-tenders')} className={`w-full text-right px-4 py-2.5 rounded-xl transition ${currentSection === 'manage-tenders' ? 'bg-emerald-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}>🏗️ إدارة ونشر المناقصات</button>
@@ -204,9 +257,7 @@ const handleDeleteTender = async (id) => {
         <div className="pt-12"><button onClick={() => router.push('/jobs-tenders')} className="w-full bg-white/5 hover:bg-rose-600 py-2 rounded-lg text-xs font-bold text-center transition">👁️ معاينة واجهة الجمهور</button></div>
       </aside>
 
-      {/* منطقة العمل والتحكم التفصيلية */}
       <main className="flex-1 p-8 overflow-y-auto">
-        
         {currentSection === 'manage-jobs' && (
           <div className="space-y-8">
             <h2 className="text-2xl font-black text-blue-400">نشر وإعلان وظيفة هندسية جديدة للجمهور بالكامل</h2>
@@ -221,7 +272,7 @@ const handleDeleteTender = async (id) => {
               <div className="md:col-span-2"><label className="block text-xs mb-1">نبذة شاملة عن جهة التوظيف *</label><input type="text" required value={jobForm.companyBio} onChange={e => setJobForm({...jobForm, companyBio: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3"><label className="block text-xs mb-1">نبذة عن الوظيفة والمهام العامة *</label><textarea rows={2} required value={jobForm.jobBio} onChange={e => setJobForm({...jobForm, jobBio: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3"><label className="block text-xs mb-1">الواجبات والمسؤوليات التفصيلية *</label><textarea rows={2} required value={jobForm.duties} onChange={e => setJobForm({...jobForm, duties: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">المؤهلات والمتطلبات الأكاديمية والعملية *</label><textarea rows={2} required value={jobForm.qualifications} onChange={e => setJobForm({...jobForm, qualifications: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
+              <div className="md:col-span-3"><label className="block text-xs mb-1">المؤهلات ومتطلبات التقديم *</label><textarea rows={2} required value={jobForm.qualifications} onChange={e => setJobForm({...jobForm, qualifications: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3"><label className="block text-xs mb-1">المهارات والكفاءات المطلوبة *</label><textarea rows={2} required value={jobForm.skills} onChange={e => setJobForm({...jobForm, skills: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3"><label className="block text-xs mb-1">أي ملاحظات إضافية يتم تزويدها للمتقدمين</label><input type="text" value={jobForm.notes} onChange={e => setJobForm({...jobForm, notes: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div>
@@ -240,7 +291,7 @@ const handleDeleteTender = async (id) => {
             </form>
 
             <h3 className="text-xl font-bold border-b border-white/10 pb-2">📋 الوظائف الحالية على السيرفر العام المباشر</h3>
-            <div className="bg-slate-950 p-4 rounded-xl border">
+            <div className="bg-slate-950 p-4 rounded-xl border border-white/10">
               {jobs.length === 0 ? <p className="text-slate-400 text-sm">لا توجد وظائف معلنة حالياً للجمهور.</p> : (
                 <div className="divide-y divide-white/10">
                   {jobs.map(j => (
@@ -283,6 +334,30 @@ const handleDeleteTender = async (id) => {
               <div className="md:col-span-3"><label className="block text-xs mb-1">ملاحظات ختامية للمشروع</label><input type="text" value={tenderForm.notes} onChange={e => setTenderForm({...tenderForm, notes: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
               <div className="md:col-span-3 pt-2"><button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition">⚡ إعلان ونشر المناقصة فوراً للشركات ومزامنة السيرفر</button></div>
             </form>
+
+            <h3 className="text-xl font-bold border-b border-white/10 pb-2 mt-8">📋 المناقصات الحالية المعروضة للجمهور</h3>
+            <div className="bg-slate-950 p-4 rounded-xl border border-white/10">
+              {tenders.length === 0 ? (
+                <p className="text-slate-400 text-sm">لا توجد مناقصات معلنة حالياً للجمهور.</p>
+              ) : (
+                <div className="divide-y divide-white/10">
+                  {tenders.map(t => (
+                    <div key={t.id} className="py-3 flex justify-between items-center">
+                      <div>
+                        <span className="font-bold text-sm text-emerald-400">{t.title}</span> 
+                        <span className="text-xs text-slate-400"> - {t.company} ({t.location})</span>
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteTender(t.id)} 
+                        className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1 rounded text-xs transition font-bold"
+                      >
+                        حذف نهائي
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -301,23 +376,28 @@ const handleDeleteTender = async (id) => {
                         <p className="text-sm text-slate-300 mt-2"><strong>معلومات الإعلان وشرحه:</strong> {req.moreInfo || 'لا يوجد تفاصيل إضافية ملقاه'}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => {
-                          if(req.adType === 'وظيفة' || req.adType === 'وظيفة ومناقصة') {
-                            setJobForm({ ...jobForm, title: 'وظيفة معلنة جديدة', company: req.companyName, location: req.address, applyEmail: req.email });
-                            setCurrentSection('manage-jobs');
-                          } else {
-                            setTenderForm({ ...tenderForm, title: 'مناقصة جديدة معلنة', company: req.companyName, location: req.address, contactInfo: req.email });
-                            setCurrentSection('manage-tenders');
+                        <button onClick={async () => {
+                          try {
+                            const res = await fetch('/api/postings', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: req.id, status: 'APPROVED' })
+                            });
+                            if (res.ok) {
+                              alert('تمت الموافقة على الإعلان ونشره للجمهور بنجاح!');
+                              fetchPostings();
+                            }
+                          } catch (err) {
+                            console.error(err);
                           }
-                          // إزالة من طلبات المراجعة بعد التوجيه
-                          const filtered = advRequests.filter(r => r.id !== req.id);
-                          setAdvRequests(filtered);
-                          updateLocalStorage('se_adv_requests', filtered);
-                        }} className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold px-3 py-1.5 rounded-lg transition">تصنيف واعتماد النشر</button>
-                        <button onClick={() => {
-                          const filtered = advRequests.filter(r => r.id !== req.id);
-                          setAdvRequests(filtered);
-                          updateLocalStorage('se_adv_requests', filtered);
+                        }} className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold px-3 py-1.5 rounded-lg transition">تصنيف واعتماد النشر المباشر</button>
+                        <button onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/postings?id=${req.id}`, { method: 'DELETE' });
+                            if (res.ok) fetchPostings();
+                          } catch (err) {
+                            console.error(err);
+                          }
                         }} className="bg-red-600/20 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg transition">رفض وحذف الطلب</button>
                       </div>
                     </div>
@@ -331,7 +411,7 @@ const handleDeleteTender = async (id) => {
         {currentSection === 'users' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-black text-indigo-400">إدارة وحظر وتدقيق بيانات المستخدمين والشركات المسجلة</h2>
-            <div className="bg-slate-950 rounded-xl overflow-hidden border">
+            <div className="bg-slate-950 rounded-xl overflow-hidden border border-white/10">
               <table className="w-full text-right text-sm">
                 <thead className="bg-white/5 text-slate-400 text-xs">
                   <tr>
@@ -368,7 +448,7 @@ const handleDeleteTender = async (id) => {
           <div className="space-y-6">
             <h2 className="text-2xl font-black text-slate-300">نظام الحماية المطلقة والرقابة على السيرفر والأمان</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-slate-950 p-6 rounded-2xl border text-center space-y-2">
+              <div className="bg-slate-950 p-6 rounded-2xl border border-white/10 text-center space-y-2">
                 <span className="text-slate-400 text-xs block">إجمالي عمليات تسجيل الدخول الآمنة حالياً</span>
                 <span className="text-4xl font-black text-blue-400">{loginCount} عملية دخول موثقة</span>
               </div>

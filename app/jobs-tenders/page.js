@@ -5,55 +5,99 @@ import { useRouter } from 'next/navigation';
 export default function JobsTendersPublic() {
   const router = useRouter();
   
-  // حالات التبويب والبيانات والبحث
-  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' | 'tenders' | 'advertise' | 'register' | 'login'
+  const [activeTab, setActiveTab] = useState('jobs');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedItem, setSelectedItem] = useState(null); // لعرض تفاصيل الوظيفة أو المناقصة بالكامل في صفحة جديدة/عرض منفصل
+  const [selectedItem, setSelectedItem] = useState(null);
 
-  // مصفوفات البيانات التي يتم ربطها وتحكم الأدمن بها ديناميكياً (مخزنة محلياً للمثال لتعمل فوراً)
-  const [jobs, setJobs] = useState([
-    { id: 1, title: 'مهندس موقع مدني أول', company: 'شركة الإعمار الذكي للإنشاءات', publishDate: '2026/06/25', endDate: '2026/07/25', category: 'الهندسة المدنية', location: 'الموقع الرئيسي - صنعاء', reportsTo: 'مدير المشاريع الإنشائية', companyBio: 'شركة رائدة في مجال التطوير العقاري والبنية التحتية والمباني الذكية.', jobBio: 'الإشراف الكامل على التنفيذ الهندسي ومطابقة المخططات في الموقع.', duties: 'متابعة المقاولين، رفع التقارير الدورية، ضبط الجودة، وفحص المواد المستلمة.', qualifications: 'بكالوريوس هندسة مدنية + خبرة لا تقل عن 7 سنوات في المشاريع الكبرى.', skills: 'إجادة برامج AutoCAD, Primavera، ومهارات قيادة فرق العمل الميدانية.', notes: 'الأولوية لمن يمتلك سيارة خاصة ورخصة قيادة سارية المفعول.', applyMethod: 'email', applyEmail: 'smartengineering.hr.global@gmail.com' },
-    { id: 2, title: 'مطور واجهات Next.js محترف', company: 'منصة الهندسة الذكية التقنية', publishDate: '2026/06/28', endDate: '2026/08/10', category: 'تكنولوجيا المعلومات', location: 'عن بعد / الهجين', reportsTo: 'رئيس قسم التطوير البرمجي', companyBio: 'منصة هندسية تقنية متكاملة تهدف لأتمتة العمليات الهندسية وقطاع التوظيف.', jobBio: 'بناء وتطوير واجهات برمجية سريعة ومتجاوبة ومستقرة للبوابات الإلكترونية.', duties: 'تحويل التصاميم إلى أكواد، تحسين أداء الصفحات، وتكامل الـ APIs مع محركات الإشعارات.', qualifications: 'خبرة عملية مثبته لا تقل عن 3 سنوات في React وNext.js App Router.', skills: 'اتقان Tailwind CSS، التعامل مع معالجة الحالات المستقرة، وتحسين SEO.', notes: 'يجب إرفاق معرض الأعمال السابقة والمشاريع التي تم تنفيذها بالكامل.', applyMethod: 'url', applyUrl: 'http://localhost:3000/jobs-tenders/apply' }
-  ]);
+  const [jobs, setJobs] = useState([]);
+  const [tenders, setTenders] = useState([]);
 
-  const [tenders, setTenders] = useState([
-    { id: 1, title: 'توريد وتركيب منظومات طاقة شمسية ذكية للمجمع الهندسي', company: 'وزارة الأشغال العامة والمشاريع', publishDate: '2026/06/20', endDate: '2026/07/30', location: 'تعز، اليمن', announcement: 'تعلن الوزارة عن طرح مناقصة عامة للشركات المؤهلة لتوريد منظومات طاقة نظيفة ومتكاملة.', tenderNumber: 'SE-TEND-2026-004', projectName: 'مشروع الطاقة المستدامة للمرافق الحيوية', components: 'ألواح شمسية عالية الجودة، إنفرترات ذكية، بطاريات ليثيوم، كابلات وهياكل تثبيت مجلفنة.', fundingBody: 'صندوق الدعم الإنمائي المشترك', currency: 'دولار أمريكي', validity: '90 يوماً من تاريخ فتح المظاريف', guaranteeValidity: '120 يوماً من تاريخ التقديم', executionPeriod: '60 يوماً تقويمياً', guaranteeValue: '5000 دولار أمريكي كضمان بنكي مشروط', openingDetails: 'التاريخ: 2026/08/01 - الوقت: 10:00 صباحاً - المكان: قاعة الاجتماعات الرئيسية بمبنى الوزارة.', conditions: 'تقديم السجل التجاري والبطاقة الضريبية والتأمينية سارية المفعول، وخبرة سابقة في مجالات مشابهة.', documentsLink: 'https://smart-engineering.com/docs/tender-004', applyMethod: 'تسليم يدوي في مظاريف مغلقة بالشمع الأحمر إلى مقر اللجنة العليا للمناقصات.', attachments: 'كراسة الشروط والمواصفات وجداول الكميات التفصيلية.', accessLink: 'https://smart-engineering.com/tenders/buy-004', contactInfo: 'Smart.Engineering.Global@proton.me', notes: 'لا تقبل العطاءات التي ترد بعد الموعد المحدد أو غير المصحوبة بضمان العطاء.' }
-  ]);
+  const loadPublicPostings = async () => {
+    try {
+      const res = await fetch('/api/postings?public=true');
+      if (res.ok) {
+        const data = await res.json();
+        const loadedJobs = [];
+        const loadedTenders = [];
 
-  // تحديث البيانات من LocalStorage بشكل دوري لمزامنة تحكم الأدمن فوراً دون تعديل كود
+        data.forEach(item => {
+          let parsedData = {};
+          try {
+            parsedData = JSON.parse(item.moreInfo || '{}');
+          } catch (e) {
+            parsedData = {};
+          }
+
+          const formattedItem = {
+            id: item.id,
+            company: item.companyName,
+            location: item.address,
+            publishDate: parsedData.publishDate || new Date(item.createdAt).toLocaleDateString('ar-EG'),
+            endDate: parsedData.endDate || 'غير محدد',
+            title: parsedData.title || item.advertiseType,
+            category: parsedData.category || 'هندسة',
+            ...parsedData,
+            id: item.id
+          };
+
+          if (item.advertiseType === 'مناقصة') {
+            loadedTenders.push(formattedItem);
+          } else {
+            loadedJobs.push(formattedItem);
+          }
+        });
+
+        setJobs(loadedJobs);
+        setTenders(loadedTenders);
+      }
+    } catch (error) {
+      console.error("فشل جلب البيانات للجمهور:", error);
+    }
+  };
+
   useEffect(() => {
-    const savedJobs = localStorage.getItem('se_jobs');
-    const savedTenders = localStorage.getItem('se_tenders');
-    if (savedJobs) setJobs(JSON.parse(savedJobs));
-    if (savedTenders) setTenders(JSON.parse(savedTenders));
+    loadPublicPostings();
   }, [activeTab]);
 
-  // نموذج أعلن معنا
   const [advForm, setAdvForm] = useState({ companyName: '', contactPerson: '', phone: '', email: '', address: '', website: '', adType: 'وظيفة', moreInfo: '' });
   const [advStatus, setAdvStatus] = useState('');
 
   const handleAdvSubmit = async (e) => {
     e.preventDefault();
     setAdvStatus('جاري إرسال طلب الإعلان والتدقيق الأمني...');
-    const res = await fetch('/api/notificationEngine', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'CLIENT_ADVERTISEMENT_REQUEST', data: advForm })
-    });
-    if (res.ok) {
-      setAdvStatus('تم إرسال البيانات بنجاح! يرجى تعبئة البيانات وارسالها وسيتم التواصل معكم قريباً بعد مراجعة الأدمن وتصنيفها ونشرها للجمهور.');
-      // حفظ الإعلان في المسودة المؤقتة للأدمن ليقوم بمراجعته
-      const tempRequests = JSON.parse(localStorage.getItem('se_adv_requests') || '[]');
-      tempRequests.push({ ...advForm, id: Date.now() });
-      localStorage.setItem('se_adv_requests', JSON.stringify(tempRequests));
-      setAdvForm({ companyName: '', contactPerson: '', phone: '', email: '', address: '', website: '', adType: 'وظيفة', moreInfo: '' });
-    } else {
-      setAdvStatus('فشل في إرسال الإعلان، يرجى المحاولة لاحقاً.');
+    
+    try {
+      const payload = {
+        companyName: advForm.companyName,
+        contactPerson: advForm.contactPerson,
+        phone: advForm.phone,
+        email: advForm.email,
+        website: advForm.website,
+        advertiseType: advForm.adType,
+        address: advForm.address,
+        moreInfo: advForm.moreInfo,
+        status: "PENDING"
+      };
+
+      const res = await fetch('/api/postings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setAdvStatus('تم إرسال البيانات بنجاح! يرجى تعبئة البيانات وارسالها وسيتم التواصل معكم قريباً بعد مراجعة الأدمن وتصنيفها ونشرها للجمهور.');
+        setAdvForm({ companyName: '', contactPerson: '', phone: '', email: '', address: '', website: '', adType: 'وظيفة', moreInfo: '' });
+      } else {
+        setAdvStatus('فشل في إرسال الإعلان، يرجى المحاولة لاحقاً.');
+      }
+    } catch (err) {
+      console.error(err);
+      setAdvStatus('حدث خطأ في الاتصال بالسيرفر.');
     }
   };
 
-  // نموذج سجل (باحث عن عمل / مورد)
-  const [regType, setRegType] = useState('seeker'); // 'seeker' | 'vendor'
+  const [regType, setRegType] = useState('seeker');
   const [regForm, setRegForm] = useState({ fullName: '', email: '', password: '', confirmPassword: '', agreeTerms: false });
   const [regStatus, setRegStatus] = useState('');
 
@@ -87,18 +131,16 @@ export default function JobsTendersPublic() {
     }
   };
 
-  // الفلترة والبحث للجمهور
-  const filteredJobs = jobs.filter(j => j.title.includes(searchQuery) || j.company.includes(searchQuery) || j.location.includes(searchQuery));
-  const filteredTenders = tenders.filter(t => t.title.includes(searchQuery) || t.company.includes(searchQuery) || t.location.includes(searchQuery));
+  const filteredJobs = jobs.filter(j => (j.title || '').includes(searchQuery) || (j.company || '').includes(searchQuery) || (j.location || '').includes(searchQuery));
+  const filteredTenders = tenders.filter(t => (t.title || '').includes(searchQuery) || (t.company || '').includes(searchQuery) || (t.location || '').includes(searchQuery));
 
-  // شاشات التفاصيل المستقلة لكل وظيفة أو مناقصة عند النقر
   if (selectedItem) {
     const isJob = selectedItem.type === 'job';
     return (
       <div style={{ direction: 'rtl' }} className="min-h-screen bg-slate-50 text-slate-900 p-8 font-sans">
         <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-700 to-cyan-600 p-6 text-white flex justify-between items-center">
-            <h1 className="text-2xl font-bold">{isJob ? selectedItem.data.title : selectedItem.data.title}</h1>
+            <h1 className="text-2xl font-bold">{selectedItem.data.title}</h1>
             <button onClick={() => setSelectedItem(null)} className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg font-bold transition">
               ← العودة للقائمة السابقة
             </button>
@@ -108,20 +150,20 @@ export default function JobsTendersPublic() {
               <div className="space-y-4">
                 <div className="p-4 bg-blue-50 text-blue-900 rounded-xl font-bold text-lg border-r-4 border-blue-600">المسمى الوظيفي: {selectedItem.data.title}</div>
                 <div><span className="font-bold text-blue-700">مكان العمل:</span> <p className="mt-1 text-slate-700">{selectedItem.data.location}</p></div>
-                <div><span className="font-bold text-blue-700">يتبع إدارياً إلى:</span> <p className="mt-1 text-slate-700">{selectedItem.data.reportsTo}</p></div>
+                <div><span className="font-bold text-blue-700">يتبع إدارياً إلى:</span> <p className="mt-1 text-slate-700">{selectedItem.data.reportsTo || 'غير محدد'}</p></div>
                 <div><span className="font-bold text-blue-700">جهة التوظيف:</span> <p className="mt-1 text-slate-700">{selectedItem.data.company}</p></div>
-                <div><span className="font-bold text-blue-700">نبذة عن جهة التوظيف:</span> <p className="mt-1 text-slate-700">{selectedItem.data.companyBio}</p></div>
-                <div><span className="font-bold text-blue-700">نبذة عن الوظيفة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.jobBio}</p></div>
-                <div><span className="font-bold text-blue-700">الواجبات والمسؤوليات:</span> <p className="mt-1 text-slate-700">{selectedItem.data.duties}</p></div>
-                <div><span className="font-bold text-blue-700">المؤهلات والمتطلبات:</span> <p className="mt-1 text-slate-700">{selectedItem.data.qualifications}</p></div>
-                <div><span className="font-bold text-blue-700">المهارات والكفاءات:</span> <p className="mt-1 text-slate-700">{selectedItem.data.skills}</p></div>
-                <div><span className="font-bold text-blue-700">ملاحظات إضافية:</span> <p className="mt-1 text-slate-700">{selectedItem.data.notes}</p></div>
+                <div><span className="font-bold text-blue-700">نبذة عن جهة التوظيف:</span> <p className="mt-1 text-slate-700">{selectedItem.data.companyBio || 'غير متوفر'}</p></div>
+                <div><span className="font-bold text-blue-700">نبذة عن الوظيفة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.jobBio || 'غير متوفر'}</p></div>
+                <div><span className="font-bold text-blue-700">الواجبات والمسؤوليات:</span> <p className="mt-1 text-slate-700">{selectedItem.data.duties || 'غير متوفر'}</p></div>
+                <div><span className="font-bold text-blue-700">المؤهلات والمتطلبات:</span> <p className="mt-1 text-slate-700">{selectedItem.data.qualifications || 'غير متوفر'}</p></div>
+                <div><span className="font-bold text-blue-700">المهارات والكفاءات:</span> <p className="mt-1 text-slate-700">{selectedItem.data.skills || 'غير متوفر'}</p></div>
+                <div><span className="font-bold text-blue-700">ملاحظات إضافية:</span> <p className="mt-1 text-slate-700">{selectedItem.data.notes || 'لا يوجد'}</p></div>
                 <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
                   <span className="font-bold text-emerald-800 text-lg">طريقة التقديم:</span>
                   {selectedItem.data.applyMethod === 'email' ? (
-                    <p className="mt-1 font-mono text-emerald-700">يرجى إرسال السيرة الذاتية مباشرة إلى البريد الإلكتروني: {selectedItem.data.applyEmail}</p>
+                    <p className="mt-1 font-mono text-emerald-700">يرجى إرسال السيرة الذاتية مباشرة إلى البريد الإلكتروني: {selectedItem.data.applyEmail || selectedItem.data.email}</p>
                   ) : (
-                    <p className="mt-1"><a href={selectedItem.data.applyUrl} target="_blank" className="text-blue-600 underline font-bold">اضغط هنا لفتح رابط التقديم المباشر للمنصة</a></p>
+                    <p className="mt-1"><a href={selectedItem.data.applyUrl || '#'} target="_blank" className="text-blue-600 underline font-bold">اضغط هنا لفتح رابط التقديم المباشر للمنصة</a></p>
                   )}
                 </div>
                 <div><span className="font-bold text-slate-500">ملاحظات ختامية:</span> <p className="mt-1 text-slate-600">تاريخ انتهاء التقديم النهائي لهذه الفرصة هو: {selectedItem.data.endDate}</p></div>
@@ -134,25 +176,25 @@ export default function JobsTendersPublic() {
                 <div className="grid grid-cols-2 gap-4 bg-slate-100 p-4 rounded-xl">
                   <div><span className="font-bold">تاريخ الإعلان:</span> {selectedItem.data.publishDate}</div>
                   <div><span className="font-bold">تاريخ انتهاء الإعلان:</span> {selectedItem.data.endDate}</div>
-                  <div><span className="font-bold">رقم المناقصة:</span> {selectedItem.data.tenderNumber}</div>
-                  <div><span className="font-bold">اسم المشروع:</span> {selectedItem.data.projectName}</div>
+                  <div><span className="font-bold">رقم المناقصة:</span> {selectedItem.data.tenderNumber || 'غير محدد'}</div>
+                  <div><span className="font-bold">اسم المشروع:</span> {selectedItem.data.projectName || 'غير محدد'}</div>
                 </div>
-                <div><span className="font-bold text-emerald-700">مكونات المناقصة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.components}</p></div>
-                <div><span className="font-bold text-emerald-700">جهة التمويل:</span> <p className="mt-1 text-slate-700">{selectedItem.data.fundingBody}</p></div>
+                <div><span className="font-bold text-emerald-700">مكونات المناقصة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.components || 'غير متوفر'}</p></div>
+                <div><span className="font-bold text-emerald-700">جهة التمويل:</span> <p className="mt-1 text-slate-700">{selectedItem.data.fundingBody || 'غير متوفر'}</p></div>
                 <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-lg border text-center">
-                  <div><span className="block font-bold">عملة العطاء</span> {selectedItem.data.currency}</div>
-                  <div><span className="block font-bold">صلاحية العطاء</span> {selectedItem.data.validity}</div>
-                  <div><span className="block font-bold">فترة التنفيذ</span> {selectedItem.data.executionPeriod}</div>
+                  <div><span className="block font-bold">عملة العطاء</span> {selectedItem.data.currency || 'دولار أمريكي'}</div>
+                  <div><span className="block font-bold">صلاحية العطاء</span> {selectedItem.data.validity || 'غير محدد'}</div>
+                  <div><span className="block font-bold">فترة التنفيذ</span> {selectedItem.data.executionPeriod || 'غير محدد'}</div>
                 </div>
-                <div><span className="font-bold text-emerald-700">صلاحية ضمان العطاء وقيمته:</span> <p className="mt-1 text-slate-700">القيمة: {selectedItem.data.guaranteeValue} | الصلاحية: {selectedItem.data.guaranteeValidity}</p></div>
-                <div className="p-4 bg-amber-50 text-amber-900 rounded-xl border border-amber-200"><strong>موعد فتح المظاريف:</strong> {selectedItem.data.openingDetails}</div>
-                <div><span className="font-bold text-emerald-700">شروط التقديم الصارمة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.conditions}</p></div>
-                <div><span className="font-bold text-emerald-700">رابط وثائق المناقصة:</span> <p className="mt-1"><a href={selectedItem.data.documentsLink} target="_blank" className="text-blue-600 underline font-mono">{selectedItem.data.documentsLink}</a></p></div>
-                <div><span className="font-bold text-emerald-700">طريقة التقديم المعتمدة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.applyMethod}</p></div>
-                <div><span className="font-bold text-emerald-700">المرفقات المطلوبة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.attachments}</p></div>
-                <div><span className="font-bold text-emerald-700">رابط الحصول الفوري على المناقصة:</span> <p className="mt-1"><a href={selectedItem.data.accessLink} target="_blank" className="text-emerald-600 underline font-mono">{selectedItem.data.accessLink}</a></p></div>
-                <div><span className="font-bold text-emerald-700">التواصل والاستفسار المباشر:</span> <p className="mt-1 font-mono text-slate-800">{selectedItem.data.contactInfo}</p></div>
-                <div><span className="font-bold text-slate-500">ملاحظات الأدمن العامة:</span> <p className="mt-1 text-slate-600">{selectedItem.data.notes}</p></div>
+                <div><span className="font-bold text-emerald-700">صلاحية ضمان العطاء وقيمته:</span> <p className="mt-1 text-slate-700">القيمة: {selectedItem.data.guaranteeValue || 'غير محدد'} | الصلاحية: {selectedItem.data.guaranteeValidity || 'غير محدد'}</p></div>
+                <div className="p-4 bg-amber-50 text-amber-900 rounded-xl border border-amber-200"><strong>موعد فتح المظاريف:</strong> {selectedItem.data.openingDetails || 'غير محدد'}</div>
+                <div><span className="font-bold text-emerald-700">شروط التقديم الصارمة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.conditions || 'غير متوفر'}</p></div>
+                <div><span className="font-bold text-emerald-700">رابط وثائق المناقصة:</span> <p className="mt-1"><a href={selectedItem.data.documentsLink || '#'} target="_blank" className="text-blue-600 underline font-mono">{selectedItem.data.documentsLink || 'غير متوفر'}</a></p></div>
+                <div><span className="font-bold text-emerald-700">طريقة التقديم المعتمدة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.applyMethod || 'غير متوفر'}</p></div>
+                <div><span className="font-bold text-emerald-700">المرفقات المطلوبة:</span> <p className="mt-1 text-slate-700">{selectedItem.data.attachments || 'غير متوفر'}</p></div>
+                <div><span className="font-bold text-emerald-700">رابط الحصول الفوري على المناقصة:</span> <p className="mt-1"><a href={selectedItem.data.accessLink || '#'} target="_blank" className="text-emerald-600 underline font-mono">{selectedItem.data.accessLink || 'غير متوفر'}</a></p></div>
+                <div><span className="font-bold text-emerald-700">التواصل والاستفسار المباشر:</span> <p className="mt-1 font-mono text-slate-800">{selectedItem.data.contactInfo || selectedItem.data.email}</p></div>
+                <div><span className="font-bold text-slate-500">ملاحظات الأدمن العامة:</span> <p className="mt-1 text-slate-600">{selectedItem.data.notes || 'لا يوجد'}</p></div>
               </div>
             )}
           </div>
@@ -164,7 +206,6 @@ export default function JobsTendersPublic() {
   return (
     <div style={{ direction: 'rtl', backgroundImage: 'linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), url("https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=1920&q=80")', backgroundSize: 'cover', backgroundPosition: 'center' }} className="min-h-screen text-white font-sans antialiased">
       
-      {/* الشريط العلوي الشامل والموزع باحترافية كاملة */}
       <header className="border-b border-white/10 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex justify-between items-center">
         <div className="flex items-center space-x-reverse space-x-8">
           <span className="text-xl font-black bg-gradient-to-l from-amber-400 to-orange-400 bg-clip-text text-transparent">منصة الهندسة الذكية 🚀</span>
@@ -176,14 +217,12 @@ export default function JobsTendersPublic() {
             <button onClick={() => router.push('/jobs-tenders/auth')} className="px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition">تسجيل الدخول</button>
           </nav>
         </div>
-        {/* زر العودة للرئيسية في أقصى اليسار على شكل رمز فعال */}
         <button onClick={() => router.push('/')} title="العودة للقائمة الرئيسية للمنصة" className="p-3 bg-white/10 hover:bg-rose-600 rounded-full transition text-white flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
         </button>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* العبارة العملاقة الفنية المحددة سلفاً */}
         <div className="text-center my-8 space-y-4">
           <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-none text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-amber-400 to-emerald-400">
             عملاق الوظائف والمناقصات
@@ -191,7 +230,6 @@ export default function JobsTendersPublic() {
           <p className="text-slate-300 max-w-2xl mx-auto text-lg">البوابة الاحترافية والأولى لمهندسي ومقاولي العالم العربي تحت رعاية منصة الهندسة الذكية.</p>
         </div>
 
-        {/* شريط البحث المتقدم حسب التسمية أو الشركة أو الموقع */}
         {(activeTab === 'jobs' || activeTab === 'tenders') && (
           <div className="max-w-3xl mx-auto mb-12">
             <div className="relative rounded-2xl bg-white/10 backdrop-blur-md p-2 border border-white/20 shadow-2xl flex items-center">
@@ -200,7 +238,6 @@ export default function JobsTendersPublic() {
           </div>
         )}
 
-        {/* بطاقات متحركة تفاعلية لأحدث الوظائف */}
         {activeTab === 'jobs' && (
           <div className="mb-12 overflow-hidden relative">
             <h3 className="text-amber-400 font-bold mb-4 flex items-center gap-2">🔥 أحدث الوظائف النشطة الآن:</h3>
@@ -216,7 +253,6 @@ export default function JobsTendersPublic() {
           </div>
         )}
 
-        {/* محتوى التبويبات بالكامل */}
         {activeTab === 'jobs' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold border-b border-white/10 pb-2">📂 قائمة أحدث الوظائف الهندسية المتاحة</h2>
@@ -234,7 +270,9 @@ export default function JobsTendersPublic() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-sm">
-                  {filteredJobs.map(j => (
+                  {filteredJobs.length === 0 ? (
+                    <tr><td colSpan={7} className="p-6 text-center text-slate-400">لا توجد وظائف معلنة حالياً للجمهور.</td></tr>
+                  ) : filteredJobs.map(j => (
                     <tr key={j.id} className="hover:bg-white/5 transition">
                       <td className="p-4 font-mono text-amber-400">{j.publishDate}</td>
                       <td className="p-4 font-bold">{j.company}</td>
@@ -269,7 +307,9 @@ export default function JobsTendersPublic() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-sm">
-                  {filteredTenders.map(t => (
+                  {filteredTenders.length === 0 ? (
+                    <tr><td colSpan={6} className="p-6 text-center text-slate-400">لا توجد مناقصات معلنة حالياً للجمهور.</td></tr>
+                  ) : filteredTenders.map(t => (
                     <tr key={t.id} className="hover:bg-white/5 transition">
                       <td className="p-4 font-mono text-amber-400">{t.publishDate}</td>
                       <td className="p-4 font-bold">{t.company}</td>
