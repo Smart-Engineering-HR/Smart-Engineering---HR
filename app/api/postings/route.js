@@ -1,4 +1,3 @@
-// app/api/postings/route.js
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import nodemailer from 'nodemailer';
@@ -15,7 +14,7 @@ const transporter = nodemailer.createTransport({
 const externalAdminEmails = ['Smart.Engineering.Global@proton.me', 'smart.engineering.global@tuta.io'];
 const gmailAdminEmail = 'smartengineering.hr.global@gmail.com';
 
-// 1. دالة جلب البيانات (GET)
+// 1. جلب البيانات (GET)
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -24,111 +23,139 @@ export async function GET(req) {
 
     if (id) {
       const posting = await prisma.advertisement.findUnique({ where: { id: id } });
-      return posting ? NextResponse.json(posting) : NextResponse.json({ error: "غير موجود" }, { status: 404 });
+      if (!posting) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
+      
+      let parsedInfo = {};
+      try { parsedInfo = JSON.parse(posting.moreInfo || '{}'); } catch (e) {}
+      return NextResponse.json({ ...posting, ...parsedInfo });
     }
 
+    let filterConditions = {};
     if (isPublicQuery === 'true') {
-      const publicPostings = await prisma.advertisement.findMany({
-        where: { status: 'APPROVED' },
-        orderBy: { createdAt: 'desc' }
-      });
-      return NextResponse.json(publicPostings, { status: 200 });
+      filterConditions = { status: 'APPROVED' };
     }
 
-    const allPostings = await prisma.advertisement.findMany({ orderBy: { createdAt: 'desc' } });
-    return NextResponse.json(allPostings, { status: 200 });
+    const postings = await prisma.advertisement.findMany({
+      where: filterConditions,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // تفكيك كائن moreInfo ليتم دمجه وتنسيقه للعميل تلقائياً
+    const formattedPostings = postings.map(item => {
+      let parsedInfo = {};
+      try {
+        parsedInfo = typeof item.moreInfo === 'string' ? JSON.parse(item.moreInfo) : (item.moreInfo || {});
+      } catch (e) {
+        parsedInfo = {};
+      }
+      return {
+        ...item,
+        ...parsedInfo,
+        id: item.id
+      };
+    });
+
+    return NextResponse.json(formattedPostings, { status: 200 });
   } catch (error) {
     console.error("Error in GET API:", error);
-    return NextResponse.json({ error: "فشل الجلب" }, { status: 500 });
+    return NextResponse.json({ error: "فشل جلب البيانات من القاعدة" }, { status: 500 });
   }
 }
 
-// 2. دالة الإرسال (POST)
+// 2. إضافة منشور جديد أو طلب تقديم (POST)
 export async function POST(req) {
   try {
     const body = await req.json();
+    
+    // استخلاص البيانات الأساسية وتخزين الباقي داخل moreInfo
+    const { companyName, contactPerson, phone, email, website, advertiseType, address, status, ...extraData } = body;
+
     const dataToSave = {
-      companyName: body.companyName || body.company || "غير محدد",
-      contactPerson: body.contactPerson || "غير محدد",
-      phone: body.phone || "000000000",
-      email: body.email || "no-email@provided.com",
-      website: body.website || "",
-      advertiseType: body.advertiseType || body.type || "وظيفة",
-      address: body.address || body.location || "اليمن",
-      moreInfo: typeof body.moreInfo === 'string' ? body.moreInfo : JSON.stringify(body),
-      status: body.status || "PENDING"
+      companyName: companyName || body.title || body.name || "منصة الهندسة الذكية",
+      contactPerson: contactPerson || body.fullNameAr || body.trainer || "الإدارة",
+      phone: phone || body.phone || "000000000",
+      email: email || body.email || gmailAdminEmail,
+      website: website || body.linkDirect || "",
+      advertiseType: advertiseType || body.category || "GENERAL",
+      address: address || body.country || "Global",
+      moreInfo: JSON.stringify(extraData),
+      status: status || "APPROVED"
     };
 
     const newPosting = await prisma.advertisement.create({ data: dataToSave });
 
+    // إرسال إشعار بالبريد الإلكتروني للطلبات المنشورة أو المقدمة
     const mailOptions = {
       from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
       to: [gmailAdminEmail, ...externalAdminEmails].join(','),
-      subject: `إعلان جديد: ${dataToSave.advertiseType} - ${dataToSave.companyName}`,
-      html: `<div dir="rtl"><h3>طلب إعلان جديد</h3><p>تم استلام طلب جديد. يمكنك الاطلاع على كامل التفاصيل في لوحة التحكم.</p><pre>${JSON.stringify(body, null, 2)}</pre></div>`
+      subject: `تحديث/إعلان جديد: ${dataToSave.advertiseType} - ${dataToSave.companyName}`,
+      html: `<div dir="rtl">
+        <h3>تم تسجيل محتوى/طلب جديد في المنصة</h3>
+        <p><strong>نوع الإعلان/الطلب:</strong> ${dataToSave.advertiseType}</p>
+        <p><strong>العنوان/الجهة:</strong> ${dataToSave.companyName}</p>
+        <pre style="background:#f4f4f4; padding:10px; border-radius:5px;">${JSON.stringify(body, null, 2)}</pre>
+      </div>`
     };
 
-    try { await transporter.sendMail(mailOptions); } catch (e) { console.error("Email error:", e); }
+    try { await transporter.sendMail(mailOptions); } catch (e) { console.error("Email send warning:", e); }
 
-    if (newPosting.status === 'APPROVED') {
-      processNotifications(newPosting.id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
+    if (newPosting.status === 'APPROVED' && typeof processNotifications === 'function') {
+      processNotifications(newPosting.id).catch(err => console.error("خطأ معالجة الإشعارات:", err));
     }
 
-    return NextResponse.json(newPosting, { status: 201 });
+    return NextResponse.json({ ...newPosting, ...extraData }, { status: 201 });
   } catch (error) {
     console.error("خطأ أثناء الحفظ:", error);
-    return NextResponse.json({ error: "فشل الحفظ: تأكد من صحة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الحفظ في قاعدة البيانات" }, { status: 500 });
   }
 }
 
-// 3. دالة التحديث (PUT)
+// 3. تحديث منشور حالي (PUT)
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, status, ...updateData } = body;
-    if (!id) return NextResponse.json({ error: "المعرف مطلوب" }, { status: 400 });
+    const { id, status, companyName, contactPerson, phone, email, website, advertiseType, address, ...extraData } = body;
+    
+    if (!id) return NextResponse.json({ error: "المعرف مطلوب للتعديل" }, { status: 400 });
 
-    const allowedFields = {
-      companyName: updateData.companyName,
-      contactPerson: updateData.contactPerson,
-      phone: updateData.phone,
-      email: updateData.email,
-      website: updateData.website,
-      advertiseType: updateData.advertiseType,
-      address: updateData.address,
-      moreInfo: typeof updateData.moreInfo === 'string' ? updateData.moreInfo : JSON.stringify(updateData),
-      status: status || updateData.status
+    const updateData = {
+      companyName: companyName || body.title || body.name,
+      contactPerson,
+      phone,
+      email,
+      website,
+      advertiseType: advertiseType || body.category,
+      address,
+      status: status || "APPROVED",
+      moreInfo: JSON.stringify(extraData)
     };
 
-    Object.keys(allowedFields).forEach(key => allowedFields[key] === undefined && delete allowedFields[key]);
+    // إزالة الحقول الغير معرفة
+    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
     const updated = await prisma.advertisement.update({
       where: { id: id },
-      data: allowedFields
+      data: updateData
     });
-
-    if (updated.status === 'APPROVED') {
-      processNotifications(id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
-    }
 
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error("Error in PUT API:", error);
-    return NextResponse.json({ error: "فشل التعديل: البيانات غير متطابقة مع المخطط" }, { status: 500 });
+    return NextResponse.json({ error: "فشل التعديل في قاعدة البيانات" }, { status: 500 });
   }
 }
 
-// 4. دالة الحذف (DELETE)
+// 4. حذف منشور (DELETE)
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: "المعرف مطلوب" }, { status: 400 });
+    if (!id) return NextResponse.json({ error: "المعرف مطلوب للحذف" }, { status: 400 });
 
     await prisma.advertisement.delete({ where: { id: id } });
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Error in DELETE API:", error);
-    return NextResponse.json({ error: "فشل الحذف" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الحذف من القاعدة" }, { status: 500 });
   }
 }
