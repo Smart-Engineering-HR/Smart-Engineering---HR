@@ -5,11 +5,13 @@ export default function AcademyAdminDashboard() {
   const [targetList, setTargetList] = useState("proCourses");
   const [applications, setApplications] = useState([]);
   
+  // حقول حماية تسجيل الدخول المتكاملة
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
+  // تجميعة الحقول لكافة الأشكال الإدارية
   const [formState, setFormState] = useState({});
   const [editId, setEditId] = useState(null);
 
@@ -18,7 +20,9 @@ export default function AcademyAdminDashboard() {
     codes: [], books: [], webinars: [], certificates: []
   });
 
-  const loadAllAdminData = () => {
+  // جلب البيانات من المخرن المشترك لمزامنة التغيير فوراً وفحص حالة تسجيل الدخول
+  useEffect(() => {
+    // 1. فحص هل سجل الأدمن الدخول سابقاً؟
     const authStatus = localStorage.getItem("smart_admin_logged_in");
     if (authStatus === "true") {
       setIsLoggedIn(true);
@@ -29,22 +33,13 @@ export default function AcademyAdminDashboard() {
     
     const apps = localStorage.getItem("smart_applications");
     if (apps) setApplications(JSON.parse(apps));
-  };
-
-  useEffect(() => {
-    loadAllAdminData();
-
-    const handleStorageChange = (e) => {
-      if (e.key === "smart_applications" || e.key === "smart_academy_data") {
-        loadAllAdminData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
+  // دالة معالجة تسجيل الدخول
   const handleLoginSubmit = (e) => {
     e.preventDefault();
+    
+    // يمكنك تعديل الإيميل وكلمة السر الثابتة هنا بحسب رغبتك
     const correctEmail = "admin@smartacademy.com";
     const correctPassword = "AdminPassword2026";
 
@@ -59,6 +54,7 @@ export default function AcademyAdminDashboard() {
     }
   };
 
+  // دالة تسجيل الخروج
   const handleLogout = () => {
     if (confirm("هل أنت متأكد من رغبتك في تسجيل الخروج؟")) {
       localStorage.removeItem("smart_admin_logged_in");
@@ -69,7 +65,6 @@ export default function AcademyAdminDashboard() {
   const saveData = (updatedData) => {
     setData(updatedData);
     localStorage.setItem("smart_academy_data", JSON.stringify(updatedData));
-    window.dispatchEvent(new Event("storage"));
   };
 
   const handleInputChange = (e) => {
@@ -78,12 +73,14 @@ export default function AcademyAdminDashboard() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    let updatedList = [...(data[targetList] || [])];
+    let updatedList = [...data[targetList]];
 
     if (editId) {
+      // تعديل عنصر حالي
       updatedList = updatedList.map(item => item.id === editId ? { ...item, ...formState } : item);
       setEditId(null);
     } else {
+      // إضافة عنصر جديد
       updatedList.push({ id: Date.now(), ...formState });
     }
 
@@ -110,10 +107,10 @@ export default function AcademyAdminDashboard() {
     if (confirm("هل تريد إفراغ أرشيف طلبات التسجيل المنسقة؟")) {
       localStorage.removeItem("smart_applications");
       setApplications([]);
-      window.dispatchEvent(new Event("storage"));
     }
   };
 
+  // شاشة تسجيل الدخول المفرزة (تظهر في حال لم يكن مسجلاً لدخوله)
   if (!isLoggedIn) {
     return (
       <div style={styles.loginContainer}>
@@ -151,6 +148,7 @@ export default function AcademyAdminDashboard() {
     );
   }
 
+  // واجهة لوحة التحكم الأصلية (تظهر فقط بعد نجاح تسجيل الدخول)
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -162,6 +160,7 @@ export default function AcademyAdminDashboard() {
       </header>
 
       <div style={styles.layout}>
+        {/* شريط الأقسام الأيمن */}
         <aside style={styles.sidebar}>
           <h3 style={styles.menuTitle}>المسارات التعليمية</h3>
           <button style={targetList === "proCourses" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("proCourses"); setFormState({}); setEditId(null); }}>دورات البرامج الاحترافية</button>
@@ -179,12 +178,14 @@ export default function AcademyAdminDashboard() {
           <button style={targetList === "applications" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("applications"); setFormState({}); setEditId(null); }}>📥 طلبات التقديم المستقبلة ({applications.length})</button>
         </aside>
 
+        {/* مساحة العمل والديناميكية الإدارية */}
         <main style={styles.workspace}>
           {targetList !== "applications" ? (
             <>
               <h3 style={{color: "#64ffda"}}>{editId ? "✍️ تعديل العنصر المحدد حالياً" : "➕ إضافة عنصر جديد إلى القائمة الفرعية"}</h3>
               
               <form onSubmit={handleSubmit} style={styles.adminForm}>
+                {/* استمارات ديناميكية دقيقة لكل قسم */}
                 {targetList === "proCourses" && (
                   <>
                     <input type="text" name="title" placeholder="اسم الدورة التدريبية" required value={formState.title || ""} onChange={handleInputChange} style={styles.input}/>
@@ -305,6 +306,7 @@ export default function AcademyAdminDashboard() {
                 <button type="submit" style={styles.submitBtn}>{editId ? "💾 حفظ التعديلات الآن واستبدال البيانات" : "🚀 نشر وإضافة فورية لقائمة الجمهور"}</button>
               </form>
 
+              {/* جدول عرض العناصر المنشورة حالياً */}
               <h3 style={{marginTop: "40px", color: "#fff"}}>📋 العناصر المنشورة حالياً تحت هذا القسم</h3>
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
@@ -336,6 +338,7 @@ export default function AcademyAdminDashboard() {
               </div>
             </>
           ) : (
+            /* قسم مراجعة طلبات التسجيل الاحترافية */
             <div>
               <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                 <h3 style={{color: "#FFD700"}}>📥 أرشيف طلبات التقديم والملفات الأكاديمية عبر المنصة</h3>
@@ -387,6 +390,7 @@ export default function AcademyAdminDashboard() {
   );
 }
 
+// كائنات التنسيق المستحدثة والأصلية
 const styles = {
   container: { minHeight: "100vh", direction: "rtl", fontFamily: "Cairo, sans-serif", background: "#0a192f", color: "#e2e8f0" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 40px", background: "#020c1b", borderBottom: "2px solid #64ffda" },
@@ -411,6 +415,7 @@ const styles = {
   appCard: { background: "#112240", border: "1px solid #ff4a4a", borderRadius: "8px", padding: "20px", marginBottom: "20px" },
   appGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "15px" },
   
+  // تنسيقات شاشة تسجيل الدخول الجديدة
   loginContainer: { display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#0a192f", fontFamily: "Cairo, sans-serif", direction: "rtl" },
   loginCard: { background: "#112240", padding: "40px", borderRadius: "10px", border: "1px solid #233554", width: "100%", maxWidth: "450px", boxShadow: "0px 10px 30px rgba(0,0,0,0.5)" },
   loginLabel: { display: "block", color: "#e2e8f0", marginBottom: "8px", fontSize: "14px" },

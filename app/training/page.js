@@ -1,369 +1,453 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+"use client";
+import React, { useState, useEffect } from "react";
 
-export default function JobsTendersAdmin() {
-  const router = useRouter();
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [adminCredentials, setAdminCredentials] = useState({ email: '', password: '' });
-  
-  const [currentSection, setCurrentSection] = useState('manage-jobs');
+export default function TrainingPublicPage() {
+  const [activeTab, setActiveTab] = useState("tracks");
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [selectedScholarship, setSelectedScholarship] = useState("");
 
-  const [jobs, setJobs] = useState([]);
-  const [tenders, setTenders] = useState([]);
-  const [advRequests, setAdvRequests] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [loginCount, setLoginCount] = useState(0);
+  // State للبيانات القادمة من لوحة التحكم
+  const [data, setData] = useState({
+    proCourses: [],
+    pythonCourses: [],
+    mgmtCourses: [],
+    scholarships: [],
+    codes: [],
+    books: [],
+    webinars: [],
+    certificates: []
+  });
 
-  const [jobForm, setJobForm] = useState({ title: '', company: '', publishDate: '', endDate: '', category: '', location: '', reportsTo: '', companyBio: '', jobBio: '', duties: '', qualifications: '', skills: '', notes: '', applyMethod: 'email', applyEmail: '', applyUrl: '' });
-  const [tenderForm, setTenderForm] = useState({ title: '', company: '', location: '', publishDate: '', endDate: '', tenderNumber: '', projectName: '', components: '', fundingBody: '', currency: 'دولار أمريكي', validity: '', guaranteeValidity: '', executionPeriod: '', guaranteeValue: '', openingDetails: '', conditions: '', documentsLink: '', applyMethod: '', attachments: '', accessLink: '', contactInfo: '', notes: '' });
+  // نموذج طلب التقديم
+  const [applyForm, setApplyForm] = useState({
+    fullNameAr: "", fullNameEn: "", birthDate: "", nationality: "", residence: "",
+    email: "", phone: "", lastDegree: "", gpa: "", institute: "", graduationYear: "",
+    currentSpecialty: "", targetDegree: "", targetSpecialty1: "", targetSpecialty2: "",
+    langLevel: "none", passportFile: null, certificatesFile: null, sopFile: null,
+    cvFile: null, recFile: null, langFile: null, personalPhoto: null
+  });
 
+  // جلب البيانات ومزامنتها فوراً
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedJobs = localStorage.getItem('se_jobs') || '[]';
-      const savedTenders = localStorage.getItem('se_tenders') || '[]';
-      const savedRequests = localStorage.getItem('se_adv_requests') || '[]';
-      const savedUsers = localStorage.getItem('se_registered_users') || '[]';
-      const count = localStorage.getItem('se_login_count') || '0';
-
-      setJobs(JSON.parse(savedJobs));
-      setTenders(JSON.parse(savedTenders));
-      setAdvRequests(JSON.parse(savedRequests));
-      setUsers(JSON.parse(savedUsers));
-      setLoginCount(parseInt(count));
-    }
-  }, [currentSection]);
-
-  const updateLocalStorage = (key, data) => {
-    localStorage.setItem(key, JSON.stringify(data));
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  const handleAdminLogin = (e) => {
-    e.preventDefault();
-    if (
-      (adminCredentials.email === 'Smart.Engineering.Global@proton.me' || 
-       adminCredentials.email === 'smart.engineering.global@tuta.io' || 
-       adminCredentials.email === 'smartengineering.hr.global@gmail.com') && 
-      adminCredentials.password === 'HA&EL&Fa&Ta&Om2026#%@$%'
-    ) {
-      setIsAdminAuthenticated(true);
-    } else {
-      alert('خطأ فادح في اعتماد تسجيل الدخول كمسؤول! تم توجيه إشعار حماية فوري.');
-    }
-  };
-
-  const handleAddJob = async (e) => {
-    e.preventDefault();
-    const newJobs = [...jobs, { ...jobForm, id: Date.now() }];
-    setJobs(newJobs);
-    updateLocalStorage('se_jobs', newJobs);
-    
-    try {
-      await fetch('/api/notificationEngine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'NEW_JOB_PUBLISHED', data: jobForm })
-      });
-    } catch (err) {
-      console.log('Notification dispatch note:', err);
-    }
-
-    alert('تم نشر وإعلان الوظيفة وتحديث واجهة الجمهور وإرسال الإشعارات الشاملة.');
-    setJobForm({ title: '', company: '', publishDate: '', endDate: '', category: '', location: '', reportsTo: '', companyBio: '', jobBio: '', duties: '', qualifications: '', skills: '', notes: '', applyMethod: 'email', applyEmail: '', applyUrl: '' });
-  };
-
-  const handleDeleteJob = (id) => {
-    if(confirm('هل أنت متأكد تماماً من حذف هذه الوظيفة نهائياً من العرض العام؟')) {
-      const updated = jobs.filter(j => j.id !== id);
-      setJobs(updated);
-      updateLocalStorage('se_jobs', updated);
-    }
-  };
-
-  const handleAddTender = async (e) => {
-    e.preventDefault();
-    const newTenders = [...tenders, { ...tenderForm, id: Date.now() }];
-    setTenders(newTenders);
-    updateLocalStorage('se_tenders', newTenders);
-
-    try {
-      await fetch('/api/notificationEngine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'NEW_TENDER_PUBLISHED', data: tenderForm })
-      });
-    } catch (err) {
-      console.log('Notification dispatch note:', err);
-    }
-
-    alert('تم نشر وإعلان المناقصة رسمياً وتحديث واجهة الجمهور وإرسال الإشعارات البريدية فوراً.');
-    setTenderForm({ title: '', company: '', location: '', publishDate: '', endDate: '', tenderNumber: '', projectName: '', components: '', fundingBody: '', currency: 'دولار أمريكي', validity: '', guaranteeValidity: '', executionPeriod: '', guaranteeValue: '', openingDetails: '', conditions: '', documentsLink: '', applyMethod: '', attachments: '', accessLink: '', contactInfo: '', notes: '' });
-  };
-
-  const handleDeleteTender = async (id) => {
-    if(confirm('هل تريد مسح وإزالة المناقصة المحددة من جدول الجمهور نهائياً؟')) {
-      try {
-        await fetch(`/api/tenders/${id}`, { method: 'DELETE' });
-      } catch (error) {
-        console.error('حدث خطأ أثناء محاولة الحذف من السيرفر:', error);
+    const loadData = () => {
+      const stored = localStorage.getItem("smart_academy_data");
+      if (stored) {
+        setData(JSON.parse(stored));
+      } else {
+        // بيانات تجريبية أولية احترافية في حال عدم وجود بيانات مخزنة
+        const initialData = {
+          proCourses: [{ id: 1, title: "دورة التصميم الإنشائي للمباني العالية", trainer: "د. أحمد المهندس", duration: "60 ساعة", certificate: "شهادة معتمدة دولياً", requirements: "معرفة بأساسيات التحليل الإنشائي", bio: "خبير منشآت عملاقة بخبرة 20 عاماً" }],
+          pythonCourses: [{ id: 1, title: "الأتمتة الإنشائية بواسطة Python & ETABS API", trainer: "م. هاشم ذكي", duration: "45 ساعة", whyPython: "توفير 90% من وقت التصميم وتفادي الأخطاء البشرية", learningOutcomes: "كتابة سكريبتات لتوليد الأحمال وفحص القطاعات", targetAudience: "المهندسون الإنشائيون ومطورو البرمجيات الهندسية", tips: "يجب مراجعة أساسيات مصفوفات الجساءة قبل البدء" }],
+          mgmtCourses: [{ id: 1, title: "إدارة العقود الهندسية والمكتب الفني الـ FIDIC", trainer: "م. مستشار إدارة", duration: "40 ساعة", axes: "المطالبات المالية، أوامر التغيير، تحليل الأسعار", importance: "حاسمة لحماية المشروع مالياً وقانونياً", tips: "قراءة كتاب عقد الفيديك الأحمر قبل بداية الدورة" }],
+          scholarships: [{ id: 1, title: "منحة الهندسة المتقدمة للباحثين", provider: "منصة الهندسة الذكية العالمية", country: "ألمانيا / عن بعد", degrees: "ماجستير ودكتوراه", fundType: "كاملة", tuition: "إعفاء كامل 100%", salary: "1500 يورو شهرياً", housing: "مؤمن بالكامل", flights: "تذكرة سنوية ذهاب وإياب", health: "تأمين صحي شامل", visa: "مغطاة بالكامل مع السنة التحضيرية", nationalities: "جميع الجنسيات العربية والأجنبية", age: "الماجستير دون 30، الدكتوراه دون 35", gpa: "لا يقل عن 3.5 / 4.0 أو 85%", langReq: "IELTS 6.5 أو شهادة دراسة باللغة الإنجليزية", specialties: "الهندسة المدنية، الميكانيكية، الذكاء الاصطناعي الهندي", docCertificates: "مطلوبة ومصدقة", docId: "جواز سفر ساري المفعول", docCv: "سيرة ذاتية احترافية محدثة", docMotiv: "خطاب دافع قوي ومفصل", docRec: "عدد 3 خطابات توصية أكاديمية", docResearch: "مخطط بحثي متكامل (للدكتوراه)", docMedical: "شهادة فحص طبي خالي من الأمراض", dateOpen: "2026-06-01", dateClose: "2026-09-01 (توقيت مكة المكرمة)", dateResults: "2026-10-15", dateStart: "خريف 2026", linkDirect: "https://portal.smartengineering.edu", linkOfficial: "https://smartengineering.edu/scholarship", applicationFee: "مجاني بالكامل" }],
+          codes: [{ id: 1, name: "American Concrete Institute Code", number: "ACI 318-19", region: "International / USA" }],
+          books: [{ id: 1, title: "Reinforced Concrete Design: A Practical Approach", author: "Dr. Structural Guru", edition: "الطباعة الخامسة - الفصل الدراسي الأول" }],
+          webinars: [{ id: 1, title: "مستقبل الهندسة الذكية وتطبيقات الذكاء الاصطناعي", organizer: "الجمعية العالمية للهندسة الذكية", date: "2026-07-12", hours: "3 ساعات معتمدة", speaker: "بروفيسور عالمي", summary: "مناقشة دمج نماذج التنبؤ العميق في فحص المنشآت وتوليد التصاميم تلقائياً" }],
+          certificates: [{ id: 1, title: "مخطط إدارة مشاريع محترف معتمد PMP", provider: "PMI", certNumber: "PMP-882910", dateGet: "2025-05-10", dateEnd: "2028-05-10", verifyLink: "https://pmi.org/verify" }]
+        };
+        localStorage.setItem("smart_academy_data", JSON.stringify(initialData));
+        setData(initialData);
       }
-      const updated = tenders.filter(t => t.id !== id);
-      setTenders(updated);
-      updateLocalStorage('se_tenders', updated);
-      alert('تم إزالة المناقصة بنجاح وتحديث واجهة الجمهور العامة.');
-    }
-  };
+    };
 
-  const toggleUserBlock = (id) => {
-    const updated = users.map(u => u.id === id ? { ...u, isBlocked: !u.isBlocked } : u);
-    setUsers(updated);
-    updateLocalStorage('se_registered_users', updated);
-    alert('تم تعديل صلاحية المستخدم وتحديث الحظر والرقابة الإدارية الفورية.');
-  };
+    loadData();
+    window.addEventListener("storage", loadData); // تحديث فوري إذا تم التغيير من تبويب آخر
+    const interval = setInterval(loadData, 1000); // تحديث دوري كل ثانية لضمان التزامن الفوري
+    return () => {
+      window.removeEventListener("storage", loadData);
+      clearInterval(interval);
+    };
+  }, []);
 
-  const handleDeleteUser = (id) => {
-    if(confirm('هل تريد حذف بيانات هذا المستخدم نهائياً من سجلات البوابة؟')) {
-      const updated = users.filter(u => u.id !== id);
-      setUsers(updated);
-      updateLocalStorage('se_registered_users', updated);
-    }
-  };
+  const handleApplySubmit = (e) => {
+    e.preventDefault();
+    
+    // محاكاة إرسال البيانات للإيميلات المحددة بالطلب
+    const emails = ["Smart.Engineering.Global@proton.me", "smart.engineering.global@tuta.io", "smartengineering.hr.global@gmail.com"];
+    
+    // حفظ الطلب في لوحة التحكم (localStorage) لليشاهدها الأدمن
+    const existingApplications = JSON.parse(localStorage.getItem("smart_applications") || "[]");
+    const newApplication = {
+      id: Date.now(),
+      scholarshipTitle: selectedScholarship,
+      ...applyForm,
+      dateSubmitted: new Date().toLocaleString()
+    };
+    existingApplications.push(newApplication);
+    localStorage.setItem("smart_applications", JSON.stringify(existingApplications));
 
-  if (!isAdminAuthenticated) {
-    return (
-      <div style={{ direction: 'rtl' }} className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 font-sans">
-        <div className="max-w-md w-full bg-slate-900 border border-red-500/30 p-8 rounded-2xl shadow-2xl space-y-6">
-          <div className="text-center">
-            <span className="text-sm uppercase tracking-widest text-red-400 font-mono font-bold">لوحة التحكم المركزية - التحكم المطلق الأدمن</span>
-            <h1 className="text-2xl font-black mt-1">منصة الهندسة الذكية 🛠️</h1>
-            <p className="text-slate-400 text-xs mt-2">تسجيل دخول المسؤول المباشر لإدارة قطاع الوظائف والمناقصات بالكامل.</p>
-          </div>
-          <form onSubmit={handleAdminLogin} className="space-y-4">
-            <div><label className="block text-xs font-bold mb-1">البريد الإلكتروني المعتمد للمسؤول</label><input type="email" required value={adminCredentials.email} onChange={e => setAdminCredentials({...adminCredentials, email: e.target.value})} className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-sm focus:border-red-500 outline-none" placeholder="Smart.Engineering.Global@proton.me" /></div>
-            <div><label className="block text-xs font-bold mb-1">كلمة سر الإدارة العليا</label><input type="password" required value={adminCredentials.password} onChange={e => setAdminCredentials({...adminCredentials, password: e.target.value})} className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-sm focus:border-red-500 outline-none" placeholder="••••••••" /></div>
-            <button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition text-sm shadow-xl shadow-red-900/20">تسجيل الدخول الفوري والسيطرة (Admin)</button>
-          </form>
-        </div>
-      </div>
-    );
-  }
+    alert(`تم إرسال ملف تقديمك بنجاح واحترافية عالية لتم مراجعته وفحصه.\nسيتم توجيه البيانات وتأكيدها عبر بريد المنصة:\n${emails.join("\n")}`);
+    
+    setShowApplyModal(false);
+    setApplyForm({
+      fullNameAr: "", fullNameEn: "", birthDate: "", nationality: "", residence: "",
+      email: "", phone: "", lastDegree: "", gpa: "", institute: "", graduationYear: "",
+      currentSpecialty: "", targetDegree: "", targetSpecialty1: "", targetSpecialty2: "",
+      langLevel: "none", passportFile: null, certificatesFile: null, sopFile: null,
+      cvFile: null, recFile: null, langFile: null, personalPhoto: null
+    });
+  };
 
   return (
-    <div style={{ direction: 'rtl' }} className="min-h-screen bg-slate-900 text-slate-100 flex font-sans">
-      <aside className="w-64 bg-slate-950 border-l border-white/10 p-6 space-y-6 shrink-0">
-        <div>
-          <h2 className="text-lg font-black text-amber-400">لوحة الإدارة والمراقبة</h2>
-          <p className="text-xs text-slate-400 mt-1">بوابة الوظائف والمناقصات</p>
+    <div style={styles.container}>
+      {/* هيدر التنقل الأفقي المحترف */}
+      <header style={styles.header}>
+        <div style={styles.logoSection}>
+          <span style={styles.logoText}>منصة الهندسة الذكية | Smart Engineering</span>
         </div>
-        <nav className="space-y-1 text-sm font-medium">
-          <button onClick={() => setCurrentSection('manage-jobs')} className={`w-full text-right px-4 py-2.5 rounded-xl transition ${currentSection === 'manage-jobs' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}>🛠️ إدارة ونشر الوظائف</button>
-          <button onClick={() => setCurrentSection('manage-tenders')} className={`w-full text-right px-4 py-2.5 rounded-xl transition ${currentSection === 'manage-tenders' ? 'bg-emerald-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}>🏗️ إدارة ونشر المناقصات</button>
-          <button onClick={() => setCurrentSection('adv-requests')} className={`w-full text-right px-4 py-2.5 rounded-xl transition ${currentSection === 'adv-requests' ? 'bg-amber-600 text-slate-950' : 'hover:bg-white/5 text-slate-300'}`}>📩 طلبات إعلانات الجمهور ({advRequests.length})</button>
-          <button onClick={() => setCurrentSection('users')} className={`w-full text-right px-4 py-2.5 rounded-xl transition ${currentSection === 'users' ? 'bg-indigo-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}>👤 إدارة وحظر المسجلين</button>
-          <button onClick={() => setCurrentSection('logs')} className={`w-full text-right px-4 py-2.5 rounded-xl transition ${currentSection === 'logs' ? 'bg-slate-700 text-white' : 'hover:bg-white/5 text-slate-300'}`}>📊 الإحصائيات والأمان المتقدم</button>
+        <nav style={styles.navBar}>
+          <button style={activeTab === "tracks" ? styles.activeNavBtn : styles.navBtn} onClick={() => { setActiveTab("tracks"); setSelectedItem(null); }}>المسارات التعليمية</button>
+          <button style={activeTab === "sources" ? styles.activeNavBtn : styles.navBtn} onClick={() => { setActiveTab("sources"); setSelectedItem(null); }}>المصادر الأكاديمية</button>
+          <button style={activeTab === "dev" ? styles.activeNavBtn : styles.navBtn} onClick={() => { setActiveTab("dev"); setSelectedItem(null); }}>التطوير المهني المتقدم</button>
         </nav>
-        <div className="pt-12"><button onClick={() => router.push('/jobs-tenders')} className="w-full bg-white/5 hover:bg-rose-600 py-2 rounded-lg text-xs font-bold text-center transition">👁️ معاينة واجهة الجمهور</button></div>
-      </aside>
+        <button style={styles.backBtn} onClick={() => window.location.href = "/"}>العودة للرئيسية ↩</button>
+      </header>
 
-      <main className="flex-1 p-8 overflow-y-auto">
-        {currentSection === 'manage-jobs' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-black text-blue-400">نشر وإعلان وظيفة هندسية جديدة للجمهور بالكامل</h2>
-            <form onSubmit={handleAddJob} className="bg-slate-950/50 p-6 rounded-2xl border border-blue-500/20 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div><label className="block text-xs mb-1">المسمى الوظيفي *</label><input type="text" required value={jobForm.title} onChange={e => setJobForm({...jobForm, title: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">تاريخ الإعلان (يوم/شهر/سنة) *</label><input type="text" required placeholder="2026/06/30" value={jobForm.publishDate} onChange={e => setJobForm({...jobForm, publishDate: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">تاريخ الإغلاق (يوم/شهر/سنة) *</label><input type="text" required placeholder="2026/07/30" value={jobForm.endDate} onChange={e => setJobForm({...jobForm, endDate: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">الشركة أو الجهة المعلنة *</label><input type="text" required value={jobForm.company} onChange={e => setJobForm({...jobForm, company: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">فئة التخصص الهندسي *</label><input type="text" required placeholder="مثال: هندسة مدنية" value={jobForm.category} onChange={e => setJobForm({...jobForm, category: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">مكان العمل بالتفصيل *</label><input type="text" required value={jobForm.location} onChange={e => setJobForm({...jobForm, location: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">لمن يتبع إدارياً إلى *</label><input type="text" required placeholder="مثال: مدير قطاع الإنشاءات" value={jobForm.reportsTo} onChange={e => setJobForm({...jobForm, reportsTo: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-2"><label className="block text-xs mb-1">نبذة شاملة عن جهة التوظيف *</label><input type="text" required value={jobForm.companyBio} onChange={e => setJobForm({...jobForm, companyBio: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">نبذة عن الوظيفة والمهام العامة *</label><textarea rows={2} required value={jobForm.jobBio} onChange={e => setJobForm({...jobForm, jobBio: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">الواجبات والمسؤوليات التفصيلية *</label><textarea rows={2} required value={jobForm.duties} onChange={e => setJobForm({...jobForm, duties: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">المؤهلات والمتطلبات الأكاديمية والعملية *</label><textarea rows={2} required value={jobForm.qualifications} onChange={e => setJobForm({...jobForm, qualifications: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">المهارات والكفاءات المطلوبة *</label><textarea rows={2} required value={jobForm.skills} onChange={e => setJobForm({...jobForm, skills: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">أي ملاحظات إضافية يتم تزويدها للمتقدمين</label><input type="text" value={jobForm.notes} onChange={e => setJobForm({...jobForm, notes: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div>
-                <label className="block text-xs mb-1">طريقة التقديم المتاحة</label>
-                <select value={jobForm.applyMethod} onChange={e => setJobForm({...jobForm, applyMethod: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white">
-                  <option value="email">بواسطة البريد الإلكتروني</option>
-                  <option value="url">بواسطة رابط خارجي/صفحة منفصلة</option>
-                </select>
-              </div>
-              {jobForm.applyMethod === 'email' ? (
-                <div className="md:col-span-2"><label className="block text-xs mb-1">إيميل التقديم *</label><input type="email" required value={jobForm.applyEmail} onChange={e => setJobForm({...jobForm, applyEmail: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              ) : (
-                <div className="md:col-span-2"><label className="block text-xs mb-1">رابط التقديم المباشر للمنصة *</label><input type="url" required value={jobForm.applyUrl} onChange={e => setJobForm({...jobForm, applyUrl: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" placeholder="https://" /></div>
-              )}
-              <div className="md:col-span-3 pt-2"><button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition">⚡ اعتماد نشر الوظيفة رسمياً وإرسال الإشعارات</button></div>
-            </form>
-
-            <h3 className="text-xl font-bold border-b border-white/10 pb-2">📋 الوظائف الحالية على السيرفر العام المباشر</h3>
-            <div className="bg-slate-950 p-4 rounded-xl border">
-              {jobs.length === 0 ? <p className="text-slate-400 text-sm">لا توجد وظائف معلنة حالياً للجمهور.</p> : (
-                <div className="divide-y divide-white/10">
-                  {jobs.map(j => (
-                    <div key={j.id} className="py-3 flex justify-between items-center">
-                      <div><span className="font-bold text-sm text-blue-400">{j.title}</span> <span className="text-xs text-slate-400">- {j.company} ({j.location})</span></div>
-                      <button onClick={() => handleDeleteJob(j.id)} className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1 rounded text-xs transition font-bold">حذف نهائي</button>
-                    </div>
-                  ))}
+      {/* المحتوى الرئيسي */}
+      <main style={styles.mainContent}>
+        
+        {/* 1. المسارات التعليمية */}
+        {activeTab === "tracks" && !selectedItem && (
+          <div>
+            <h2 style={styles.sectionTitle}>المسارات التعليمية الاحترافية</h2>
+            
+            <h3 style={styles.subSectionTitle}>🔹 دورات البرامج الهندسية الاحترافية</h3>
+            <div style={styles.grid}>
+              {data.proCourses.map(course => (
+                <div key={course.id} style={styles.card} onClick={() => setSelectedItem({type: "pro", data: course})}>
+                  <h4>{course.title}</h4>
+                  <p><strong>المدرب:</strong> {course.trainer}</p>
+                  <p><strong>المدة:</strong> {course.duration}</p>
+                  <span style={styles.moreLabel}>اضغط للتفاصيل الاستراتيجية...</span>
                 </div>
-              )}
+              ))}
+            </div>
+
+            <h3 style={styles.subSectionTitle}>🔹 دورات التصميم الإنشائي باستخدام Python</h3>
+            <div style={styles.grid}>
+              {data.pythonCourses.map(course => (
+                <div key={course.id} style={styles.card} onClick={() => setSelectedItem({type: "python", data: course})}>
+                  <h4>{course.title}</h4>
+                  <p><strong>المدرب:</strong> {course.trainer}</p>
+                  <p><strong>المدة:</strong> {course.duration}</p>
+                  <span style={styles.moreLabel}>اضغط للتفاصيل الاستراتيجية...</span>
+                </div>
+              ))}
+            </div>
+
+            <h3 style={styles.subSectionTitle}>🔹 الإدارة الهندسية والمكتب الفني</h3>
+            <div style={styles.grid}>
+              {data.mgmtCourses.map(course => (
+                <div key={course.id} style={styles.card} onClick={() => setSelectedItem({type: "mgmt", data: course})}>
+                  <h4>{course.title}</h4>
+                  <p><strong>المدرب:</strong> {course.trainer}</p>
+                  <p><strong>المدة:</strong> {course.duration}</p>
+                  <span style={styles.moreLabel}>اضغط للتفاصيل الاستراتيجية...</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {currentSection === 'manage-tenders' && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-black text-emerald-400">إعلان ونشر مناقصة عامة وجديدة كلياً للشركات</h2>
-            <form onSubmit={handleAddTender} className="bg-slate-950/50 p-6 rounded-2xl border border-emerald-500/20 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2"><label className="block text-xs mb-1">عنوان وإعلان المناقصة عريض *</label><input type="text" required value={tenderForm.title} onChange={e => setTenderForm({...tenderForm, title: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">الجهة المعلنة للمناقصة *</label><input type="text" required value={tenderForm.company} onChange={e => setTenderForm({...tenderForm, company: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">بلد ومدينة ومكان المناقصة *</label><input type="text" required value={tenderForm.location} onChange={e => setTenderForm({...tenderForm, location: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">تاريخ الإعلان المعتمد *</label><input type="text" required placeholder="2026/06/30" value={tenderForm.publishDate} onChange={e => setTenderForm({...tenderForm, publishDate: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">تاريخ انتهاء الإعلان والتسليم *</label><input type="text" required placeholder="2026/08/15" value={tenderForm.endDate} onChange={e => setTenderForm({...tenderForm, endDate: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">رقم المناقصة الدولي/المحلي *</label><input type="text" required value={tenderForm.tenderNumber} onChange={e => setTenderForm({...tenderForm, tenderNumber: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-2"><label className="block text-xs mb-1">اسم المشروع الهندسي التابع له *</label><input type="text" required value={tenderForm.projectName} onChange={e => setTenderForm({...tenderForm, projectName: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">مكونات المناقصة والكميات الأساسية *</label><textarea rows={2} required value={tenderForm.components} onChange={e => setTenderForm({...tenderForm, components: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">جهة التمويل الرسمية *</label><input type="text" required value={tenderForm.fundingBody} onChange={e => setTenderForm({...tenderForm, fundingBody: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">عملة العطاء المعتمدة *</label><input type="text" required value={tenderForm.currency} onChange={e => setTenderForm({...tenderForm, currency: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">صلاحية العطاء الهندسي *</label><input type="text" required placeholder="مثال: 90 يوماً" value={tenderForm.validity} onChange={e => setTenderForm({...tenderForm, validity: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">صلاحية ضمان العطاء البنكي *</label><input type="text" required placeholder="مثال: 120 يوماً" value={tenderForm.guaranteeValidity} onChange={e => setTenderForm({...tenderForm, guaranteeValidity: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">فترة التنفيذ التعاقدية *</label><input type="text" required placeholder="مثال: 6 أشهر" value={tenderForm.executionPeriod} onChange={e => setTenderForm({...tenderForm, executionPeriod: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">قيمة الضمان المطلوب كحد أدنى *</label><input type="text" required placeholder="مثال: 5000$" value={tenderForm.guaranteeValue} onChange={e => setTenderForm({...tenderForm, guaranteeValue: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">موعد ومكان فتح المظاريف بالتأصيل (التاريخ/الوقت/المكان) *</label><input type="text" required value={tenderForm.openingDetails} onChange={e => setTenderForm({...tenderForm, openingDetails: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">شروط التقديم القانونية والفنية *</label><textarea rows={2} required value={tenderForm.conditions} onChange={e => setTenderForm({...tenderForm, conditions: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">رابط وثائق المناقصة الكامل لتحميل الكراسة *</label><input type="url" required value={tenderForm.documentsLink} onChange={e => setTenderForm({...tenderForm, documentsLink: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-2"><label className="block text-xs mb-1">طريقة التقديم اللوجستية المعتمدة *</label><input type="text" required value={tenderForm.applyMethod} onChange={e => setTenderForm({...tenderForm, applyMethod: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">المرفقات والملفات المطلوبة بالملف *</label><input type="text" required value={tenderForm.attachments} onChange={e => setTenderForm({...tenderForm, attachments: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-2"><label className="block text-xs mb-1">رابط الحصول والمشتريات الفوري على المناقصة *</label><input type="url" required value={tenderForm.accessLink} onChange={e => setTenderForm({...tenderForm, accessLink: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div><label className="block text-xs mb-1">بيانات التواصل والاستفسار الإداري *</label><input type="text" required value={tenderForm.contactInfo} onChange={e => setTenderForm({...tenderForm, contactInfo: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3"><label className="block text-xs mb-1">ملاحظات ختامية للمشروع</label><input type="text" value={tenderForm.notes} onChange={e => setTenderForm({...tenderForm, notes: e.target.value})} className="w-full bg-slate-800 rounded p-2 text-sm text-white" /></div>
-              <div className="md:col-span-3 pt-2"><button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition">⚡ إعلان ونشر المناقصة فوراً للشركات ومزامنة السيرفر</button></div>
-            </form>
-
-            <h3 className="text-xl font-bold border-b border-white/10 pb-2 mt-8">📋 المناقصات الحالية المعروضة للجمهور</h3>
-            <div className="bg-slate-950 p-4 rounded-xl border border-white/10">
-              {tenders.length === 0 ? (
-                <p className="text-slate-400 text-sm">لا توجد مناقصات معلنة حالياً للجمهور.</p>
-              ) : (
-                <div className="divide-y divide-white/10">
-                  {tenders.map(t => (
-                    <div key={t.id} className="py-3 flex justify-between items-center">
-                      <div>
-                        <span className="font-bold text-sm text-emerald-400">{t.title}</span> 
-                        <span className="text-xs text-slate-400"> - {t.company} ({t.location})</span>
-                      </div>
-                      <button 
-                        onClick={() => handleDeleteTender(t.id)} 
-                        className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1 rounded text-xs transition font-bold"
-                      >
-                        حذف نهائي
-                      </button>
-                    </div>
-                  ))}
+        {/* 2. المصادر الأكاديمية */}
+        {activeTab === "sources" && !selectedItem && (
+          <div>
+            <h2 style={styles.sectionTitle}>المصادر الأكاديمية (المنح، الأكواد، الكتب)</h2>
+            
+            <h3 style={styles.subSectionTitle}>🎓 المنح الدراسية والبحثية المتاحة</h3>
+            <div style={styles.grid}>
+              {data.scholarships.map(sch => (
+                <div key={sch.id} style={styles.card} onClick={() => setSelectedItem({type: "scholarship", data: sch})}>
+                  <h4>{sch.title}</h4>
+                  <p><strong>الدولة المستضيفة:</strong> {sch.country}</p>
+                  <p><strong>المراحل المستهدفة:</strong> {sch.degrees}</p>
+                  <span style={styles.moreLabel}>عرض ملف المنحة المتكامل...</span>
                 </div>
-              )}
+              ))}
+            </div>
+
+            <h3 style={styles.subSectionTitle}>📚 الأكواد الهندسية القياسية (Engineering Codes)</h3>
+            <div style={styles.grid}>
+              {data.codes.map(code => (
+                <div key={code.id} style={styles.staticCard}>
+                  <h4>{code.name}</h4>
+                  <p><strong>الرقم والإصدار:</strong> {code.number}</p>
+                  <p><strong>النسخة الإقليمية/المحلية:</strong> {code.region}</p>
+                </div>
+              ))}
+            </div>
+
+            <h3 style={styles.subSectionTitle}>📖 الكتب والمراجع العلمية</h3>
+            <div style={styles.grid}>
+              {data.books.map(book => (
+                <div key={book.id} style={styles.staticCard}>
+                  <h4>{book.title}</h4>
+                  <p><strong>المؤلف:</strong> {book.author}</p>
+                  <p><strong>الطبعة والفصل الدراسي:</strong> {book.edition}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {currentSection === 'adv-requests' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-black text-amber-400">طلبات الإعلانات الواردة من الجمهور (قيد المراجعة والتدقيق)</h2>
-            <p className="text-xs text-slate-400">الإعلان بمجرد استلامه من الشخص المعلن لا يظهر للجمهور إلا عند موافقتك وضغط نشر من هنا.</p>
-            {advRequests.length === 0 ? <p className="text-slate-400 text-sm p-4 bg-slate-950 rounded-xl">لا توجد طلبات إعلانات معلقة حالياً.</p> : (
-              <div className="space-y-4">
-                {advRequests.map(req => (
-                  <div key={req.id} className="bg-slate-950 p-6 rounded-2xl border border-amber-500/20 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-bold text-lg text-white">{req.companyName} <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">{req.adType}</span></h3>
-                        <p className="text-xs text-slate-400 mt-1">المسؤول: {req.contactPerson} | الهاتف: {req.phone} | البريد: {req.email}</p>
-                        <p className="text-sm text-slate-300 mt-2"><strong>معلومات الإعلان وشرحه:</strong> {req.moreInfo || 'لا يوجد تفاصيل إضافية ملقاه'}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => {
-                          if(req.adType === 'وظيفة' || req.adType === 'وظيفة ومناقصة') {
-                            setJobForm({ ...jobForm, title: 'وظيفة معلنة جديدة', company: req.companyName, location: req.address, applyEmail: req.email });
-                            setCurrentSection('manage-jobs');
-                          } else {
-                            setTenderForm({ ...tenderForm, title: 'مناقصة جديدة معلنة', company: req.companyName, location: req.address, contactInfo: req.email });
-                            setCurrentSection('manage-tenders');
-                          }
-                          const filtered = advRequests.filter(r => r.id !== req.id);
-                          setAdvRequests(filtered);
-                          updateLocalStorage('se_adv_requests', filtered);
-                        }} className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold px-3 py-1.5 rounded-lg transition">تصنيف واعتماد النشر</button>
-                        <button onClick={() => {
-                          const filtered = advRequests.filter(r => r.id !== req.id);
-                          setAdvRequests(filtered);
-                          updateLocalStorage('se_adv_requests', filtered);
-                        }} className="bg-red-600/20 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg transition">رفض وحذف الطلب</button>
-                      </div>
-                    </div>
+        {/* 3. التطوير المهني المتقدم */}
+        {activeTab === "dev" && !selectedItem && (
+          <div>
+            <h2 style={styles.sectionTitle}>التطوير المهني المتقدم والشهادات</h2>
+            
+            <h3 style={styles.subSectionTitle}>🌐 الندوات الهندسية عبر الإنترنت (Webinars)</h3>
+            <div style={styles.grid}>
+              {data.webinars.map(web => (
+                <div key={web.id} style={styles.staticCard}>
+                  <h4>{web.title}</h4>
+                  <p><strong>الجهة المنظمة:</strong> {web.organizer}</p>
+                  <p><strong>التاريخ:</strong> {web.date}</p>
+                  <p><strong>الساعات المكتسبة:</strong> {web.hours}</p>
+                  <p><strong>المتحدث الخبير:</strong> {web.speaker}</p>
+                  <p><strong>الملخص والهدف:</strong> {web.summary}</p>
+                </div>
+              ))}
+            </div>
+
+            <h3 style={styles.subSectionTitle}>🏅 الشهادات المهنية المعتمدة</h3>
+            <div style={styles.grid}>
+              {data.certificates.map(cert => (
+                <div key={cert.id} style={styles.staticCard}>
+                  <h4>{cert.title}</h4>
+                  <p><strong>الجهة المانحة:</strong> {cert.provider}</p>
+                  <p><strong>رقم الاعتماد:</strong> {cert.certNumber}</p>
+                  <p><strong>تاريخ الحصول والانتهاء:</strong> {cert.dateGet} إلى {cert.dateEnd}</p>
+                  <a href={cert.verifyLink} target="_blank" rel="noreferrer" style={styles.link}>رابط التحقق الرسمي</a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* صفحة داخلية عند الضغط على بطاقة معينة */}
+        {selectedItem && (
+          <div style={styles.detailsView}>
+            <button style={styles.closeBtn} onClick={() => setSelectedItem(null)}>❌ إغلاق والعودة للقائمة</button>
+            <div style={styles.detailsBody}>
+              
+              {selectedItem.type === "pro" && (
+                <>
+                  <h2>{selectedItem.data.title}</h2>
+                  <p><strong>اسم المدرب الخبير:</strong> {selectedItem.data.trainer}</p>
+                  <p><strong>مدة الدورة:</strong> {selectedItem.data.duration}</p>
+                  <p><strong>نوع الشهادة والاعتماد:</strong> {selectedItem.data.certificate}</p>
+                  <p><strong>متطلبات الدورة المسبقة:</strong> {selectedItem.data.requirements}</p>
+                  <p><strong>هوية المدرب ومعلومات عنه:</strong> {selectedItem.data.bio}</p>
+                </>
+              )}
+
+              {selectedItem.type === "python" && (
+                <>
+                  <h2>{selectedItem.data.title}</h2>
+                  <p><strong>اسم المدرب الخبير:</strong> {selectedItem.data.trainer}</p>
+                  <p><strong>مدة الدورة:</strong> {selectedItem.data.duration}</p>
+                  <p><strong>لماذا بايثون بالذات في الهندسة الإنشائية؟ (الأهمية):</strong> {selectedItem.data.whyPython}</p>
+                  <p><strong>ماذا ستتعلم في هذه الدورات؟ (المحتوى المتوقع):</strong> {selectedItem.data.learningOutcomes}</p>
+                  <p><strong>لمن تفيد هذه الدورات؟:</strong> {selectedItem.data.targetAudience}</p>
+                  <p><strong>نصائح مهمة قبل أن تبدأ:</strong> {selectedItem.data.tips}</p>
+                </>
+              )}
+
+              {selectedItem.type === "mgmt" && (
+                <>
+                  <h2>{selectedItem.data.title}</h2>
+                  <p><strong>اسم المدرب الخبير:</strong> {selectedItem.data.trainer}</p>
+                  <p><strong>مدة الدورة:</strong> {selectedItem.data.duration}</p>
+                  <p><strong>أهم المحاور والمعلومات في هذه الدورات:</strong> {selectedItem.data.axes}</p>
+                  <p><strong>أهمية هذه الدورات (لماذا هي حاسمة لمستقبلك؟):</strong> {selectedItem.data.importance}</p>
+                  <p><strong>نصيحة جليلة للبدء:</strong> {selectedItem.data.tips}</p>
+                </>
+              )}
+
+              {selectedItem.type === "scholarship" && (
+                <>
+                  <h2 style={{color: "#00e6ff"}}>{selectedItem.data.title}</h2>
+                  
+                  <h3 style={styles.subSectionTitle}>1. المعلومات الأساسية للمنحة</h3>
+                  <p><strong>الاسم الرسمي:</strong> {selectedItem.data.title}</p>
+                  <p><strong>الجهة المانحة:</strong> {selectedItem.data.provider}</p>
+                  <p><strong>الدولة المستضيفة:</strong> {selectedItem.data.country}</p>
+                  <p><strong>المراحل الدراسية المستهدفة:</strong> {selectedItem.data.degrees}</p>
+
+                  <h3 style={styles.subSectionTitle}>2. التمويل والمزايا المالية</h3>
+                  <p><strong>نوع التمويل:</strong> {selectedItem.data.fundType}</p>
+                  <p><strong>الرسوم الدراسية:</strong> {selectedItem.data.tuition}</p>
+                  <p><strong>الراتب الشهري:</strong> {selectedItem.data.salary}</p>
+                  <p><strong>السكن الجامعي:</strong> {selectedItem.data.housing}</p>
+                  <p><strong>تذاكر الطيران:</strong> {selectedItem.data.flights}</p>
+                  <p><strong>التأمين الصحي الشامل:</strong> {selectedItem.data.health}</p>
+                  <p><strong>الفيزا والسنة التحضيرية للغة:</strong> {selectedItem.data.visa}</p>
+
+                  <h3 style={styles.subSectionTitle}>3. شروط الأهلية والقبول</h3>
+                  <p><strong>الجنسيات المؤهلة:</strong> {selectedItem.data.nationalities}</p>
+                  <p><strong>السن المطلوب:</strong> {selectedItem.data.age}</p>
+                  <p><strong>المعدل الأكاديمي الأدنى:</strong> {selectedItem.data.gpa}</p>
+                  <p><strong>شرط اللغة والشهادات:</strong> {selectedItem.data.langReq}</p>
+                  <p><strong>التخصصات المتاحة:</strong> {selectedItem.data.specialties}</p>
+
+                  <h3 style={styles.subSectionTitle}>4. الوثائق والمستندات المطلوبة (ملف التقديم)</h3>
+                  <p><strong>الشهادات الأكاديمية وكشوف الدرجات:</strong> {selectedItem.data.docCertificates}</p>
+                  <p><strong>إثبات الشخصية / جواز السفر:</strong> {selectedItem.data.docId}</p>
+                  <p><strong>السيرة الذاتية (CV):</strong> {selectedItem.data.docCv}</p>
+                  <p><strong>خطاب الدافع (Motivation Letter):</strong> {selectedItem.data.docMotiv}</p>
+                  <p><strong>خطابات التوصية (Recommendation Letters):</strong> {selectedItem.data.docRec}</p>
+                  <p><strong>المخطط البحثي (Research Proposal):</strong> {selectedItem.data.docResearch}</p>
+                  <p><strong>شهادة الفحص الطبي:</strong> {selectedItem.data.docMedical}</p>
+
+                  <h3 style={styles.subSectionTitle}>5. مواعيد التقديم والجدول الزمني</h3>
+                  <p><strong>تاريخ فتح باب التتقديم:</strong> {selectedItem.data.dateOpen}</p>
+                  <p><strong>تاريخ إغلاق التقديم (Deadline):</strong> {selectedItem.data.dateClose}</p>
+                  <p><strong>موعد إعلان النتائج:</strong> {selectedItem.data.dateResults}</p>
+                  <p><strong>موعد بدء الدراسة للفصل المستهدف:</strong> {selectedItem.data.dateStart}</p>
+
+                  <h3 style={styles.subSectionTitle}>6. طريقة التتقديم والروابط الرسمية</h3>
+                  <p><strong>رابط التقديم المباشر:</strong> <a href={selectedItem.data.linkDirect} target="_blank" rel="noreferrer" style={styles.link}>{selectedItem.data.linkDirect}</a></p>
+                  <p><strong>رابط الإعلان الرسمي:</strong> <a href={selectedItem.data.linkOfficial} target="_blank" rel="noreferrer" style={styles.link}>{selectedItem.data.linkOfficial}</a></p>
+                  <p><strong>رسوم التتقديم على الموقع:</strong> {selectedItem.data.applicationFee}</p>
+
+                  <hr style={{margin: "20px 0", borderColor: "#00e6ff"}}/>
+                  {/* زر التقديم من خلال المنصة */}
+                  <div style={{textAlign: "center"}}>
+                    <button style={styles.globalApplyBtn} onClick={() => { setSelectedScholarship(selectedItem.data.title); setShowApplyModal(true); }}>⚡ زر التقديم من خلالنا (خدمة احترافية)</button>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                </>
+              )}
 
-        {currentSection === 'users' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-black text-indigo-400">إدارة وحظر وتدقيق بيانات المستخدمين والشركات المسجلة</h2>
-            <div className="bg-slate-950 rounded-xl overflow-hidden border">
-              <table className="w-full text-right text-sm">
-                <thead className="bg-white/5 text-slate-400 text-xs">
-                  <tr>
-                    <th className="p-4">الاسم بالكامل</th>
-                    <th className="p-4">البريد الإلكتروني الحقيقي</th>
-                    <th className="p-4">كلمة المرور الموثقة</th>
-                    <th className="p-4">التصنيف والـ Role</th>
-                    <th className="p-4 text-center">عمليات الرقابة الإدارية</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10">
-                  {users.map(u => (
-                    <tr key={u.id} className={u.isBlocked ? 'bg-red-950/20 opacity-60' : ''}>
-                      <td className="p-4 font-bold">{u.fullName}</td>
-                      <td className="p-4 font-mono text-xs">{u.email}</td>
-                      <td className="p-4 font-mono text-xs text-slate-500">🧬 {u.password} (محمية وموثقة)</td>
-                      <td className="p-4"><span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded text-xs">{u.role === 'seeker' ? 'طالب توظيف' : 'مورد / مقاول'}</span></td>
-                      <td className="p-4 text-center space-x-reverse space-x-2">
-                        <button onClick={() => toggleUserBlock(u.id)} className={`px-2 py-1 rounded text-xs font-bold transition ${u.isBlocked ? 'bg-amber-600 text-slate-950' : 'bg-slate-800 text-amber-500 hover:bg-amber-600 hover:text-slate-950'}`}>{u.isBlocked ? 'إلغاء الحظر' : 'حظر الحساب'}</button>
-                        <button onClick={() => handleDeleteUser(u.id)} className="bg-red-600/20 hover:bg-red-600 text-white px-2 py-1 rounded text-xs transition">حذف نهائي</button>
-                      </td>
-                    </tr>
-                  ))}
-                  {users.length === 0 && (
-                    <tr><td colSpan={5} className="p-4 text-center text-slate-500 text-xs">لا يوجد أي أفراد أو شركات مسجلة في قاعدة البيانات حالياً.</td></tr>
-                  )}
-                </tbody>
-              </table>
             </div>
           </div>
         )}
 
-        {currentSection === 'logs' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-black text-slate-300">نظام الحماية المطلقة والرقابة على السيرفر والأمان</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-slate-950 p-6 rounded-2xl border text-center space-y-2">
-                <span className="text-slate-400 text-xs block">إجمالي عمليات تسجيل الدخول الآمنة حالياً</span>
-                <span className="text-4xl font-black text-blue-400">{loginCount} عملية دخول موثقة</span>
-              </div>
-              <div className="bg-slate-950 p-6 rounded-2xl border border-red-500/20 text-center space-y-2">
-                <span className="text-red-400 text-xs block">حالة جدار الحماية (Firewall)</span>
-                <span className="text-lg font-bold text-emerald-400 block">🔒 مفعل ونشط لأعلى حماية حظر تكرار تلقائي</span>
-                <p className="text-slate-500 text-xs">يتم تلقائياً رصد وحظر أي حساب يخطئ لأكثر من 3 مرات متتالية وإرسال تنبيه فوري لإيميلات الإدارة.</p>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
+
+      {/* مودال التقديم من خلالنا الاحترافي */}
+      {showApplyModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <div style={styles.modalHeader}>
+              <h3>تقديم احترافي عبر منصة الهندسة الذكية</h3>
+              <button style={styles.miniCloseBtn} onClick={() => setShowApplyModal(false)}>❌</button>
+            </div>
+            <p style={{color: "#FFD700", textAlign: "center", fontWeight: "bold"}}>نحن نقدم لكم بطريقة احترافية متكاملة تضمن قبول ملفكم المكتمل فتربص بفرصتك!</p>
+            <p style={{color: "#00ffcc", textAlign: "center", fontSize: "14px"}}>رسوم الخدمة: 150$ تشمل مراجعة وتنسيق الملفات وصياغة الخطابات هندسياً</p>
+            
+            <form onSubmit={handleApplySubmit} style={styles.form}>
+              <h4 style={styles.formGroupTitle}>1. البيانات الشخصية</h4>
+              <input type="text" placeholder="الاسم الكامل بالعربية (كما في جواز السفر)" required value={applyForm.fullNameAr} onChange={e => setApplyForm({...applyForm, fullNameAr: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="Full Name in English (as in Passport)" required value={applyForm.fullNameEn} onChange={e => setApplyForm({...applyForm, fullNameEn: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="تاريخ الميلاد والمنشأ (يوم/شهر/سنة)" required value={applyForm.birthDate} onChange={e => setApplyForm({...applyForm, birthDate: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="الجنسية الحالية" required value={applyForm.nationality} onChange={e => setApplyForm({...applyForm, nationality: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="بلد الإقامة الحالي" required value={applyForm.residence} onChange={e => setApplyForm({...applyForm, residence: e.target.value})} style={styles.input}/>
+              <input type="email" placeholder="البريد الإلكتروني" required value={applyForm.email} onChange={e => setApplyForm({...applyForm, email: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="رقم الهاتف (مع رمز الدولة)" required value={applyForm.phone} onChange={e => setApplyForm({...applyForm, phone: e.target.value})} style={styles.input}/>
+
+              <h4 style={styles.formGroupTitle}>2. الخلفية الأكاديمية (Academic Background)</h4>
+              <input type="text" placeholder="آخر مؤهل علمي (ثانوية عامة، بكالوريوس، ماجستير)" required value={applyForm.lastDegree} onChange={e => setApplyForm({...applyForm, lastDegree: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="المعدل التراكمي ونظام العلامات (مثال: 3.8/4.0)" required value={applyForm.gpa} onChange={e => setApplyForm({...applyForm, gpa: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="اسم المؤسسة التعليمية السابقة وسنة التخرج" required value={applyForm.institute} onChange={e => setApplyForm({...applyForm, institute: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="التخصص الحالي / السابق دقيقاً" required value={applyForm.currentSpecialty} onChange={e => setApplyForm({...applyForm, currentSpecialty: e.target.value})} style={styles.input}/>
+
+              <h4 style={styles.formGroupTitle}>3. تفاصيل التقديم والمنحة المستهدفة</h4>
+              <input type="text" readOnly value={`المنحة المختارة: ${selectedScholarship}`} style={{...styles.input, background: "#222", color: "#FFD700"}}/>
+              <input type="text" placeholder="الدرجة العلمية المستهدفة (بكالوريوس، ماجستير، دكتوراه)" required value={applyForm.targetDegree} onChange={e => setApplyForm({...applyForm, targetDegree: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="التخصص المرغوب دراسته (خيار أول)" required value={applyForm.targetSpecialty1} onChange={e => setApplyForm({...applyForm, targetSpecialty1: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="التخصص المرغوب دراسته (خيار ثاني)" required value={applyForm.targetSpecialty2} onChange={e => setApplyForm({...applyForm, targetSpecialty2: e.target.value})} style={styles.input}/>
+              
+              <label style={{color: "#fff", display: "block", marginTop: "10px"}}>مستوى إتقان اللغة الإنجليزية:</label>
+              <select value={applyForm.langLevel} onChange={e => setApplyForm({...applyForm, langLevel: e.target.value})} style={styles.select}>
+                <option value="none">بدون اختبار (لم يتم التقدم لاختبار)</option>
+                <option value="IELTS">IELTS</option>
+                <option value="TOEFL">TOEFL</option>
+              </select>
+
+              <h4 style={styles.formGroupTitle}>4. الملفات والمستندات المطلوب إرفاقها (صيغة PDF و الصور)</h4>
+              <label style={styles.fileLabel}>نسخة من جواز السفر (PDF): <input type="file" accept=".pdf" required onChange={e => setApplyForm({...applyForm, passportFile: e.target.files[0]})} style={styles.fileInput}/></label>
+              <label style={styles.fileLabel}>الشهادات الأكاديمية وكشوفات الدرجات (PDF): <input type="file" accept=".pdf" required onChange={e => setApplyForm({...applyForm, certificatesFile: e.target.files[0]})} style={styles.fileInput}/></label>
+              <label style={styles.fileLabel}>بيان الغرض من الدراسة SOP (PDF): <input type="file" accept=".pdf" required onChange={e => setApplyForm({...applyForm, sopFile: e.target.files[0]})} style={styles.fileInput}/></label>
+              <label style={styles.fileLabel}>السيرة الذاتية المحدثة CV (PDF): <input type="file" accept=".pdf" required onChange={e => setApplyForm({...applyForm, cvFile: e.target.files[0]})} style={styles.fileInput}/></label>
+              <label style={styles.fileLabel}>رسائل التوصية المجمعة (PDF): <input type="file" accept=".pdf" required onChange={e => setApplyForm({...applyForm, recFile: e.target.files[0]})} style={styles.fileInput}/></label>
+              <label style={styles.fileLabel}>شهادة إثبات اللغة إن وجدت (PDF): <input type="file" accept=".pdf" onChange={e => setApplyForm({...applyForm, langFile: e.target.files[0]})} style={styles.fileInput}/></label>
+              <label style={styles.fileLabel}>الصورة الشخصية الخلفية بيضاء (JPG/PNG): <input type="file" accept=".jpg,.jpeg,.png" required onChange={e => setApplyForm({...applyForm, personalPhoto: e.target.files[0]})} style={styles.fileInput}/></label>
+
+              <button type="submit" style={styles.submitFormBtn}>إرسال الملف الكامل وتوجيه الطلب فورا 🚀</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+// التنسيقات الإبداعية والجمالية الفائقة
+const styles = {
+  container: {
+    minHeight: "100vh",
+    direction: "rtl",
+    fontFamily: "Cairo, sans-serif",
+    backgroundImage: "linear-gradient(rgba(10, 25, 47, 0.85), rgba(10, 25, 47, 0.95)), url('https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=1920&q=80')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundAttachment: "fixed",
+    color: "#e2e8f0"
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "20px 40px",
+    background: "rgba(2, 12, 27, 0.9)",
+    borderBottom: "2px solid #64ffda",
+    position: "sticky",
+    top: 0,
+    zIndex: 100,
+    boxShadow: "0 10px 30px -10px rgba(2,12,27,0.7)"
+  },
+  logoSection: { fontSize: "20px", fontWeight: "bold", color: "#64ffda" },
+  navBar: { display: "flex", gap: "15px" },
+  navBtn: {
+    background: "transparent", border: "1px solid #64ffda", color: "#64ffda",
+    padding: "10px 20px", borderRadius: "5px", cursor: "pointer", transition: "0.3s"
+  },
+  activeNavBtn: {
+    background: "#64ffda", border: "1px solid #64ffda", color: "#0a192f",
+    padding: "10px 20px", borderRadius: "5px", cursor: "pointer", fontWeight: "bold"
+  },
+  backBtn: {
+    background: "#ff4a4a", border: "none", color: "#fff", padding: "10px 20px",
+    borderRadius: "5px", cursor: "pointer", fontWeight: "bold"
+  },
+  mainContent: { padding: "40px" },
+  sectionTitle: { textAlign: "center", color: "#fff", fontSize: "32px", marginBottom: "30px", textShadow: "0 2px 10px rgba(100,255,218,0.3)" },
+  subSectionTitle: { color: "#64ffda", borderBottom: "1px solid #233554", paddingBottom: "10px", marginTop: "30px" },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "25px", marginTop: "20px" },
+  card: {
+    background: "#112240", border: "1px solid #233554", borderRadius: "8px", padding: "20px",
+    cursor: "pointer", transition: "0.3s transform, 0.3s box-shadow", boxShadow: "0 10px 30px -15px rgba(2,12,27,0.7)"
+  },
+  staticCard: {
+    background: "#112240", border: "1px solid #233554", borderRadius: "8px", padding: "20px",
+    boxShadow: "0 10px 30px -15px rgba(2,12,27,0.7)"
+  },
+  moreLabel: { color: "#64ffda", fontSize: "12px", display: "block", marginTop: "15px", textAlign: "left" },
+  detailsView: { background: "rgba(17, 34, 64, 0.95)", border: "2px solid #64ffda", borderRadius: "12px", padding: "30px", marginTop: "20px" },
+  closeBtn: { background: "#ff4a4a", border: "none", color: "#fff", padding: "8px 15px", borderRadius: "5px", cursor: "pointer", float: "left" },
+  detailsBody: { clear: "both", marginTop: "20px", lineHeight: "1.8" },
+  link: { color: "#64ffda", textDecoration: "underline" },
+  globalApplyBtn: { background: "linear-gradient(45deg, #00b4db, #0083b0)", color: "#fff", border: "none", padding: "15px 40px", fontSize: "18px", borderRadius: "5px", cursor: "pointer", fontWeight: "bold", transition: "0.3s", boxShadow: "0 4px 15px rgba(0,180,219,0.4)" },
+  modalOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(2,12,27,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "20px" },
+  modalBox: { background: "#0a192f", border: "2px solid #64ffda", borderRadius: "12px", width: "100%", maxWidth: "800px", maxHeight: "90vh", overflowY: "auto", padding: "30px", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #233554", paddingBottom: "15px" },
+  miniCloseBtn: { background: "transparent", border: "none", cursor: "pointer", fontSize: "20px" },
+  form: { marginTop: "20px" },
+  formGroupTitle: { color: "#64ffda", marginTop: "20px", marginBottom: "10px", borderRight: "4px solid #64ffda", paddingRight: "10px" },
+  input: { width: "100%", padding: "12px", marginBottom: "12px", borderRadius: "5px", border: "1px solid #233554", background: "#112240", color: "#fff", boxSizing: "border-box" },
+  select: { width: "100%", padding: "12px", marginBottom: "12px", borderRadius: "5px", border: "1px solid #233554", background: "#112240", color: "#fff" },
+  fileLabel: { display: "block", background: "#112240", padding: "10px", borderRadius: "5px", marginBottom: "10px", border: "1px dashed #64ffda", cursor: "pointer" },
+  fileInput: { marginRight: "10px" },
+  submitFormBtn: { width: "100%", padding: "15px", background: "#64ffda", color: "#0a192f", border: "none", borderRadius: "5px", fontSize: "18px", fontWeight: "bold", cursor: "pointer", marginTop: "20px", boxShadow: "0 4px 15px rgba(100,255,218,0.4)" }
+};
