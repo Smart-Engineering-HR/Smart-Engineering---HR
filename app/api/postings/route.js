@@ -1,9 +1,8 @@
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
+// app/api/postings/route.js
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import nodemailer from 'nodemailer';
+import { processNotifications } from '@/lib/notificationEngine';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -16,7 +15,7 @@ const transporter = nodemailer.createTransport({
 const externalAdminEmails = ['Smart.Engineering.Global@proton.me', 'smart.engineering.global@tuta.io'];
 const gmailAdminEmail = 'smartengineering.hr.global@gmail.com';
 
-// 1. جلب البيانات (GET)
+// 1. دالة جلب البيانات (GET)
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -25,85 +24,39 @@ export async function GET(req) {
 
     if (id) {
       const posting = await prisma.advertisement.findUnique({ where: { id: id } });
-      if (!posting) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
-      
-      let parsedInfo = {};
-      try { parsedInfo = typeof posting.moreInfo === 'string' ? JSON.parse(posting.moreInfo) : (posting.moreInfo || {}); } catch (e) {}
-      return NextResponse.json({ ...posting, ...parsedInfo });
+      return posting ? NextResponse.json(posting) : NextResponse.json({ error: "غير موجود" }, { status: 404 });
     }
 
-    let filterConditions = {};
     if (isPublicQuery === 'true') {
-      filterConditions = {
-        OR: [
-          { status: 'APPROVED' },
-          { status: null },
-          { status: '' }
-        ]
-      };
+      const publicPostings = await prisma.advertisement.findMany({
+        where: { status: 'APPROVED' },
+        orderBy: { createdAt: 'desc' }
+      });
+      return NextResponse.json(publicPostings, { status: 200 });
     }
 
-    const postings = await prisma.advertisement.findMany({
-      where: filterConditions,
-      orderBy: { createdAt: 'desc' }
-    });
-
-    const formattedPostings = postings.map(item => {
-      const rawItem = JSON.parse(JSON.stringify(item));
-      let parsedInfo = {};
-      try {
-        if (rawItem.moreInfo) {
-          parsedInfo = typeof rawItem.moreInfo === 'string' ? JSON.parse(rawItem.moreInfo) : rawItem.moreInfo;
-        }
-      } catch (e) {
-        parsedInfo = {};
-      }
-
-      const finalType = rawItem.advertiseType || parsedInfo.advertiseType || parsedInfo.category || "PRO_COURSE";
-
-      return {
-        ...parsedInfo,
-        ...rawItem,
-        id: rawItem.id,
-        advertiseType: finalType,
-        category: finalType,
-        companyName: rawItem.companyName || parsedInfo.title || parsedInfo.name || "منصة الهندسة الذكية",
-        title: parsedInfo.title || rawItem.companyName || rawItem.name
-      };
-    });
-
-    return NextResponse.json(formattedPostings, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      }
-    });
+    const allPostings = await prisma.advertisement.findMany({ orderBy: { createdAt: 'desc' } });
+    return NextResponse.json(allPostings, { status: 200 });
   } catch (error) {
     console.error("Error in GET API:", error);
-    return NextResponse.json({ error: "فشل جلب البيانات من القاعدة" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الجلب" }, { status: 500 });
   }
 }
 
-// 2. إضافة منشور جديد أو طلب تقديم (POST)
+// 2. دالة الإرسال (POST)
 export async function POST(req) {
   try {
     const body = await req.json();
-    
-    const { companyName, contactPerson, phone, email, website, advertiseType, category, address, status, ...extraData } = body;
-
-    const finalCategory = advertiseType || category || "PRO_COURSE";
     const dataToSave = {
-      companyName: companyName || body.title || body.name || "منصة الهندسة الذكية",
-      contactPerson: contactPerson || body.trainer || body.provider || "الإدارة",
-      phone: phone || body.phone || "000000000",
-      email: email || body.email || gmailAdminEmail,
-      website: website || body.linkDirect || "",
-      advertiseType: finalCategory,
-      address: address || body.country || "Global",
-      moreInfo: JSON.stringify({ ...extraData, title: body.title || companyName, category: finalCategory, advertiseType: finalCategory }),
-      status: "APPROVED"
+      companyName: body.companyName || body.company || "غير محدد",
+      contactPerson: body.contactPerson || "غير محدد",
+      phone: body.phone || "000000000",
+      email: body.email || "no-email@provided.com",
+      website: body.website || "",
+      advertiseType: body.advertiseType || body.type || "وظيفة",
+      address: body.address || body.location || "اليمن",
+      moreInfo: typeof body.moreInfo === 'string' ? body.moreInfo : JSON.stringify(body),
+      status: body.status || "PENDING"
     };
 
     const newPosting = await prisma.advertisement.create({ data: dataToSave });
@@ -111,72 +64,71 @@ export async function POST(req) {
     const mailOptions = {
       from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
       to: [gmailAdminEmail, ...externalAdminEmails].join(','),
-      subject: `تحديث/إعلان جديد: ${dataToSave.advertiseType} - ${dataToSave.companyName}`,
-      html: `<div dir="rtl">
-        <h3>تم تسجيل منشور جديد في قاعدة البيانات</h3>
-        <p><strong>النوع:</strong> ${dataToSave.advertiseType}</p>
-        <p><strong>العنوان/الجهة:</strong> ${dataToSave.companyName}</p>
-      </div>`
+      subject: `إعلان جديد: ${dataToSave.advertiseType} - ${dataToSave.companyName}`,
+      html: `<div dir="rtl"><h3>طلب إعلان جديد</h3><p>تم استلام طلب جديد. يمكنك الاطلاع على كامل التفاصيل في لوحة التحكم.</p><pre>${JSON.stringify(body, null, 2)}</pre></div>`
     };
 
-    try { await transporter.sendMail(mailOptions); } catch (e) { console.error("Email warning:", e); }
+    try { await transporter.sendMail(mailOptions); } catch (e) { console.error("Email error:", e); }
 
-    let parsedMore = {};
-    try { parsedMore = JSON.parse(newPosting.moreInfo); } catch(e){}
+    if (newPosting.status === 'APPROVED') {
+      processNotifications(newPosting.id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
+    }
 
-    return NextResponse.json({ ...newPosting, ...parsedMore }, { status: 201 });
+    return NextResponse.json(newPosting, { status: 201 });
   } catch (error) {
     console.error("خطأ أثناء الحفظ:", error);
-    return NextResponse.json({ error: "فشل الحفظ في قاعدة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الحفظ: تأكد من صحة البيانات" }, { status: 500 });
   }
 }
 
-// 3. تحديث منشور حالي (PUT)
+// 3. دالة التحديث (PUT)
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, status, companyName, contactPerson, phone, email, website, advertiseType, category, address, ...extraData } = body;
-    
-    if (!id) return NextResponse.json({ error: "المعرف مطلوب للتعديل" }, { status: 400 });
+    const { id, status, ...updateData } = body;
+    if (!id) return NextResponse.json({ error: "المعرف مطلوب" }, { status: 400 });
 
-    const finalCategory = advertiseType || category || "PRO_COURSE";
-    const updateData = {
-      companyName: companyName || body.title || body.name,
-      contactPerson: contactPerson || body.trainer || body.provider,
-      phone,
-      email,
-      website,
-      advertiseType: finalCategory,
-      address: address || body.country,
-      status: "APPROVED",
-      moreInfo: JSON.stringify({ ...extraData, title: body.title || companyName, category: finalCategory, advertiseType: finalCategory })
+    const allowedFields = {
+      companyName: updateData.companyName,
+      contactPerson: updateData.contactPerson,
+      phone: updateData.phone,
+      email: updateData.email,
+      website: updateData.website,
+      advertiseType: updateData.advertiseType,
+      address: updateData.address,
+      moreInfo: typeof updateData.moreInfo === 'string' ? updateData.moreInfo : JSON.stringify(updateData),
+      status: status || updateData.status
     };
 
-    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+    Object.keys(allowedFields).forEach(key => allowedFields[key] === undefined && delete allowedFields[key]);
 
     const updated = await prisma.advertisement.update({
       where: { id: id },
-      data: updateData
+      data: allowedFields
     });
+
+    if (updated.status === 'APPROVED') {
+      processNotifications(id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
+    }
 
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error("Error in PUT API:", error);
-    return NextResponse.json({ error: "فشل التعديل في قاعدة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: "فشل التعديل: البيانات غير متطابقة مع المخطط" }, { status: 500 });
   }
 }
 
-// 4. حذف منشور (DELETE)
+// 4. دالة الحذف (DELETE)
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: "المعرف مطلوب للحذف" }, { status: 400 });
+    if (!id) return NextResponse.json({ error: "المعرف مطلوب" }, { status: 400 });
 
     await prisma.advertisement.delete({ where: { id: id } });
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Error in DELETE API:", error);
-    return NextResponse.json({ error: "فشل الحذف من القاعدة" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الحذف" }, { status: 500 });
   }
 }
