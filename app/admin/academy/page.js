@@ -32,7 +32,7 @@ export default function AcademyAdminDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/postings", { cache: "no-store" });
+      const res = await fetch(`/api/postings?t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch");
       const list = await res.json();
 
@@ -191,11 +191,21 @@ export default function AcademyAdminDashboard() {
         <main style={styles.workspace}>
           {targetList !== "applications" ? (
             <>
-              <h3 style={{color: "#64ffda"}}>{editId ? "✍️ تعديل العنصر" : "➕ إضافة عنصر جديد ونشره فوراً"}</h3>
+              <h3 style={{color: "#64ffda"}}>{editId ? "✍️ تعديل العنصر" : "➕ إضافة عنصر جديد إلى القائمة الفرعية"}</h3>
               
               <form onSubmit={handleSubmit} style={styles.adminForm}>
-                <input type="text" name="title" placeholder="العنوان / الاسم الرئيسي" required value={formState.title || formState.name || ""} onChange={handleInputChange} style={styles.input}/>
+                <input type="text" name="title" placeholder="اسم الدورة التدريبية" required value={formState.title || formState.name || ""} onChange={handleInputChange} style={styles.input}/>
                 
+                {targetList.includes("Courses") && (
+                  <>
+                    <input type="text" name="trainer" placeholder="اسم المدرب" required value={formState.trainer || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="duration" placeholder="مدة الدورة (مثال: 50 ساعة)" required value={formState.duration || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="certificateType" placeholder="نوع الشهادة والاعتماد" value={formState.certificateType || ""} onChange={handleInputChange} style={styles.input}/>
+                    <textarea name="requirements" placeholder="متطلبات الدورة" value={formState.requirements || ""} onChange={handleInputChange} style={styles.textarea}/>
+                    <textarea name="trainerBio" placeholder="هوية المدرب ومعلومات متكاملة عنه" value={formState.trainerBio || ""} onChange={handleInputChange} style={styles.textarea}/>
+                  </>
+                )}
+
                 {targetList === "scholarships" && (
                   <>
                     <input type="text" name="provider" placeholder="الجهة المانحة" required value={formState.provider || ""} onChange={handleInputChange} style={styles.input}/>
@@ -207,25 +217,17 @@ export default function AcademyAdminDashboard() {
                   </>
                 )}
 
-                {targetList.includes("Courses") && (
-                  <>
-                    <input type="text" name="trainer" placeholder="اسم المدرب" required value={formState.trainer || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="duration" placeholder="مدة الدورة" required value={formState.duration || ""} onChange={handleInputChange} style={styles.input}/>
-                    <textarea name="summary" placeholder="محتوى ومحاور الدورة" value={formState.summary || ""} onChange={handleInputChange} style={styles.textarea}/>
-                  </>
-                )}
-
-                <button type="submit" style={styles.submitBtn}>{editId ? "💾 حفظ التعديلات" : "🚀 نشر فوري لقاعدة البيانات"}</button>
+                <button type="submit" style={styles.submitBtn}>{editId ? "💾 حفظ التعديلات" : "🚀 نشر وإضافة فورية لقائمة الجمهور"}</button>
               </form>
 
-              <h3 style={{marginTop: "40px", color: "#fff"}}>📋 العناصر المنشورة حالياً</h3>
+              <h3 style={{marginTop: "40px", color: "#fff"}}>📋 العناصر المنشورة حالياً تحت هذا القسم</h3>
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th>العنوان / الاسم</th>
-                      <th>المعرف</th>
-                      <th>الإجراءات</th>
+                      <th>العنوان / الاسم الرئيسي</th>
+                      <th>المعرف الفريد</th>
+                      <th>الإجراءات الإدارية</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -235,7 +237,7 @@ export default function AcademyAdminDashboard() {
                         <td>{item.id}</td>
                         <td>
                           <button style={styles.editBtn} onClick={() => handleEdit(item)}>✍️ تعديل</button>
-                          <button style={styles.deleteBtn} onClick={() => handleDelete(item.id)}>❌ حذف</button>
+                          <button style={styles.deleteBtn} onClick={() => handleDelete(item.id)}>❌ حذف قطعي</button>
                         </td>
                       </tr>
                     ))}
@@ -273,7 +275,7 @@ const styles = {
   workspace: { flex: 1, padding: "40px", background: "#0a192f" },
   adminForm: { background: "#112240", padding: "25px", borderRadius: "8px", border: "1px solid #233554", marginTop: "20px" },
   input: { width: "100%", padding: "12px", marginBottom: "15px", borderRadius: "5px", border: "1px solid #233554", background: "#0a192f", color: "#fff", boxSizing: "border-box" },
-  textarea: { width: "100%", padding: "12px", marginBottom: "15px", borderRadius: "5px", border: "1px solid #233554", background: "#0a192f", color: "#fff", height: "100px", boxSizing: "border-box" },
+  textarea: { width: "100%", padding: "12px", marginBottom: "15px", borderRadius: "5px", border: "1px solid #233554", background: "#0a192f", color: "#fff", height: "80px", boxSizing: "border-box" },
   submitBtn: { background: "#64ffda", color: "#0a192f", padding: "12px 30px", border: "none", borderRadius: "5px", fontSize: "16px", fontWeight: "bold", cursor: "pointer", width: "100%" },
   tableWrapper: { marginTop: "20px", background: "#112240", borderRadius: "8px", overflow: "hidden", border: "1px solid #233554" },
   table: { width: "100%", borderCollapse: "collapse", textAlign: "right" },

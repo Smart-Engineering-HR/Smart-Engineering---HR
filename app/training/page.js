@@ -23,7 +23,10 @@ export default function TrainingPublicPage() {
   const fetchPublicData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/postings?public=true", { cache: "no-store" });
+      const res = await fetch(`/api/postings?public=true&t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" }
+      });
       if (!res.ok) throw new Error("فشل جلب البيانات");
       const list = await res.json();
 
@@ -113,7 +116,7 @@ export default function TrainingPublicPage() {
                     <div key={course.id} style={styles.card} onClick={() => setSelectedItem({type: "pro", data: course})}>
                       <h4>{course.title || course.companyName || course.name}</h4>
                       <p><strong>المدرب:</strong> {course.trainer || course.contactPerson || "غير محدد"}</p>
-                      <p><strong>المدة:</strong> {course.duration || "غير حددة"}</p>
+                      <p><strong>المدة:</strong> {course.duration || "غير محددة"}</p>
                       <span style={styles.moreLabel}>اضغط للتفاصيل الاستراتيجية...</span>
                     </div>
                   ))}
@@ -237,7 +240,14 @@ export default function TrainingPublicPage() {
                     <>
                       <h2>{selectedItem.data.title || selectedItem.data.companyName}</h2>
                       <p><strong>المحاضر/الجهة:</strong> {selectedItem.data.trainer || selectedItem.data.contactPerson}</p>
-                      <p><strong>التفاصيل والمدة:</strong> {selectedItem.data.duration || selectedItem.data.summary}</p>
+
+                      <p><strong>مدة الدورة:</strong> {selectedItem.data.duration}</p>
+
+                      <p><strong>نوع الشهادة والاعتماد:</strong> {selectedItem.data.certificateType}</p>
+
+                      <p><strong>متطلبات الدورة:</strong> {selectedItem.data.requirements}</p>
+
+                      <p><strong>هوية المدرب والمعلومات:</strong> {selectedItem.data.trainerBio}</p>
                     </>
                   )}
                 </div>

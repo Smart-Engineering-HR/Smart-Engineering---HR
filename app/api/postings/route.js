@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import nodemailer from 'nodemailer';
@@ -31,7 +34,13 @@ export async function GET(req) {
 
     let filterConditions = {};
     if (isPublicQuery === 'true') {
-      filterConditions = { status: 'APPROVED' };
+      filterConditions = {
+        OR: [
+          { status: 'APPROVED' },
+          { status: null },
+          { status: '' }
+        ]
+      };
     }
 
     const postings = await prisma.advertisement.findMany({
@@ -39,7 +48,6 @@ export async function GET(req) {
       orderBy: { createdAt: 'desc' }
     });
 
-    // تحويل عناصر Prisma إلى كائنات نصوص صافية وتجميع البيانات الملحقة (moreInfo)
     const formattedPostings = postings.map(item => {
       const rawItem = JSON.parse(JSON.stringify(item));
       let parsedInfo = {};
@@ -51,16 +59,27 @@ export async function GET(req) {
         parsedInfo = {};
       }
 
+      const finalType = rawItem.advertiseType || parsedInfo.advertiseType || parsedInfo.category || "PRO_COURSE";
+
       return {
-        ...rawItem,
         ...parsedInfo,
+        ...rawItem,
         id: rawItem.id,
-        advertiseType: rawItem.advertiseType || parsedInfo.category || parsedInfo.advertiseType,
-        companyName: rawItem.companyName || parsedInfo.title || parsedInfo.name || "منصة الهندسة الذكية"
+        advertiseType: finalType,
+        category: finalType,
+        companyName: rawItem.companyName || parsedInfo.title || parsedInfo.name || "منصة الهندسة الذكية",
+        title: parsedInfo.title || rawItem.companyName || rawItem.name
       };
     });
 
-    return NextResponse.json(formattedPostings, { status: 200 });
+    return NextResponse.json(formattedPostings, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   } catch (error) {
     console.error("Error in GET API:", error);
     return NextResponse.json({ error: "فشل جلب البيانات من القاعدة" }, { status: 500 });
@@ -74,22 +93,21 @@ export async function POST(req) {
     
     const { companyName, contactPerson, phone, email, website, advertiseType, category, address, status, ...extraData } = body;
 
-    const finalCategory = advertiseType || category || "GENERAL";
+    const finalCategory = advertiseType || category || "PRO_COURSE";
     const dataToSave = {
       companyName: companyName || body.title || body.name || "منصة الهندسة الذكية",
-      contactPerson: contactPerson || body.trainer || body.provider || body.fullNameAr || "الإدارة",
+      contactPerson: contactPerson || body.trainer || body.provider || "الإدارة",
       phone: phone || body.phone || "000000000",
       email: email || body.email || gmailAdminEmail,
       website: website || body.linkDirect || "",
       advertiseType: finalCategory,
       address: address || body.country || "Global",
-      moreInfo: JSON.stringify({ ...extraData, category: finalCategory, advertiseType: finalCategory }),
-      status: status || "APPROVED"
+      moreInfo: JSON.stringify({ ...extraData, title: body.title || companyName, category: finalCategory, advertiseType: finalCategory }),
+      status: "APPROVED"
     };
 
     const newPosting = await prisma.advertisement.create({ data: dataToSave });
 
-    // إرسال إشعار بريدي
     const mailOptions = {
       from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
       to: [gmailAdminEmail, ...externalAdminEmails].join(','),
@@ -121,7 +139,7 @@ export async function PUT(req) {
     
     if (!id) return NextResponse.json({ error: "المعرف مطلوب للتعديل" }, { status: 400 });
 
-    const finalCategory = advertiseType || category;
+    const finalCategory = advertiseType || category || "PRO_COURSE";
     const updateData = {
       companyName: companyName || body.title || body.name,
       contactPerson: contactPerson || body.trainer || body.provider,
@@ -130,8 +148,8 @@ export async function PUT(req) {
       website,
       advertiseType: finalCategory,
       address: address || body.country,
-      status: status || "APPROVED",
-      moreInfo: JSON.stringify({ ...extraData, category: finalCategory, advertiseType: finalCategory })
+      status: "APPROVED",
+      moreInfo: JSON.stringify({ ...extraData, title: body.title || companyName, category: finalCategory, advertiseType: finalCategory })
     };
 
     Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
