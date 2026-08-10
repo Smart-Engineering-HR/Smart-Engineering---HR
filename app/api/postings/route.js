@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import nodemailer from 'nodemailer';
-import { processNotifications } from '@/lib/notificationEngine';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -26,7 +25,7 @@ export async function GET(req) {
       if (!posting) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
       
       let parsedInfo = {};
-      try { parsedInfo = JSON.parse(posting.moreInfo || '{}'); } catch (e) {}
+      try { parsedInfo = typeof posting.moreInfo === 'string' ? JSON.parse(posting.moreInfo) : (posting.moreInfo || {}); } catch (e) {}
       return NextResponse.json({ ...posting, ...parsedInfo });
     }
 
@@ -40,18 +39,24 @@ export async function GET(req) {
       orderBy: { createdAt: 'desc' }
     });
 
-    // تفكيك كائن moreInfo ليتم دمجه وتنسيقه للعميل تلقائياً
+    // تحويل عناصر Prisma إلى كائنات نصوص صافية وتجميع البيانات الملحقة (moreInfo)
     const formattedPostings = postings.map(item => {
+      const rawItem = JSON.parse(JSON.stringify(item));
       let parsedInfo = {};
       try {
-        parsedInfo = typeof item.moreInfo === 'string' ? JSON.parse(item.moreInfo) : (item.moreInfo || {});
+        if (rawItem.moreInfo) {
+          parsedInfo = typeof rawItem.moreInfo === 'string' ? JSON.parse(rawItem.moreInfo) : rawItem.moreInfo;
+        }
       } catch (e) {
         parsedInfo = {};
       }
+
       return {
-        ...item,
+        ...rawItem,
         ...parsedInfo,
-        id: item.id
+        id: rawItem.id,
+        advertiseType: rawItem.advertiseType || parsedInfo.category || parsedInfo.advertiseType,
+        companyName: rawItem.companyName || parsedInfo.title || parsedInfo.name || "منصة الهندسة الذكية"
       };
     });
 
@@ -67,43 +72,41 @@ export async function POST(req) {
   try {
     const body = await req.json();
     
-    // استخلاص البيانات الأساسية وتخزين الباقي داخل moreInfo
-    const { companyName, contactPerson, phone, email, website, advertiseType, address, status, ...extraData } = body;
+    const { companyName, contactPerson, phone, email, website, advertiseType, category, address, status, ...extraData } = body;
 
+    const finalCategory = advertiseType || category || "GENERAL";
     const dataToSave = {
       companyName: companyName || body.title || body.name || "منصة الهندسة الذكية",
-      contactPerson: contactPerson || body.fullNameAr || body.trainer || "الإدارة",
+      contactPerson: contactPerson || body.trainer || body.provider || body.fullNameAr || "الإدارة",
       phone: phone || body.phone || "000000000",
       email: email || body.email || gmailAdminEmail,
       website: website || body.linkDirect || "",
-      advertiseType: advertiseType || body.category || "GENERAL",
+      advertiseType: finalCategory,
       address: address || body.country || "Global",
-      moreInfo: JSON.stringify(extraData),
+      moreInfo: JSON.stringify({ ...extraData, category: finalCategory, advertiseType: finalCategory }),
       status: status || "APPROVED"
     };
 
     const newPosting = await prisma.advertisement.create({ data: dataToSave });
 
-    // إرسال إشعار بالبريد الإلكتروني للطلبات المنشورة أو المقدمة
+    // إرسال إشعار بريدي
     const mailOptions = {
       from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
       to: [gmailAdminEmail, ...externalAdminEmails].join(','),
       subject: `تحديث/إعلان جديد: ${dataToSave.advertiseType} - ${dataToSave.companyName}`,
       html: `<div dir="rtl">
-        <h3>تم تسجيل محتوى/طلب جديد في المنصة</h3>
-        <p><strong>نوع الإعلان/الطلب:</strong> ${dataToSave.advertiseType}</p>
+        <h3>تم تسجيل منشور جديد في قاعدة البيانات</h3>
+        <p><strong>النوع:</strong> ${dataToSave.advertiseType}</p>
         <p><strong>العنوان/الجهة:</strong> ${dataToSave.companyName}</p>
-        <pre style="background:#f4f4f4; padding:10px; border-radius:5px;">${JSON.stringify(body, null, 2)}</pre>
       </div>`
     };
 
-    try { await transporter.sendMail(mailOptions); } catch (e) { console.error("Email send warning:", e); }
+    try { await transporter.sendMail(mailOptions); } catch (e) { console.error("Email warning:", e); }
 
-    if (newPosting.status === 'APPROVED' && typeof processNotifications === 'function') {
-      processNotifications(newPosting.id).catch(err => console.error("خطأ معالجة الإشعارات:", err));
-    }
+    let parsedMore = {};
+    try { parsedMore = JSON.parse(newPosting.moreInfo); } catch(e){}
 
-    return NextResponse.json({ ...newPosting, ...extraData }, { status: 201 });
+    return NextResponse.json({ ...newPosting, ...parsedMore }, { status: 201 });
   } catch (error) {
     console.error("خطأ أثناء الحفظ:", error);
     return NextResponse.json({ error: "فشل الحفظ في قاعدة البيانات" }, { status: 500 });
@@ -114,23 +117,23 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, status, companyName, contactPerson, phone, email, website, advertiseType, address, ...extraData } = body;
+    const { id, status, companyName, contactPerson, phone, email, website, advertiseType, category, address, ...extraData } = body;
     
     if (!id) return NextResponse.json({ error: "المعرف مطلوب للتعديل" }, { status: 400 });
 
+    const finalCategory = advertiseType || category;
     const updateData = {
       companyName: companyName || body.title || body.name,
-      contactPerson,
+      contactPerson: contactPerson || body.trainer || body.provider,
       phone,
       email,
       website,
-      advertiseType: advertiseType || body.category,
-      address,
+      advertiseType: finalCategory,
+      address: address || body.country,
       status: status || "APPROVED",
-      moreInfo: JSON.stringify(extraData)
+      moreInfo: JSON.stringify({ ...extraData, category: finalCategory, advertiseType: finalCategory })
     };
 
-    // إزالة الحقول الغير معرفة
     Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
     const updated = await prisma.advertisement.update({

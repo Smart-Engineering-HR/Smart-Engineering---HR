@@ -32,7 +32,7 @@ export default function AcademyAdminDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/postings");
+      const res = await fetch("/api/postings", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch");
       const list = await res.json();
 
@@ -43,7 +43,7 @@ export default function AcademyAdminDashboard() {
       const apps = [];
 
       list.forEach(item => {
-        const cat = item.advertiseType;
+        const cat = item.advertiseType || item.category;
         if (cat === "APPLICATION") apps.push(item);
         else if (cat === "PRO_COURSE") structured.proCourses.push(item);
         else if (cat === "PYTHON_COURSE") structured.pythonCourses.push(item);
@@ -80,12 +80,12 @@ export default function AcademyAdminDashboard() {
       setLoginError("");
       fetchAllData();
     } else {
-      setLoginError("❌ البريد الإلكتروني أو كلمة السر غير صحيحة!");
+      setLoginError("❌ البيانات غير صحيحة!");
     }
   };
 
   const handleLogout = () => {
-    if (confirm("هل أنت متأكد من رغبتك في تسجيل الخروج؟")) {
+    if (confirm("تسجيل الخروج؟")) {
       localStorage.removeItem("smart_admin_logged_in");
       setIsLoggedIn(false);
     }
@@ -116,7 +116,7 @@ export default function AcademyAdminDashboard() {
       });
 
       if (res.ok) {
-        alert("تم الحفظ والنشر في قاعدة البيانات بنجاح!");
+        alert("تم النشر بنجاح في قاعدة البيانات وتحديث صفحة الجمهور!");
         setFormState({});
         setEditId(null);
         fetchAllData();
@@ -134,16 +134,12 @@ export default function AcademyAdminDashboard() {
   };
 
   const handleDelete = async (id) => {
-    if (confirm("هل أنت متأكد تماماً من حذف هذا العنصر فوراً من القاعدة؟")) {
+    if (confirm("حذف هذا العنصر تماماً؟")) {
       try {
         const res = await fetch(`/api/postings?id=${id}`, { method: "DELETE" });
-        if (res.ok) {
-          fetchAllData();
-        } else {
-          alert("فشل حذف العنصر.");
-        }
+        if (res.ok) fetchAllData();
       } catch (err) {
-        alert("خطأ أثناء الاتصال بالسيرفر لحذف العنصر.");
+        alert("خطأ أثناء الحذف.");
       }
     }
   };
@@ -152,12 +148,12 @@ export default function AcademyAdminDashboard() {
     return (
       <div style={styles.loginContainer}>
         <div style={styles.loginCard}>
-          <h2 style={{ color: "#64ffda", textAlign: "center" }}>🔐 تسجيل دخول الإدارة</h2>
+          <h2 style={{ color: "#64ffda", textAlign: "center" }}>🔐 دخول الإدارة</h2>
           {loginError && <div style={styles.errorMsg}>{loginError}</div>}
           <form onSubmit={handleLoginSubmit}>
             <input type="email" placeholder="البريد الإلكتروني" required value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} style={styles.input}/>
             <input type="password" placeholder="كلمة السر" required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} style={styles.input}/>
-            <button type="submit" style={styles.loginBtn}>دخول آمن 🚀</button>
+            <button type="submit" style={styles.loginBtn}>دخول 🚀</button>
           </form>
         </div>
       </div>
@@ -170,7 +166,7 @@ export default function AcademyAdminDashboard() {
         <h2>لوحة تحكم الأكاديمية والتدريب - الإدارة العليا 🛠️</h2>
         <div style={{ display: "flex", gap: "15px" }}>
           <button style={styles.viewBtn} onClick={() => window.open("/training", "_blank")}>👁️ معاينة صفحة الجمهور</button>
-          <button style={styles.logoutBtn} onClick={handleLogout}>🚪 تسجيل الخروج</button>
+          <button style={styles.logoutBtn} onClick={handleLogout}>🚪 خروج</button>
         </div>
       </header>
 
@@ -183,19 +179,19 @@ export default function AcademyAdminDashboard() {
 
           <h3 style={styles.menuTitle}>المصادر الأكاديمية</h3>
           <button style={targetList === "scholarships" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("scholarships"); setFormState({}); setEditId(null); }}>إدارة المنح الكاملة والجزئية</button>
-          <button style={targetList === "codes" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("codes"); setFormState({}); setEditId(null); }}>الأكواد الهندسية القياسية</button>
-          <button style={targetList === "books" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("books"); setFormState({}); setEditId(null); }}>الكتب والمراجع العلمية</button>
+          <button style={targetList === "codes" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("codes"); setFormState({}); setEditId(null); }}>الأكواد الهندسية</button>
+          <button style={targetList === "books" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("books"); setFormState({}); setEditId(null); }}>الكتب والمراجع</button>
 
-          <h3 style={styles.menuTitle}>التطوير المهني والطلبات</h3>
+          <h3 style={styles.menuTitle}>التطوير والطلبات</h3>
           <button style={targetList === "webinars" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("webinars"); setFormState({}); setEditId(null); }}>الندوات عبر الإنترنت</button>
-          <button style={targetList === "certificates" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("certificates"); setFormState({}); setEditId(null); }}>الشهادات المهنية المعتمدة</button>
-          <button style={targetList === "applications" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("applications"); setFormState({}); setEditId(null); }}>📥 طلبات التقديم المستقبلة ({applications.length})</button>
+          <button style={targetList === "certificates" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("certificates"); setFormState({}); setEditId(null); }}>الشهادات المهنية</button>
+          <button style={targetList === "applications" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("applications"); setFormState({}); setEditId(null); }}>📥 طلبات التقديم ({applications.length})</button>
         </aside>
 
         <main style={styles.workspace}>
           {targetList !== "applications" ? (
             <>
-              <h3 style={{color: "#64ffda"}}>{editId ? "✍️ تعديل العنصر المحدد" : "➕ إضافة عنصر جديد ونشره فوراً"}</h3>
+              <h3 style={{color: "#64ffda"}}>{editId ? "✍️ تعديل العنصر" : "➕ إضافة عنصر جديد ونشره فوراً"}</h3>
               
               <form onSubmit={handleSubmit} style={styles.adminForm}>
                 <input type="text" name="title" placeholder="العنوان / الاسم الرئيسي" required value={formState.title || formState.name || ""} onChange={handleInputChange} style={styles.input}/>
@@ -219,10 +215,10 @@ export default function AcademyAdminDashboard() {
                   </>
                 )}
 
-                <button type="submit" style={styles.submitBtn}>{editId ? "💾 حفظ التعديلات وتحديث السيرفر" : "🚀 نشر فوري لقاعدة البيانات"}</button>
+                <button type="submit" style={styles.submitBtn}>{editId ? "💾 حفظ التعديلات" : "🚀 نشر فوري لقاعدة البيانات"}</button>
               </form>
 
-              <h3 style={{marginTop: "40px", color: "#fff"}}>📋 العناصر المنشورة حالياً في السيرفر</h3>
+              <h3 style={{marginTop: "40px", color: "#fff"}}>📋 العناصر المنشورة حالياً</h3>
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
                   <thead>
@@ -235,7 +231,7 @@ export default function AcademyAdminDashboard() {
                   <tbody>
                     {data[targetList] && data[targetList].map((item) => (
                       <tr key={item.id}>
-                        <td>{item.title || item.name || item.companyName}</td>
+                        <td>{item.title || item.companyName || item.name}</td>
                         <td>{item.id}</td>
                         <td>
                           <button style={styles.editBtn} onClick={() => handleEdit(item)}>✍️ تعديل</button>
@@ -249,12 +245,11 @@ export default function AcademyAdminDashboard() {
             </>
           ) : (
             <div>
-              <h3 style={{color: "#FFD700"}}>📥 طلبات التقديم والملفات المسجلة في السيرفر</h3>
+              <h3 style={{color: "#FFD700"}}>📥 طلبات التقديم المستقبلة</h3>
               {applications.map((app) => (
                 <div key={app.id} style={styles.appCard}>
-                  <h4>🎯 المنحة المستهدفة: <span style={{color: "#64ffda"}}>{app.scholarshipTitle}</span></h4>
-                  <p><strong>الاسم بالعربية:</strong> {app.fullNameAr} | <strong>الإيميل:</strong> {app.email} | <strong>الهاتف:</strong> {app.phone}</p>
-                  <p style={{fontSize: "12px", color: "#8892b0"}}>التاريخ: {app.dateSubmitted || app.createdAt}</p>
+                  <h4>🎯 المنحة: <span style={{color: "#64ffda"}}>{app.scholarshipTitle}</span></h4>
+                  <p><strong>الاسم:</strong> {app.fullNameAr} | <strong>الإيميل:</strong> {app.email} | <strong>الهاتف:</strong> {app.phone}</p>
                 </div>
               ))}
             </div>

@@ -9,14 +9,8 @@ export default function TrainingPublicPage() {
   const [loading, setLoading] = useState(true);
 
   const [data, setData] = useState({
-    proCourses: [],
-    pythonCourses: [],
-    mgmtCourses: [],
-    scholarships: [],
-    codes: [],
-    books: [],
-    webinars: [],
-    certificates: []
+    proCourses: [], pythonCourses: [], mgmtCourses: [],
+    scholarships: [], codes: [], books: [], webinars: [], certificates: []
   });
 
   const [applyForm, setApplyForm] = useState({
@@ -26,11 +20,11 @@ export default function TrainingPublicPage() {
     langLevel: "none"
   });
 
-  // جلب البيانات من السيرفر وقاعدة البيانات مباشرة
   const fetchPublicData = async () => {
     try {
-      const res = await fetch("/api/postings?public=true");
-      if (!res.ok) throw new Error("Network response was not ok");
+      setLoading(true);
+      const res = await fetch("/api/postings?public=true", { cache: "no-store" });
+      if (!res.ok) throw new Error("فشل جلب البيانات");
       const list = await res.json();
 
       const structured = {
@@ -52,7 +46,7 @@ export default function TrainingPublicPage() {
 
       setData(structured);
     } catch (err) {
-      console.error("فشل جلب البيانات:", err);
+      console.error("خطأ جلب البيانات:", err);
     } finally {
       setLoading(false);
     }
@@ -79,19 +73,13 @@ export default function TrainingPublicPage() {
       });
 
       if (res.ok) {
-        alert("تم إرسال طلبك بنجاح وحفظه في قاعدة البيانات، وسيتم التواصل معك عبر البريد الإلكتروني المرفق.");
+        alert("تم تسجيل طلبك بنجاح في قاعدة البيانات!");
         setShowApplyModal(false);
-        setApplyForm({
-          fullNameAr: "", fullNameEn: "", birthDate: "", nationality: "", residence: "",
-          email: "", phone: "", lastDegree: "", gpa: "", institute: "", graduationYear: "",
-          currentSpecialty: "", targetDegree: "", targetSpecialty1: "", targetSpecialty2: "",
-          langLevel: "none"
-        });
       } else {
-        alert("حدث خطأ أثناء تقديم الطلب، يرجى المحاولة لاحقاً.");
+        alert("حدث خطأ أثناء تقديم الطلب.");
       }
     } catch (err) {
-      alert("فشل الاتصال بالسيرفر أثناء تقديم الطلب.");
+      alert("فشل الاتصال بالسيرفر.");
     }
   };
 
@@ -111,21 +99,21 @@ export default function TrainingPublicPage() {
 
       <main style={styles.mainContent}>
         {loading ? (
-          <div style={{ textAlign: "center", padding: "50px", color: "#64ffda" }}>جاري تحميل أحدث البيانات والفرص...</div>
+          <div style={{ textAlign: "center", padding: "50px", color: "#64ffda" }}>جاري جلب أحدث البيانات المباشرة من القاعدة...</div>
         ) : (
           <>
-            {/* 1. المسارات التعليمية */}
+            {/* المسارات التعليمية */}
             {activeTab === "tracks" && !selectedItem && (
               <div>
                 <h2 style={styles.sectionTitle}>المسارات التعليمية الاحترافية</h2>
                 
                 <h3 style={styles.subSectionTitle}>🔹 دورات البرامج الهندسية الاحترافية</h3>
                 <div style={styles.grid}>
-                  {data.proCourses.map(course => (
+                  {data.proCourses.length === 0 ? <p style={styles.emptyMsg}>لا توجد دورات حالياً</p> : data.proCourses.map(course => (
                     <div key={course.id} style={styles.card} onClick={() => setSelectedItem({type: "pro", data: course})}>
-                      <h4>{course.title || course.companyName}</h4>
-                      <p><strong>المدرب:</strong> {course.trainer || course.contactPerson}</p>
-                      <p><strong>المدة:</strong> {course.duration}</p>
+                      <h4>{course.title || course.companyName || course.name}</h4>
+                      <p><strong>المدرب:</strong> {course.trainer || course.contactPerson || "غير محدد"}</p>
+                      <p><strong>المدة:</strong> {course.duration || "غير حددة"}</p>
                       <span style={styles.moreLabel}>اضغط للتفاصيل الاستراتيجية...</span>
                     </div>
                   ))}
@@ -133,9 +121,9 @@ export default function TrainingPublicPage() {
 
                 <h3 style={styles.subSectionTitle}>🔹 دورات التصميم الإنشائي باستخدام Python</h3>
                 <div style={styles.grid}>
-                  {data.pythonCourses.map(course => (
+                  {data.pythonCourses.length === 0 ? <p style={styles.emptyMsg}>لا توجد دورات حالياً</p> : data.pythonCourses.map(course => (
                     <div key={course.id} style={styles.card} onClick={() => setSelectedItem({type: "python", data: course})}>
-                      <h4>{course.title || course.companyName}</h4>
+                      <h4>{course.title || course.companyName || course.name}</h4>
                       <p><strong>المدرب:</strong> {course.trainer || course.contactPerson}</p>
                       <p><strong>المدة:</strong> {course.duration}</p>
                       <span style={styles.moreLabel}>اضغط للتفاصيل الاستراتيجية...</span>
@@ -145,9 +133,9 @@ export default function TrainingPublicPage() {
 
                 <h3 style={styles.subSectionTitle}>🔹 الإدارة الهندسية والمكتب الفني</h3>
                 <div style={styles.grid}>
-                  {data.mgmtCourses.map(course => (
+                  {data.mgmtCourses.length === 0 ? <p style={styles.emptyMsg}>لا توجد دورات حالياً</p> : data.mgmtCourses.map(course => (
                     <div key={course.id} style={styles.card} onClick={() => setSelectedItem({type: "mgmt", data: course})}>
-                      <h4>{course.title || course.companyName}</h4>
+                      <h4>{course.title || course.companyName || course.name}</h4>
                       <p><strong>المدرب:</strong> {course.trainer || course.contactPerson}</p>
                       <p><strong>المدة:</strong> {course.duration}</p>
                       <span style={styles.moreLabel}>اضغط للتفاصيل الاستراتيجية...</span>
@@ -157,75 +145,69 @@ export default function TrainingPublicPage() {
               </div>
             )}
 
-            {/* 2. المصادر الأكاديمية */}
+            {/* المصادر الأكاديمية */}
             {activeTab === "sources" && !selectedItem && (
               <div>
                 <h2 style={styles.sectionTitle}>المصادر الأكاديمية (المنح، الأكواد، الكتب)</h2>
                 
                 <h3 style={styles.subSectionTitle}>🎓 المنح الدراسية والبحثية المتاحة</h3>
                 <div style={styles.grid}>
-                  {data.scholarships.map(sch => (
+                  {data.scholarships.length === 0 ? <p style={styles.emptyMsg}>لا توجد منح متاحة حالياً</p> : data.scholarships.map(sch => (
                     <div key={sch.id} style={styles.card} onClick={() => setSelectedItem({type: "scholarship", data: sch})}>
-                      <h4>{sch.title || sch.companyName}</h4>
-                      <p><strong>الدولة المستضيفة:</strong> {sch.country || sch.address}</p>
-                      <p><strong>المراحل المستهدفة:</strong> {sch.degrees}</p>
+                      <h4>{sch.title || sch.companyName || sch.name}</h4>
+                      <p><strong>الدولة المستضيفة:</strong> {sch.country || sch.address || "غير محدد"}</p>
+                      <p><strong>المراحل المستهدفة:</strong> {sch.degrees || "جميع المراحل"}</p>
                       <span style={styles.moreLabel}>عرض ملف المنحة المتكامل...</span>
                     </div>
                   ))}
                 </div>
 
-                <h3 style={styles.subSectionTitle}>📚 الأكواد الهندسية القياسية (Engineering Codes)</h3>
+                <h3 style={styles.subSectionTitle}>📚 الأكواد الهندسية القياسية</h3>
                 <div style={styles.grid}>
-                  {data.codes.map(code => (
+                  {data.codes.length === 0 ? <p style={styles.emptyMsg}>لا توجد أكواد حالياً</p> : data.codes.map(code => (
                     <div key={code.id} style={styles.staticCard}>
-                      <h4>{code.name || code.companyName}</h4>
+                      <h4>{code.title || code.name || code.companyName}</h4>
                       <p><strong>الرقم والإصدار:</strong> {code.number}</p>
-                      <p><strong>النسخة الإقليمية/المحلية:</strong> {code.region || code.address}</p>
+                      <p><strong>المنطقة:</strong> {code.region || code.country || code.address}</p>
                     </div>
                   ))}
                 </div>
 
                 <h3 style={styles.subSectionTitle}>📖 الكتب والمراجع العلمية</h3>
                 <div style={styles.grid}>
-                  {data.books.map(book => (
+                  {data.books.length === 0 ? <p style={styles.emptyMsg}>لا توجد كتب حالياً</p> : data.books.map(book => (
                     <div key={book.id} style={styles.staticCard}>
-                      <h4>{book.title || book.companyName}</h4>
+                      <h4>{book.title || book.companyName || book.name}</h4>
                       <p><strong>المؤلف:</strong> {book.author || book.contactPerson}</p>
-                      <p><strong>الطبعة والفصل الدراسي:</strong> {book.edition}</p>
+                      <p><strong>الطبعة:</strong> {book.edition}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* 3. التطوير المهني المتقدم */}
+            {/* التطوير المهني */}
             {activeTab === "dev" && !selectedItem && (
               <div>
                 <h2 style={styles.sectionTitle}>التطوير المهني المتقدم والشهادات</h2>
                 
                 <h3 style={styles.subSectionTitle}>🌐 الندوات الهندسية عبر الإنترنت (Webinars)</h3>
                 <div style={styles.grid}>
-                  {data.webinars.map(web => (
+                  {data.webinars.length === 0 ? <p style={styles.emptyMsg}>لا توجد ندوات حالياً</p> : data.webinars.map(web => (
                     <div key={web.id} style={styles.staticCard}>
-                      <h4>{web.title || web.companyName}</h4>
+                      <h4>{web.title || web.companyName || web.name}</h4>
                       <p><strong>الجهة المنظمة:</strong> {web.organizer}</p>
                       <p><strong>التاريخ:</strong> {web.date}</p>
-                      <p><strong>الساعات المكتسبة:</strong> {web.hours}</p>
-                      <p><strong>المتحدث الخبير:</strong> {web.speaker || web.contactPerson}</p>
-                      <p><strong>الملخص والهدف:</strong> {web.summary}</p>
                     </div>
                   ))}
                 </div>
 
                 <h3 style={styles.subSectionTitle}>🏅 الشهادات المهنية المعتمدة</h3>
                 <div style={styles.grid}>
-                  {data.certificates.map(cert => (
+                  {data.certificates.length === 0 ? <p style={styles.emptyMsg}>لا توجد شهادات حالياً</p> : data.certificates.map(cert => (
                     <div key={cert.id} style={styles.staticCard}>
-                      <h4>{cert.title || cert.companyName}</h4>
+                      <h4>{cert.title || cert.companyName || cert.name}</h4>
                       <p><strong>الجهة المانحة:</strong> {cert.provider}</p>
-                      <p><strong>رقم الاعتماد:</strong> {cert.certNumber}</p>
-                      <p><strong>تاريخ الحصول والانتهاء:</strong> {cert.dateGet} إلى {cert.dateEnd}</p>
-                      {cert.verifyLink && <a href={cert.verifyLink} target="_blank" rel="noreferrer" style={styles.link}>رابط التحقق الرسمي</a>}
                     </div>
                   ))}
                 </div>
@@ -237,29 +219,25 @@ export default function TrainingPublicPage() {
               <div style={styles.detailsView}>
                 <button style={styles.closeBtn} onClick={() => setSelectedItem(null)}>❌ إغلاق والعودة للقائمة</button>
                 <div style={styles.detailsBody}>
-                  {selectedItem.type === "scholarship" && (
+                  {selectedItem.type === "scholarship" ? (
                     <>
                       <h2 style={{color: "#00e6ff"}}>{selectedItem.data.title || selectedItem.data.companyName}</h2>
-                      <p><strong>الجهة المانحة:</strong> {selectedItem.data.provider}</p>
+                      <p><strong>الجهة المانحة:</strong> {selectedItem.data.provider || selectedItem.data.contactPerson}</p>
                       <p><strong>الدولة المستضيفة:</strong> {selectedItem.data.country || selectedItem.data.address}</p>
                       <p><strong>المراحل الدراسية:</strong> {selectedItem.data.degrees}</p>
-                      <p><strong>نوع التمويل:</strong> {selectedItem.data.fundType}</p>
-                      <p><strong>الرسوم الدراسية:</strong> {selectedItem.data.tuition}</p>
+                      <p><strong>الإعفاء والتغطية:</strong> {selectedItem.data.tuition}</p>
                       <p><strong>الراتب الشهري:</strong> {selectedItem.data.salary}</p>
-                      <p><strong>الشروط والجنسيات:</strong> {selectedItem.data.nationalities}</p>
                       <p><strong>تاريخ إغلاق التقديم:</strong> {selectedItem.data.dateClose}</p>
-                      {selectedItem.data.linkDirect && <p><strong>رابط مباشر:</strong> <a href={selectedItem.data.linkDirect} target="_blank" rel="noreferrer" style={styles.link}>{selectedItem.data.linkDirect}</a></p>}
                       <hr style={{margin: "20px 0", borderColor: "#00e6ff"}}/>
                       <div style={{textAlign: "center"}}>
                         <button style={styles.globalApplyBtn} onClick={() => { setSelectedScholarship(selectedItem.data.title || selectedItem.data.companyName); setShowApplyModal(true); }}>⚡ التقديم المباشر من خلال المنصة</button>
                       </div>
                     </>
-                  )}
-                  {selectedItem.type !== "scholarship" && (
+                  ) : (
                     <>
                       <h2>{selectedItem.data.title || selectedItem.data.companyName}</h2>
-                      <p><strong>المدرب/المسؤول:</strong> {selectedItem.data.trainer || selectedItem.data.contactPerson}</p>
-                      <p><strong>التفاصيل:</strong> {selectedItem.data.duration || selectedItem.data.summary || selectedItem.data.axes}</p>
+                      <p><strong>المحاضر/الجهة:</strong> {selectedItem.data.trainer || selectedItem.data.contactPerson}</p>
+                      <p><strong>التفاصيل والمدة:</strong> {selectedItem.data.duration || selectedItem.data.summary}</p>
                     </>
                   )}
                 </div>
@@ -279,9 +257,8 @@ export default function TrainingPublicPage() {
             </div>
             <form onSubmit={handleApplySubmit} style={styles.form}>
               <input type="text" placeholder="الاسم الكامل بالعربية" required value={applyForm.fullNameAr} onChange={e => setApplyForm({...applyForm, fullNameAr: e.target.value})} style={styles.input}/>
-              <input type="text" placeholder="Full Name in English" required value={applyForm.fullNameEn} onChange={e => setApplyForm({...applyForm, fullNameEn: e.target.value})} style={styles.input}/>
               <input type="email" placeholder="البريد الإلكتروني" required value={applyForm.email} onChange={e => setApplyForm({...applyForm, email: e.target.value})} style={styles.input}/>
-              <input type="text" placeholder="رقم الهاتف مع رمز الدولة" required value={applyForm.phone} onChange={e => setApplyForm({...applyForm, phone: e.target.value})} style={styles.input}/>
+              <input type="text" placeholder="رقم الهاتف" required value={applyForm.phone} onChange={e => setApplyForm({...applyForm, phone: e.target.value})} style={styles.input}/>
               <input type="text" readOnly value={`المنحة المختارة: ${selectedScholarship}`} style={{...styles.input, background: "#222", color: "#FFD700"}}/>
               <button type="submit" style={styles.submitFormBtn}>إرسال ملف التقديم وقيده في قاعدة البيانات 🚀</button>
             </form>
@@ -303,6 +280,7 @@ const styles = {
   mainContent: { padding: "40px" },
   sectionTitle: { textAlign: "center", color: "#fff", fontSize: "32px", marginBottom: "30px" },
   subSectionTitle: { color: "#64ffda", borderBottom: "1px solid #233554", paddingBottom: "10px", marginTop: "30px" },
+  emptyMsg: { color: "#8892b0", fontStyle: "italic", padding: "10px" },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "25px", marginTop: "20px" },
   card: { background: "#112240", border: "1px solid #233554", borderRadius: "8px", padding: "20px", cursor: "pointer" },
   staticCard: { background: "#112240", border: "1px solid #233554", borderRadius: "8px", padding: "20px" },
@@ -310,7 +288,6 @@ const styles = {
   detailsView: { background: "rgba(17, 34, 64, 0.95)", border: "2px solid #64ffda", borderRadius: "12px", padding: "30px", marginTop: "20px" },
   closeBtn: { background: "#ff4a4a", border: "none", color: "#fff", padding: "8px 15px", borderRadius: "5px", cursor: "pointer", float: "left" },
   detailsBody: { clear: "both", marginTop: "20px", lineHeight: "1.8" },
-  link: { color: "#64ffda", textDecoration: "underline" },
   globalApplyBtn: { background: "linear-gradient(45deg, #00b4db, #0083b0)", color: "#fff", border: "none", padding: "15px 40px", fontSize: "18px", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" },
   modalOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(2,12,27,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "20px" },
   modalBox: { background: "#0a192f", border: "2px solid #64ffda", borderRadius: "12px", width: "100%", maxWidth: "600px", padding: "30px" },
