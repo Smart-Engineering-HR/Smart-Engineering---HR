@@ -1,17 +1,17 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function AcademyAdminDashboard() {
   const [targetList, setTargetList] = useState("proCourses");
   const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(false);
   
-  // تسجيل الدخول
+  // حقول حماية تسجيل الدخول المتكاملة
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
+  // تجميعة الحقول لكافة الأشكال الإدارية
   const [formState, setFormState] = useState({});
   const [editId, setEditId] = useState(null);
 
@@ -20,66 +20,26 @@ export default function AcademyAdminDashboard() {
     codes: [], books: [], webinars: [], certificates: []
   });
 
-  // جلب البيانات من API المباشر
-  const fetchAcademyData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('/api/academy');
-      if (!res.ok) throw new Error("فشل الجلب من السيرفر");
-      const items = await res.json();
-
-      const categorized = {
-        proCourses: [], pythonCourses: [], mgmtCourses: [], scholarships: [],
-        codes: [], books: [], webinars: [], certificates: []
-      };
-
-      items.forEach(item => {
-        let detailsObj = {};
-        if (item.details) {
-          try {
-            detailsObj = typeof item.details === 'string' ? JSON.parse(item.details) : item.details;
-          } catch (e) {
-            detailsObj = {};
-          }
-        }
-        const formattedItem = { id: item.id, title: item.title, category: item.category, status: item.status, ...detailsObj };
-
-        if (categorized[item.category]) {
-          categorized[item.category].push(formattedItem);
-        }
-      });
-
-      setData(categorized);
-    } catch (err) {
-      console.error("Fetch Error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchApplications = useCallback(async () => {
-    try {
-      const res = await fetch('/api/academy-apply');
-      if (res.ok) {
-        const apps = await res.json();
-        setApplications(apps);
-      }
-    } catch (err) {
-      console.error("Fetch Apps Error:", err);
-    }
-  }, []);
-
+  // جلب البيانات من المخرن المشترك لمزامنة التغيير فوراً وفحص حالة تسجيل الدخول
   useEffect(() => {
+    // 1. فحص هل سجل الأدمن الدخول سابقاً؟
     const authStatus = localStorage.getItem("smart_admin_logged_in");
     if (authStatus === "true") {
       setIsLoggedIn(true);
     }
-    fetchAcademyData();
-    fetchApplications();
-  }, [fetchAcademyData, fetchApplications]);
 
+    const stored = localStorage.getItem("smart_academy_data");
+    if (stored) setData(JSON.parse(stored));
+    
+    const apps = localStorage.getItem("smart_applications");
+    if (apps) setApplications(JSON.parse(apps));
+  }, []);
+
+  // دالة معالجة تسجيل الدخول
   const handleLoginSubmit = (e) => {
     e.preventDefault();
+    
+    // يمكنك تعديل الإيميل وكلمة السر الثابتة هنا بحسب رغبتك
     const correctEmail = "admin@smartacademy.com";
     const correctPassword = "AdminPassword2026";
 
@@ -94,6 +54,7 @@ export default function AcademyAdminDashboard() {
     }
   };
 
+  // دالة تسجيل الخروج
   const handleLogout = () => {
     if (confirm("هل أنت متأكد من رغبتك في تسجيل الخروج؟")) {
       localStorage.removeItem("smart_admin_logged_in");
@@ -101,51 +62,32 @@ export default function AcademyAdminDashboard() {
     }
   };
 
+  const saveData = (updatedData) => {
+    setData(updatedData);
+    localStorage.setItem("smart_academy_data", JSON.stringify(updatedData));
+  };
+
   const handleInputChange = (e) => {
     setFormState({ ...formState, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setLoading(true);
+    let updatedList = [...data[targetList]];
 
-    const { title, name, ...details } = formState;
-    const itemTitle = title || name || "عنصر أكاديمي";
-
-    const payload = {
-      category: targetList,
-      title: itemTitle,
-      details: details,
-      status: "APPROVED"
-    };
-
-    try {
-      let res;
-      if (editId) {
-        res = await fetch('/api/academy', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: editId, ...payload })
-        });
-      } else {
-        res = await fetch('/api/academy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      }
-
-      if (!res.ok) throw new Error("فشل الحفظ في قاعدة البيانات");
-
-      setFormState({});
+    if (editId) {
+      // تعديل عنصر حالي
+      updatedList = updatedList.map(item => item.id === editId ? { ...item, ...formState } : item);
       setEditId(null);
-      await fetchAcademyData();
-      alert("تمت العملية بنجاح وانعكست مباشرة على صفحة الجمهور!");
-    } catch (err) {
-      alert("خطأ: " + err.message);
-    } finally {
-      setLoading(false);
+    } else {
+      // إضافة عنصر جديد
+      updatedList.push({ id: Date.now(), ...formState });
     }
+
+    const updatedData = { ...data, [targetList]: updatedList };
+    saveData(updatedData);
+    setFormState({});
+    alert("تم تحديث البيانات بنجاح وانعكست تلقائياً على صفحة الجمهور المباشرة!");
   };
 
   const handleEdit = (item) => {
@@ -153,46 +95,52 @@ export default function AcademyAdminDashboard() {
     setFormState(item);
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("هل أنت متأكد من حذف هذا العنصر نهائياً من قاعدة البيانات؟")) return;
-    setLoading(true);
-
-    try {
-      const res = await fetch(`/api/academy?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error("فشل الحذف من قاعدة البيانات");
-      await fetchAcademyData();
-      alert("تم الحذف بنجاح!");
-    } catch (err) {
-      alert("خطأ: " + err.message);
-    } finally {
-      setLoading(false);
+  const handleDelete = (id, listName) => {
+    if (confirm("هل أنت متأكد تماماً من حذف هذا العنصر؟ سينعكس الحذف فوراً عند الجمهور.")) {
+      const updatedList = data[listName].filter(item => item.id !== id);
+      const updatedData = { ...data, [listName]: updatedList };
+      saveData(updatedData);
     }
   };
 
-  const handleDeleteApp = async (id) => {
-    if (!confirm("هل تريد حذف هذا الطلب من أرشيف قاعدة البيانات؟")) return;
-
-    try {
-      const res = await fetch(`/api/academy-apply?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error("فشل الحذف");
-      await fetchApplications();
-    } catch (err) {
-      alert("خطأ: " + err.message);
+  const clearApplications = () => {
+    if (confirm("هل تريد إفراغ أرشيف طلبات التسجيل المنسقة؟")) {
+      localStorage.removeItem("smart_applications");
+      setApplications([]);
     }
   };
 
+  // شاشة تسجيل الدخول المفرزة (تظهر في حال لم يكن مسجلاً لدخوله)
   if (!isLoggedIn) {
     return (
       <div style={styles.loginContainer}>
         <div style={styles.loginCard}>
           <h2 style={{ color: "#64ffda", marginBottom: "10px", textAlign: "center" }}>🔐 تسجيل دخول الإدارة</h2>
           <p style={{ color: "#8892b0", fontSize: "14px", marginBottom: "25px", textAlign: "center" }}>يرجى إدخال بيانات الاعتماد للوصول إلى لوحة تحكم الأكاديمية</p>
+          
           {loginError && <div style={styles.errorMsg}>{loginError}</div>}
+          
           <form onSubmit={handleLoginSubmit}>
             <label style={styles.loginLabel}>البريد الإلكتروني:</label>
-            <input type="email" placeholder="example@domain.com" required value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} style={styles.input}/>
+            <input 
+              type="email" 
+              placeholder="example@domain.com" 
+              required 
+              value={loginEmail} 
+              onChange={(e) => setLoginEmail(e.target.value)} 
+              style={styles.input}
+            />
+            
             <label style={styles.loginLabel}>كلمة السر:</label>
-            <input type="password" placeholder="••••••••" required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} style={styles.input}/>
+            <input 
+              type="password" 
+              placeholder="••••••••" 
+              required 
+              value={loginPassword} 
+              onChange={(e) => setLoginPassword(e.target.value)} 
+              style={styles.input}
+            />
+            
             <button type="submit" style={styles.loginBtn}>دخول آمن 🚀</button>
           </form>
         </div>
@@ -200,6 +148,7 @@ export default function AcademyAdminDashboard() {
     );
   }
 
+  // واجهة لوحة التحكم الأصلية (تظهر فقط بعد نجاح تسجيل الدخول)
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -211,6 +160,7 @@ export default function AcademyAdminDashboard() {
       </header>
 
       <div style={styles.layout}>
+        {/* شريط الأقسام الأيمن */}
         <aside style={styles.sidebar}>
           <h3 style={styles.menuTitle}>المسارات التعليمية</h3>
           <button style={targetList === "proCourses" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("proCourses"); setFormState({}); setEditId(null); }}>دورات البرامج الاحترافية</button>
@@ -228,14 +178,14 @@ export default function AcademyAdminDashboard() {
           <button style={targetList === "applications" ? styles.activeSidebarBtn : styles.sidebarBtn} onClick={() => { setTargetList("applications"); setFormState({}); setEditId(null); }}>📥 طلبات التقديم المستقبلة ({applications.length})</button>
         </aside>
 
+        {/* مساحة العمل والديناميكية الإدارية */}
         <main style={styles.workspace}>
-          {loading && <p style={{ color: "#64ffda" }}>⏳ جاري معالجة البيانات مع السيرفر...</p>}
-
           {targetList !== "applications" ? (
             <>
               <h3 style={{color: "#64ffda"}}>{editId ? "✍️ تعديل العنصر المحدد حالياً" : "➕ إضافة عنصر جديد إلى القائمة الفرعية"}</h3>
               
               <form onSubmit={handleSubmit} style={styles.adminForm}>
+                {/* استمارات ديناميكية دقيقة لكل قسم */}
                 {targetList === "proCourses" && (
                   <>
                     <input type="text" name="title" placeholder="اسم الدورة التدريبية" required value={formState.title || ""} onChange={handleInputChange} style={styles.input}/>
@@ -252,8 +202,8 @@ export default function AcademyAdminDashboard() {
                     <input type="text" name="title" placeholder="اسم دورة بايثون الإنشائية" required value={formState.title || ""} onChange={handleInputChange} style={styles.input}/>
                     <input type="text" name="trainer" placeholder="اسم المدرب الخبير" required value={formState.trainer || ""} onChange={handleInputChange} style={styles.input}/>
                     <input type="text" name="duration" placeholder="مدة الدورة" required value={formState.duration || ""} onChange={handleInputChange} style={styles.input}/>
-                    <textarea name="whyPython" placeholder="لماذا بايثون بالذات في الهندسة الإنشائية؟" required value={formState.whyPython || ""} onChange={handleInputChange} style={styles.textarea}/>
-                    <textarea name="learningOutcomes" placeholder="ماذا ستتعلم في هذه الدورات؟" required value={formState.learningOutcomes || ""} onChange={handleInputChange} style={styles.textarea}/>
+                    <textarea name="whyPython" placeholder="لماذا بايثون بالذات في الهندسة الإنشائية؟ (الأهمية البالغة)" required value={formState.whyPython || ""} onChange={handleInputChange} style={styles.textarea}/>
+                    <textarea name="learningOutcomes" placeholder="ماذا ستتعلم في هذه الدورات؟ (المحتوى المتوقع الهيكلي)" required value={formState.learningOutcomes || ""} onChange={handleInputChange} style={styles.textarea}/>
                     <input type="text" name="targetAudience" placeholder="لمن تفيد هذه الدورات؟" required value={formState.targetAudience || ""} onChange={handleInputChange} style={styles.input}/>
                     <textarea name="tips" placeholder="نصائح استراتيجية مهمة قبل أن تبدأ" required value={formState.tips || ""} onChange={handleInputChange} style={styles.textarea}/>
                   </>
@@ -264,9 +214,9 @@ export default function AcademyAdminDashboard() {
                     <input type="text" name="title" placeholder="اسم الدورة الإدارية" required value={formState.title || ""} onChange={handleInputChange} style={styles.input}/>
                     <input type="text" name="trainer" placeholder="اسم المدرب" required value={formState.trainer || ""} onChange={handleInputChange} style={styles.input}/>
                     <input type="text" name="duration" placeholder="مدة الدورة" required value={formState.duration || ""} onChange={handleInputChange} style={styles.input}/>
-                    <textarea name="axes" placeholder="أهم المحاور والمعلومات" required value={formState.axes || ""} onChange={handleInputChange} style={styles.textarea}/>
-                    <textarea name="importance" placeholder="أهمية هذه الدورات" required value={formState.importance || ""} onChange={handleInputChange} style={styles.textarea}/>
-                    <textarea name="tips" placeholder="نصيحة حاسمة للبدء" required value={formState.tips || ""} onChange={handleInputChange} style={styles.textarea}/>
+                    <textarea name="axes" placeholder="أهم المحاور والمعلومات في هذه الدورات العميقة" required value={formState.axes || ""} onChange={handleInputChange} style={styles.textarea}/>
+                    <textarea name="importance" placeholder="أهمية هذه الدورات (لماذا هي حاسمة لمستقبلك المهني؟)" required value={formState.importance || ""} onChange={handleInputChange} style={styles.textarea}/>
+                    <textarea name="tips" placeholder="نصيحة صارمة ومثمرة للبدء" required value={formState.tips || ""} onChange={handleInputChange} style={styles.textarea}/>
                   </>
                 )}
 
@@ -276,7 +226,7 @@ export default function AcademyAdminDashboard() {
                     <input type="text" name="title" placeholder="اسم المنحة الرسمي" required value={formState.title || ""} onChange={handleInputChange} style={styles.input}/>
                     <input type="text" name="provider" placeholder="الجهة المانحة" required value={formState.provider || ""} onChange={handleInputChange} style={styles.input}/>
                     <input type="text" name="country" placeholder="الدولة المستضيفة" required value={formState.country || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="degrees" placeholder="المراحل الدراسية المستهدفة" required value={formState.degrees || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="degrees" placeholder="المراحل الدراسية المستهدفة (بكالوريوس، ماجستير، إلخ)" required value={formState.degrees || ""} onChange={handleInputChange} style={styles.input}/>
                     
                     <select name="fundType" value={formState.fundType || "منحة كاملة"} onChange={handleInputChange} style={styles.select}>
                       <option value="منحة كاملة">منحة كاملة</option>
@@ -284,78 +234,86 @@ export default function AcademyAdminDashboard() {
                     </select>
                     
                     <input type="text" name="tuition" placeholder="تفاصيل الإعفاء من الرسوم الدراسية" required value={formState.tuition || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="salary" placeholder="الراتب الشهري" required value={formState.salary || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="housing" placeholder="تأمين السكن الجامعي" required value={formState.housing || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="flights" placeholder="تذاكر الطيران" required value={formState.flights || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="health" placeholder="تفاصيل التأمين الصحي" required value={formState.health || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="visa" placeholder="تكاليف الفيزا" required value={formState.visa || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="salary" placeholder="الراتب الشهري (تحديد القيمة المالية)" required value={formState.salary || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="housing" placeholder="تأمين السكن الجامعي أو بدل السكن" required value={formState.housing || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="flights" placeholder="تذاكر الطيران وتفاصيلها" required value={formState.flights || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="health" placeholder="تفاصيل التأمين الصحي الشامل" required value={formState.health || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="visa" placeholder="تكاليف فيزا السفر وتكلفة السنة التحضيرية" required value={formState.visa || ""} onChange={handleInputChange} style={styles.input}/>
                     <input type="text" name="nationalities" placeholder="الجنسيات المؤهلة" required value={formState.nationalities || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="age" placeholder="السن المطلوب" required value={formState.age || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="gpa" placeholder="المعدل الأكاديمي GPA" required value={formState.gpa || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="langReq" placeholder="شرط اللغة" required value={formState.langReq || ""} onChange={handleInputChange} style={styles.input}/>
-                    <textarea name="specialties" placeholder="التخصصات الكليات والأقسام المشمولة" required value={formState.specialties || ""} onChange={handleInputChange} style={styles.textarea}/>
+                    <input type="text" name="age" placeholder="السن المطلوب الأقصى لكل مرحلة" required value={formState.age || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="gpa" placeholder="المعدل الأكاديمي الأدنى GPA المطلوب" required value={formState.gpa || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="langReq" placeholder="شرط اللغة وتفاصيل الشهادات المطلوبة" required value={formState.langReq || ""} onChange={handleInputChange} style={styles.input}/>
+                    <textarea name="specialties" placeholder="قائمة الكليات والأقسام المشمولة والمهيأة" required value={formState.specialties || ""} onChange={handleInputChange} style={styles.textarea}/>
+                    
+                    <h5 style={{color: '#64ffda'}}>المستندات المطلوبة في ملف التقديم:</h5>
+                    <input type="text" name="docCertificates" placeholder="شرط الشهادات وكشوفات الدرجات" defaultValue="مطلوبة ومصدقة من الجهات الرسمية" onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="docId" placeholder="جواز سفر أو بديل الهوية" defaultValue="جواز سفر ساري المفعول" onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="docCv" placeholder="تنسيق السيرة الذاتية المطلوب" defaultValue="سيرة ذاتية احترافية محدثة" onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="docMotiv" placeholder="متطلبات خطاب الدافع" defaultValue="خطاب دافع صياغة شخصية" onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="docRec" placeholder="خطابات التوصية المطلوبة" defaultValue="من 2 إلى 3 خطابات أكاديمية" onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="docResearch" placeholder="المخطط البحثي (إن وجد لطلبة الماجستير/الدكتوراه)" defaultValue="مخطط بحثي متكامل للمراحل العليا" onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="docMedical" placeholder="شهادة الفحص الطبي" defaultValue="مطلوب شهادة طبية رسمية خلو من الأمراض" onChange={handleInputChange} style={styles.input}/>
 
                     <h5 style={{color: '#64ffda'}}>الجدول الزمني والروابط الرسمية:</h5>
                     <input type="date" name="dateOpen" required value={formState.dateOpen || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="dateClose" placeholder="تاريخ إغلاق التقديم" required value={formState.dateClose || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="dateResults" placeholder="موعد إعلان النتائج" required value={formState.dateResults || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="dateStart" placeholder="موعد بدء الدراسة" required value={formState.dateStart || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="dateClose" placeholder="تاريخ إغلاق التقديم بالتوقيت الدولي المحدد" required value={formState.dateClose || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="dateResults" placeholder="موعد إعلان نتائج المقبولين" required value={formState.dateResults || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="dateStart" placeholder="موعد بدء الدراسة المستهدف (مثال: خريف 2026)" required value={formState.dateStart || ""} onChange={handleInputChange} style={styles.input}/>
                     <input type="url" name="linkDirect" placeholder="رابط بوابة التسجيل المباشر Portal" required value={formState.linkDirect || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="url" name="linkOfficial" placeholder="رابط الإعلان الرسمي" required value={formState.linkOfficial || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="applicationFee" placeholder="رسوم التقديم" defaultValue="مجاني بالكامل" onChange={handleInputChange} style={styles.input}/>
+                    <input type="url" name="linkOfficial" placeholder="رابط الإعلان الرسمي للجهة المانحة" required value={formState.linkOfficial || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="applicationFee" placeholder="رسوم فحص الملفات إن وجدت أو مجاني" defaultValue="مجاني بالكامل" onChange={handleInputChange} style={styles.input}/>
                   </>
                 )}
 
                 {targetList === "codes" && (
                   <>
-                    <input type="text" name="name" placeholder="الاسم الكامل للكود الهندسي القياسي" required value={formState.name || formState.title || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="number" placeholder="رقم الكود وإصدار الدقيق" required value={formState.number || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="region" placeholder="النسخة الإقليمية أو المحلية" required value={formState.region || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="name" placeholder="الاسم الكامل للكود الهندسي القياسي" required value={formState.name || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="number" placeholder="رقم الكود وإصداره الدقيق" required value={formState.number || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="region" placeholder="النسخة الإقليمية أو المحلية للتحميل والتطابق" required value={formState.region || ""} onChange={handleInputChange} style={styles.input}/>
                   </>
                 )}
 
                 {targetList === "books" && (
                   <>
                     <input type="text" name="title" placeholder="اسم الكتاب أو المرجع العلمي" required value={formState.title || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="author" placeholder="اسم المؤلف" required value={formState.author || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="edition" placeholder="رقم الطبعة" required value={formState.edition || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="author" placeholder="اسم المؤلف والباحث الرئيسي" required value={formState.author || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="edition" placeholder="رقم الطبعة وفصل الدراسة المعين لها" required value={formState.edition || ""} onChange={handleInputChange} style={styles.input}/>
                   </>
                 )}
 
                 {targetList === "webinars" && (
                   <>
                     <input type="text" name="title" placeholder="عنوان الويبنار الاستراتيجي" required value={formState.title || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="organizer" placeholder="الجهة المنظمة" required value={formState.organizer || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="organizer" placeholder="الجهة المنظمة للندوة الرقمية" required value={formState.organizer || ""} onChange={handleInputChange} style={styles.input}/>
                     <input type="date" name="date" required value={formState.date || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="hours" placeholder="عدد الساعات المكتسبة" required value={formState.hours || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="speaker" placeholder="اسم المتحدث" required value={formState.speaker || ""} onChange={handleInputChange} style={styles.input}/>
-                    <textarea name="summary" placeholder="الملخص والهدف العام" required value={formState.summary || ""} onChange={handleInputChange} style={styles.textarea}/>
+                    <input type="text" name="hours" placeholder="عدد الساعات المكتسبة المعتمدة" required value={formState.hours || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="speaker" placeholder="اسم المتحدث أو الخبير الهندسي المعين" required value={formState.speaker || ""} onChange={handleInputChange} style={styles.input}/>
+                    <textarea name="summary" placeholder="الملخص والهدف العام من الويبنار الهندسي" required value={formState.summary || ""} onChange={handleInputChange} style={styles.textarea}/>
                   </>
                 )}
 
                 {targetList === "certificates" && (
                   <>
                     <input type="text" name="title" placeholder="الاسم الكامل للشهادة المهنية" required value={formState.title || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="provider" placeholder="الجهة المانحة" required value={formState.provider || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="text" name="certNumber" placeholder="رقم الشهادة أو الاعتماد" required value={formState.certNumber || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="date" name="dateGet" placeholder="تاريخ الحصول" required value={formState.dateGet || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="date" name="dateEnd" placeholder="تاريخ الانتهاء" required value={formState.dateEnd || ""} onChange={handleInputChange} style={styles.input}/>
-                    <input type="url" name="verifyLink" placeholder="رابط التحقق الرسمي" required value={formState.verifyLink || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="provider" placeholder="الجهة المانحة والاعتمادية الدولية" required value={formState.provider || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="text" name="certNumber" placeholder="رقم الشهادة أو رقم الاعتماد المسجل" required value={formState.certNumber || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="date" name="dateGet" placeholder="تاريخ الحصول عليها" required value={formState.dateGet || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="date" name="dateEnd" placeholder="تاريخ انتهاء الصلاحية للمتابعة" required value={formState.dateEnd || ""} onChange={handleInputChange} style={styles.input}/>
+                    <input type="url" name="verifyLink" placeholder="رابط التحقق الرسمي الفوري على الشبكة" required value={formState.verifyLink || ""} onChange={handleInputChange} style={styles.input}/>
                   </>
                 )}
 
-                <button type="submit" style={styles.submitBtn} disabled={loading}>
-                  {editId ? "💾 حفظ التعديلات الآن في قاعدة البيانات" : "🚀 نشر وإضافة فورية إلى قاعدة البيانات"}
-                </button>
+                <button type="submit" style={styles.submitBtn}>{editId ? "💾 حفظ التعديلات الآن واستبدال البيانات" : "🚀 نشر وإضافة فورية لقائمة الجمهور"}</button>
               </form>
 
+              {/* جدول عرض العناصر المنشورة حالياً */}
               <h3 style={{marginTop: "40px", color: "#fff"}}>📋 العناصر المنشورة حالياً تحت هذا القسم</h3>
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
                       <th>العنوان / الاسم الرئيسي</th>
-                      <th>المعرف الفريد (ID)</th>
+                      <th>المعرف الفريد</th>
                       <th>الإجراءات الإدارية</th>
                     </tr>
                   </thead>
@@ -366,7 +324,7 @@ export default function AcademyAdminDashboard() {
                         <td>{item.id}</td>
                         <td>
                           <button style={styles.editBtn} onClick={() => handleEdit(item)}>✍️ تعديل</button>
-                          <button style={styles.deleteBtn} onClick={() => handleDelete(item.id)}>❌ حذف قطعي</button>
+                          <button style={styles.deleteBtn} onClick={() => handleDelete(item.id, targetList)}>❌ حذف قطعي</button>
                         </td>
                       </tr>
                     ))}
@@ -380,40 +338,49 @@ export default function AcademyAdminDashboard() {
               </div>
             </>
           ) : (
+            /* قسم مراجعة طلبات التسجيل الاحترافية */
             <div>
               <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-                <h3 style={{color: "#FFD700"}}>📥 أرشيف طلبات التقديم والملفات الأكاديمية</h3>
-                <button style={styles.viewBtn} onClick={fetchApplications}>🔄 تحديث الطلبات</button>
+                <h3 style={{color: "#FFD700"}}>📥 أرشيف طلبات التقديم والملفات الأكاديمية عبر المنصة</h3>
+                <button style={styles.deleteBtn} onClick={clearApplications}>🗑️ تصفية وأرشفة كافة الطلبات</button>
               </div>
-
+              <p style={{color: "#aaa", fontSize: "14px"}}>تنعكس وتخزن هذه الحقول والبيانات هنا تزامناً مع إرسال الملفات والاشعارات تلقائياً إلى بريد لوحة التحكم والمنصة الرئيسي: <code style={{color: "#64ffda"}}>Smart.Engineering.Global@proton.me</code> أو <code style={{color: "#64ffda"}}>smart.engineering.global@tuta.io</code></p>
+              
               {applications.map((app) => (
                 <div key={app.id} style={styles.appCard}>
-                  <div style={{display: "flex", justifyContent: "space-between"}}>
-                    <h4>🎯 المنحة / البرنامج المستهدف: <span style={{color: "#64ffda"}}>{app.scholarshipName}</span></h4>
-                    <button style={styles.deleteBtn} onClick={() => handleDeleteApp(app.id)}>🗑️ حذف الطلب</button>
-                  </div>
-                  <p style={{fontSize: "12px", color: "#8892b0"}}>تاريخ التقديم: {new Date(app.createdAt || Date.now()).toLocaleString()}</p>
+                  <h4>🎯 المنحة المستهدفة: <span style={{color: "#64ffda"}}>{app.scholarshipTitle}</span></h4>
+                  <p style={{fontSize: "12px", color: "#8892b0"}}>تاريخ ووقت التقديم: {app.dateSubmitted}</p>
                   <hr style={{borderColor: "#233554"}}/>
                   <div style={styles.appGrid}>
                     <div>
                       <h5>👤 البيانات الشخصية:</h5>
-                      <p><strong>الاسم:</strong> {app.fullName}</p>
+                      <p><strong>الاسم بالعربية:</strong> {app.fullNameAr}</p>
+                      <p><strong>الاسم بالإنجليزية:</strong> {app.fullNameEn}</p>
+                      <p><strong>الميلاد والمنشأ:</strong> {app.birthDate}</p>
+                      <p><strong>الجنسية الحالية:</strong> {app.nationality}</p>
+                      <p><strong>بلد الإقامة:</strong> {app.residence}</p>
                       <p><strong>الإيميل:</strong> {app.email}</p>
                       <p><strong>الهاتف:</strong> {app.phone}</p>
                     </div>
                     <div>
-                      <h5>🎓 الخلفية الأكاديمية:</h5>
-                      <p><strong>الدرجة المطلوبة:</strong> {app.degree}</p>
+                      <h5>🎓 الخلفية الأكاديمية والتقديم:</h5>
+                      <p><strong>آخر مؤهل:</strong> {app.lastDegree}</p>
                       <p><strong>المعدل التراكمي:</strong> {app.gpa}</p>
-                      <p><strong>الجامعة / المؤسسة:</strong> {app.university}</p>
-                      <p><strong>التخصص:</strong> {app.major}</p>
-                      <p><strong>مستوى اللغة:</strong> {app.languageLevel}</p>
+                      <p><strong>المؤسسة التعليمية:</strong> {app.institute} (تخرج: {app.graduationYear})</p>
+                      <p><strong>التخصص الحالي:</strong> {app.currentSpecialty}</p>
+                      <p><strong>الدرجة المستهدفة:</strong> {app.targetDegree}</p>
+                      <p><strong>رغبة أولى:</strong> {app.targetSpecialty1} | <strong>رغبة ثانية:</strong> {app.targetSpecialty2}</p>
+                      <p><strong>مستوى اللغة:</strong> {app.langLevel}</p>
                     </div>
+                  </div>
+                  <div style={{marginTop: "15px", background: "#0a192f", padding: "10px", borderRadius: "5px"}}>
+                    <h5 style={{color: "#64ffda", margin: "0 0 10px 0"}}>📂 حالة الملفات والمستندات المرفقة (محاكاة الاستلام بنجاح):</h5>
+                    <p style={{fontSize: "13px", color: "#00ffcc"}}>✓ تم استقبال وتأكيد ورفع ملفات (جواز السفر، الشهادات الأكاديمية، بيان الدافع SOP، السيرة الذاتية CV، خطابات التوصية، الصورة الشخصية ذات الخلفية البيضاء).</p>
                   </div>
                 </div>
               ))}
               {applications.length === 0 && (
-                <p style={{textAlign: "center", padding: "40px", color: "#8892b0"}}>لا توجد طلبات تقديم مسجلة في قاعدة البيانات حتى الآن.</p>
+                <p style={{textAlign: "center", padding: "40px", color: "#8892b0"}}>لا توجد طلبات تقديم مسجلة من خلال المنصة حتى الآن.</p>
               )}
             </div>
           )}
@@ -423,6 +390,7 @@ export default function AcademyAdminDashboard() {
   );
 }
 
+// كائنات التنسيق المستحدثة والأصلية
 const styles = {
   container: { minHeight: "100vh", direction: "rtl", fontFamily: "Cairo, sans-serif", background: "#0a192f", color: "#e2e8f0" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 40px", background: "#020c1b", borderBottom: "2px solid #64ffda" },
@@ -446,6 +414,8 @@ const styles = {
   deleteBtn: { background: "#dc3545", border: "none", color: "#fff", padding: "6px 12px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" },
   appCard: { background: "#112240", border: "1px solid #ff4a4a", borderRadius: "8px", padding: "20px", marginBottom: "20px" },
   appGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "15px" },
+  
+  // تنسيقات شاشة تسجيل الدخول الجديدة
   loginContainer: { display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#0a192f", fontFamily: "Cairo, sans-serif", direction: "rtl" },
   loginCard: { background: "#112240", padding: "40px", borderRadius: "10px", border: "1px solid #233554", width: "100%", maxWidth: "450px", boxShadow: "0px 10px 30px rgba(0,0,0,0.5)" },
   loginLabel: { display: "block", color: "#e2e8f0", marginBottom: "8px", fontSize: "14px" },

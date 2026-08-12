@@ -1,3 +1,4 @@
+// app/api/academy-apply/route.js
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import nodemailer from 'nodemailer';
@@ -14,7 +15,7 @@ const transporter = nodemailer.createTransport({
 const externalAdminEmails = ['Smart.Engineering.Global@proton.me', 'smart.engineering.global@tuta.io'];
 const gmailAdminEmail = 'smartengineering.hr.global@gmail.com';
 
-// 1. جلب طلبات التقديم (GET)
+// 1. دالة جلب طلبات التقديم (GET)
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -33,21 +34,21 @@ export async function GET(req) {
   }
 }
 
-// 2. إرسال طلب جديد (POST)
+// 2. دالة إرسال طلب جديد (POST)
 export async function POST(req) {
   try {
     const body = await req.json();
 
     const dataToSave = {
-      fullName: body.fullNameAr || body.fullName || "غير محدد",
+      fullName: body.fullName || "غير محدد",
       email: body.email || "no-email@provided.com",
       phone: body.phone || "000000000",
-      scholarshipName: body.scholarshipTitle || body.scholarshipName || body.courseName || "غير محدد",
-      degree: body.targetDegree || body.degree || "",
+      scholarshipName: body.scholarshipName || body.courseName || "غير محدد",
+      degree: body.degree || "",
       gpa: body.gpa || "",
-      university: body.institute || body.university || "",
-      major: body.targetSpecialty1 || body.major || "",
-      languageLevel: body.langLevel || body.languageLevel || "",
+      university: body.university || "",
+      major: body.major || "",
+      languageLevel: body.languageLevel || "",
       status: body.status || "PENDING"
     };
 
@@ -74,7 +75,7 @@ export async function POST(req) {
           <p><strong>البرنامج / المنحة:</strong> ${dataToSave.scholarshipName}</p>
           <p><strong>الدرجة العلمية:</strong> ${dataToSave.degree}</p>
           <p><strong>المعدل التراكمي:</strong> ${dataToSave.gpa}</p>
-          <p><strong>المؤسسة / الجامعة:</strong> ${dataToSave.university}</p>
+          <p><strong>الجامعة:</strong> ${dataToSave.university}</p>
           <p><strong>التخصص:</strong> ${dataToSave.major}</p>
           <p><strong>مستوى اللغة:</strong> ${dataToSave.languageLevel}</p>
         </div>
@@ -83,7 +84,7 @@ export async function POST(req) {
 
     try { await transporter.sendMail(mailOptions); } catch (e) { console.error("Email error:", e); }
 
-    if (newApplication.status === 'APPROVED' && newApplication.id && typeof processNotifications === 'function') {
+    if (newApplication.status === 'APPROVED' && newApplication.id) {
       processNotifications(newApplication.id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
     }
 
@@ -94,7 +95,7 @@ export async function POST(req) {
   }
 }
 
-// 3. التحديث (PUT)
+// 3. دالة التحديث وتغيير حالة الطلب (PUT)
 export async function PUT(req) {
   try {
     const body = await req.json();
@@ -121,6 +122,10 @@ export async function PUT(req) {
       data: allowedFields
     });
 
+    if (updated.status === 'APPROVED') {
+      processNotifications(id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
+    }
+
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error("Error in Academy Apply PUT API:", error);
@@ -128,7 +133,7 @@ export async function PUT(req) {
   }
 }
 
-// 4. الحذف (DELETE)
+// 4. دالة الحذف (DELETE)
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);

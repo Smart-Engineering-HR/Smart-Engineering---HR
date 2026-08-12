@@ -1,3 +1,4 @@
+// app/api/academy/route.js
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import nodemailer from 'nodemailer';
@@ -14,7 +15,7 @@ const transporter = nodemailer.createTransport({
 const externalAdminEmails = ['Smart.Engineering.Global@proton.me', 'smart.engineering.global@tuta.io'];
 const gmailAdminEmail = 'smartengineering.hr.global@gmail.com';
 
-// 1. جلب البيانات (GET)
+// 1. دالة جلب البيانات (GET)
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -38,11 +39,11 @@ export async function GET(req) {
     return NextResponse.json(allItems, { status: 200 });
   } catch (error) {
     console.error("Error in Academy GET API:", error);
-    return NextResponse.json({ error: "فشل الجلب من قاعدة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الجلب" }, { status: 500 });
   }
 }
 
-// 2. الإضافة (POST)
+// 2. دالة الإضافة (POST)
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -76,18 +77,18 @@ export async function POST(req) {
 
     try { await transporter.sendMail(mailOptions); } catch (e) { console.error("Email error:", e); }
 
-    if (newItem.status === 'APPROVED' && typeof processNotifications === 'function') {
+    if (newItem.status === 'APPROVED') {
       processNotifications(newItem.id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
     }
 
     return NextResponse.json(newItem, { status: 201 });
   } catch (error) {
     console.error("Error in Academy POST API:", error);
-    return NextResponse.json({ error: "فشل الحفظ في قاعدة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الحفظ: تأكد من صحة البيانات" }, { status: 500 });
   }
 }
 
-// 3. التحديث (PUT)
+// 3. دالة التحديث (PUT)
 export async function PUT(req) {
   try {
     const body = await req.json();
@@ -109,18 +110,18 @@ export async function PUT(req) {
       data: allowedFields
     });
 
-    if (updated.status === 'APPROVED' && typeof processNotifications === 'function') {
+    if (updated.status === 'APPROVED') {
       processNotifications(id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
     }
 
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error("Error in Academy PUT API:", error);
-    return NextResponse.json({ error: "فشل التعديل في قاعدة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: "فشل التعديل: البيانات غير متطابقة" }, { status: 500 });
   }
 }
 
-// 4. الحذف (DELETE)
+// 4. دالة الحذف (DELETE)
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -131,6 +132,6 @@ export async function DELETE(req) {
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Error in Academy DELETE API:", error);
-    return NextResponse.json({ error: "فشل الحذف من قاعدة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الحذف" }, { status: 500 });
   }
 }
