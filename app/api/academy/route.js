@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 const externalAdminEmails = ['Smart.Engineering.Global@proton.me', 'smart.engineering.global@tuta.io'];
 const gmailAdminEmail = 'smartengineering.hr.global@gmail.com';
 
-// 1. جلب البيانات (GET)
+// 1. GET
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -43,7 +43,7 @@ export async function GET(req) {
   }
 }
 
-// 2. الإضافة والنشر (POST)
+// 2. POST
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -55,21 +55,16 @@ export async function POST(req) {
       return NextResponse.json({ error: "العنوان والتصنيف مطلوبان" }, { status: 400 });
     }
 
-    // معالجة مرنة لحقل details للتوافق مع نوع الحقل في Prisma (سواء كان String أو Json)
-    let processedDetails;
-    if (typeof body.details === 'string') {
-      processedDetails = body.details;
-    } else if (typeof body.details === 'object' && body.details !== null) {
-      processedDetails = JSON.stringify(body.details);
-    } else {
-      processedDetails = JSON.stringify({});
-    }
+    const detailsValue = typeof body.details === 'string' 
+      ? body.details 
+      : JSON.stringify(body.details || {});
 
+    // تجهيز البيانات
     const dataToSave = {
       category: String(category),
       title: String(title),
       subCategory: body.subCategory ? String(body.subCategory) : null,
-      details: processedDetails,
+      details: detailsValue,
       status: body.status || "APPROVED"
     };
 
@@ -78,40 +73,40 @@ export async function POST(req) {
       newItem = await prisma.academyItem.create({ data: dataToSave });
     } catch (dbError) {
       console.error("Prisma Creation Error:", dbError);
-
-      // محاولة ثانية بصلة كائن إذا كان المخطط يتوقع Json بدلاً من String
-      try {
-        const fallbackData = {
-          ...dataToSave,
-          details: typeof body.details === 'object' ? body.details : {}
-        };
-        newItem = await prisma.academyItem.create({ data: fallbackData });
-      } catch (fallbackError) {
+      
+      // إذا كان العمود غير موجود في قاعدة البيانات، نعرض تنبيه إرشادي واضح
+      if (dbError.message.includes("column `details` does not exist") || dbError.message.includes("details")) {
         return NextResponse.json(
-          { error: `خطأ Prisma: ${dbError.message}` }, 
+          { error: "عمود 'details' غير موجود في قاعدة البيانات Supabase. يرجى تشغيل npx prisma db push في الترمينال لمزامنة قاعدة البيانات." }, 
           { status: 500 }
         );
       }
+
+      return NextResponse.json(
+        { error: `خطأ Prisma: ${dbError.message}` }, 
+        { status: 500 }
+      );
     }
 
-    // إرسال البريد كإشعار إداري فرعي دون تعطيل النشر
-    if (process.env.EMAIL_PASS) {
-      transporter.sendMail({
-        from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
-        to: [gmailAdminEmail, ...externalAdminEmails].join(','),
-        subject: `إضافة أكاديمية جديدة: ${dataToSave.title}`,
-        html: `<div dir="rtl"><h3>تم إضافة عنصر جديد</h3><p>العنوان: ${dataToSave.title}</p></div>`
-      }).catch(err => console.warn("تعذر إرسال الإشعار البريدي:", err));
-    }
-
-    // معالجة الإشعارات بأسلوب آمن
+    // إرسال بريد إشعار الإدارة (معزول لضمان استمرار عملية النشر)
     try {
-      const notificationEngine = await import('@/lib/notificationEngine').catch(() => null);
-      if (notificationEngine && typeof notificationEngine.processNotifications === 'function') {
-        notificationEngine.processNotifications(newItem.id).catch(err => console.error("خطأ إشعارات:", err));
+      if (process.env.EMAIL_PASS) {
+        const mailOptions = {
+          from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
+          to: [gmailAdminEmail, ...externalAdminEmails].join(','),
+          subject: `إضافة أكاديمية جديدة: ${dataToSave.title}`,
+          html: `
+            <div dir="rtl" style="font-family: sans-serif; line-height: 1.6;">
+              <h3>تم إضافة عنصر أكاديمي جديد بنجاح</h3>
+              <p><strong>العنوان:</strong> ${dataToSave.title}</p>
+              <p><strong>التصنيف:</strong> ${dataToSave.category}</p>
+            </div>
+          `
+        };
+        await transporter.sendMail(mailOptions);
       }
-    } catch (e) {
-      // ignore
+    } catch (emailErr) {
+      console.warn("تعذر إرسال البريد ولكن النشر تم بنجاح:", emailErr);
     }
 
     return NextResponse.json(newItem, { status: 201 });
@@ -121,32 +116,25 @@ export async function POST(req) {
   }
 }
 
-// 3. التحديث (PUT)
+// 3. PUT
 export async function PUT(req) {
   try {
     const body = await req.json();
     const { id, status, ...updateData } = body;
     if (!id) return NextResponse.json({ error: "المعرف (id) مطلوب" }, { status: 400 });
 
-    let processedDetails;
-    if (updateData.details !== undefined) {
-      processedDetails = typeof updateData.details === 'string' 
-        ? updateData.details 
-        : JSON.stringify(updateData.details || {});
-    }
-
     const allowedFields = {
       category: updateData.category ? String(updateData.category) : undefined,
       title: updateData.title ? String(updateData.title) : undefined,
       subCategory: updateData.subCategory !== undefined ? (updateData.subCategory ? String(updateData.subCategory) : null) : undefined,
-      details: processedDetails,
+      details: updateData.details !== undefined ? (typeof updateData.details === 'string' ? updateData.details : JSON.stringify(updateData.details || {})) : undefined,
       status: status || updateData.status
     };
 
     Object.keys(allowedFields).forEach(key => allowedFields[key] === undefined && delete allowedFields[key]);
 
     const updated = await prisma.academyItem.update({
-      where: { id: String(id) },
+      where: { id: id },
       data: allowedFields
     });
 
@@ -157,14 +145,14 @@ export async function PUT(req) {
   }
 }
 
-// 4. الحذف (DELETE)
+// 4. DELETE
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: "المعرف (id) مطلوب" }, { status: 400 });
 
-    await prisma.academyItem.delete({ where: { id: String(id) } });
+    await prisma.academyItem.delete({ where: { id: id } });
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Error in Academy DELETE API:", error);
