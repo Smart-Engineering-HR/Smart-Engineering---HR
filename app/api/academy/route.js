@@ -59,10 +59,11 @@ export async function POST(req) {
       ? body.details 
       : JSON.stringify(body.details || {});
 
-    // حماية subCategory من إرسال قيمة null لعدم ضرب قيود قاعدة البيانات
+    // تجهيز البيانات وتأمين عدم إرسال null للحقول الاختيارية
     const dataToSave = {
       category: String(category),
       title: String(title),
+      description: body.description ? String(body.description) : "",
       subCategory: body.subCategory ? String(body.subCategory) : "",
       details: detailsValue,
       status: body.status || "APPROVED"
@@ -111,7 +112,8 @@ export async function PUT(req) {
     const allowedFields = {
       category: updateData.category ? String(updateData.category) : undefined,
       title: updateData.title ? String(updateData.title) : undefined,
-      subCategory: updateData.subCategory !== undefined ? (updateData.subCategory ? String(updateData.subCategory) : "") : undefined,
+      description: updateData.description !== undefined ? String(updateData.description || "") : undefined,
+      subCategory: updateData.subCategory !== undefined ? String(updateData.subCategory || "") : undefined,
       details: updateData.details !== undefined ? (typeof updateData.details === 'string' ? updateData.details : JSON.stringify(updateData.details || {})) : undefined,
       status: status || updateData.status
     };
