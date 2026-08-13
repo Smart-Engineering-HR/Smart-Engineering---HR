@@ -59,11 +59,10 @@ export async function POST(req) {
       ? body.details 
       : JSON.stringify(body.details || {});
 
-    // تجهيز البيانات وتأمين عدم إرسال null للحقول الاختيارية
+    // تجهيز البيانات فقط بالحقول المعروفة في schema.prisma
     const dataToSave = {
       category: String(category),
       title: String(title),
-      description: body.description ? String(body.description) : "",
       subCategory: body.subCategory ? String(body.subCategory) : "",
       details: detailsValue,
       status: body.status || "APPROVED"
@@ -112,7 +111,6 @@ export async function PUT(req) {
     const allowedFields = {
       category: updateData.category ? String(updateData.category) : undefined,
       title: updateData.title ? String(updateData.title) : undefined,
-      description: updateData.description !== undefined ? String(updateData.description || "") : undefined,
       subCategory: updateData.subCategory !== undefined ? String(updateData.subCategory || "") : undefined,
       details: updateData.details !== undefined ? (typeof updateData.details === 'string' ? updateData.details : JSON.stringify(updateData.details || {})) : undefined,
       status: status || updateData.status
