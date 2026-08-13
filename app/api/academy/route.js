@@ -29,6 +29,7 @@ export async function GET(req) {
 
     if (isPublicQuery === 'true') {
       const publicItems = await prisma.academyItem.findMany({
+        where: { status: 'APPROVED' },
         orderBy: { createdAt: 'desc' }
       });
       return NextResponse.json(publicItems, { status: 200 });
@@ -58,11 +59,11 @@ export async function POST(req) {
       ? body.details 
       : JSON.stringify(body.details || {});
 
-    // تجهيز البيانات
+    // حماية subCategory من إرسال قيمة null لعدم ضرب قيود قاعدة البيانات
     const dataToSave = {
       category: String(category),
       title: String(title),
-      subCategory: body.subCategory ? String(body.subCategory) : null,
+      subCategory: body.subCategory ? String(body.subCategory) : "",
       details: detailsValue,
       status: body.status || "APPROVED"
     };
@@ -72,29 +73,10 @@ export async function POST(req) {
       newItem = await prisma.academyItem.create({ data: dataToSave });
     } catch (dbError) {
       console.error("Prisma Creation Error:", dbError);
-      
-      // معالجة ذكية للأعمدة المفقودة في Supabase
-      if (dbError.message.includes("does not exist in the current database")) {
-        // محاولة الحفظ البسيط بدون الأعمدة المتقدمة في حال عدم مزامنتها بعد
-        try {
-          newItem = await prisma.academyItem.create({
-            data: {
-              category: String(category),
-              title: String(title)
-            }
-          });
-        } catch (fallbackErr) {
-          return NextResponse.json(
-            { error: `يرجى تشغيل أمرين SQL في Supabase لإضافة أعمدة status و details: ${dbError.message}` }, 
-            { status: 500 }
-          );
-        }
-      } else {
-        return NextResponse.json(
-          { error: `خطأ Prisma: ${dbError.message}` }, 
-          { status: 500 }
-        );
-      }
+      return NextResponse.json(
+        { error: `خطأ Prisma: ${dbError.message}` }, 
+        { status: 500 }
+      );
     }
 
     // إرسال البريد عند النجاح
@@ -129,7 +111,7 @@ export async function PUT(req) {
     const allowedFields = {
       category: updateData.category ? String(updateData.category) : undefined,
       title: updateData.title ? String(updateData.title) : undefined,
-      subCategory: updateData.subCategory !== undefined ? (updateData.subCategory ? String(updateData.subCategory) : null) : undefined,
+      subCategory: updateData.subCategory !== undefined ? (updateData.subCategory ? String(updateData.subCategory) : "") : undefined,
       details: updateData.details !== undefined ? (typeof updateData.details === 'string' ? updateData.details : JSON.stringify(updateData.details || {})) : undefined,
       status: status || updateData.status
     };
