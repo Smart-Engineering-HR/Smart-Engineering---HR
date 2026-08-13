@@ -6,7 +6,7 @@ export default function AcademyAdminDashboard() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // تسجيل الدخول
+  // حالة تسجيل الدخول
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -20,12 +20,15 @@ export default function AcademyAdminDashboard() {
     codes: [], books: [], webinars: [], certificates: []
   });
 
-  // جلب البيانات من API المباشر
+  // جلب البيانات من API
   const fetchAcademyData = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/academy');
-      if (!res.ok) throw new Error("فشل الجلب من السيرفر");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "فشل الجلب من السيرفر");
+      }
       const items = await res.json();
 
       const categorized = {
@@ -33,21 +36,23 @@ export default function AcademyAdminDashboard() {
         codes: [], books: [], webinars: [], certificates: []
       };
 
-      items.forEach(item => {
-        let detailsObj = {};
-        if (item.details) {
-          try {
-            detailsObj = typeof item.details === 'string' ? JSON.parse(item.details) : item.details;
-          } catch (e) {
-            detailsObj = {};
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          let detailsObj = {};
+          if (item.details) {
+            try {
+              detailsObj = typeof item.details === 'string' ? JSON.parse(item.details) : item.details;
+            } catch (e) {
+              detailsObj = {};
+            }
           }
-        }
-        const formattedItem = { id: item.id, title: item.title, category: item.category, status: item.status, ...detailsObj };
+          const formattedItem = { id: item.id, title: item.title, category: item.category, status: item.status, ...detailsObj };
 
-        if (categorized[item.category]) {
-          categorized[item.category].push(formattedItem);
-        }
-      });
+          if (categorized[item.category]) {
+            categorized[item.category].push(formattedItem);
+          }
+        });
+      }
 
       setData(categorized);
     } catch (err) {
@@ -105,21 +110,24 @@ export default function AcademyAdminDashboard() {
     setFormState({ ...formState, [e.target.name]: e.target.value });
   };
 
+  // 🛠️ التعديل الجوهري على handleSubmit لاستخراج وقراءة خطأ السيرفر الحقيقي
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    const { title, name, ...details } = formState;
-    const itemTitle = title || name || "عنصر أكاديمي";
-
-    const payload = {
-      category: targetList,
-      title: itemTitle,
-      details: details,
-      status: "APPROVED"
-    };
-
     try {
+      const itemTitle = formState.title || formState.name || "عنصر أكاديمي جديد";
+      
+      // استبعاد حقول النظام الأساسية لمنع تكرارها داخل كائن الـ details
+      const { id, title, name, category, status, createdAt, updatedAt, ...details } = formState;
+
+      const payload = {
+        category: targetList,
+        title: itemTitle,
+        details: details,
+        status: "APPROVED"
+      };
+
       let res;
       if (editId) {
         res = await fetch('/api/academy', {
@@ -135,14 +143,20 @@ export default function AcademyAdminDashboard() {
         });
       }
 
-      if (!res.ok) throw new Error("فشل الحفظ في قاعدة البيانات");
+      // استخراج الاستجابة الحقيقية من السيرفر
+      const resData = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(resData.error || "حدث خطأ غير متوقع أثناء الحفظ في السيرفر");
+      }
 
       setFormState({});
       setEditId(null);
       await fetchAcademyData();
-      alert("تمت العملية بنجاح وانعكست مباشرة على صفحة الجمهور!");
+      alert("✅ تمت العملية بنجاح وانعكست مباشرة على قاعدة البيانات وصفحة الجمهور!");
     } catch (err) {
-      alert("خطأ: " + err.message);
+      console.error("Submit Error:", err);
+      alert("❌ خطأ: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -159,11 +173,13 @@ export default function AcademyAdminDashboard() {
 
     try {
       const res = await fetch(`/api/academy?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error("فشل الحذف من قاعدة البيانات");
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(resData.error || "فشل الحذف من قاعدة البيانات");
+      
       await fetchAcademyData();
       alert("تم الحذف بنجاح!");
     } catch (err) {
-      alert("خطأ: " + err.message);
+      alert("❌ خطأ: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -174,10 +190,12 @@ export default function AcademyAdminDashboard() {
 
     try {
       const res = await fetch(`/api/academy-apply?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error("فشل الحذف");
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(resData.error || "فشل الحذف");
+      
       await fetchApplications();
     } catch (err) {
-      alert("خطأ: " + err.message);
+      alert("❌ خطأ: " + err.message);
     }
   };
 
@@ -345,7 +363,7 @@ export default function AcademyAdminDashboard() {
                 )}
 
                 <button type="submit" style={styles.submitBtn} disabled={loading}>
-                  {editId ? "💾 حفظ التعديلات الآن في قاعدة البيانات" : "🚀 نشر وإضافة فورية إلى قاعدة البيانات"}
+                  {loading ? "⏳ جاري المعالجة..." : (editId ? "💾 حفظ التعديلات الآن في قاعدة البيانات" : "🚀 نشر وإضافة فورية إلى قاعدة البيانات")}
                 </button>
               </form>
 

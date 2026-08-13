@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import nodemailer from 'nodemailer';
 
-// إعداد مُرسل البريد الإلكتروني مع التحقق الآمن
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -56,57 +55,63 @@ export async function POST(req) {
       return NextResponse.json({ error: "العنوان والتصنيف مطلوبان" }, { status: 400 });
     }
 
-    // تجهيز وتنظيف البيانات للـ Prisma
+    // معالجة مرنة لحقل details للتوافق مع نوع الحقل في Prisma (سواء كان String أو Json)
+    let processedDetails;
+    if (typeof body.details === 'string') {
+      processedDetails = body.details;
+    } else if (typeof body.details === 'object' && body.details !== null) {
+      processedDetails = JSON.stringify(body.details);
+    } else {
+      processedDetails = JSON.stringify({});
+    }
+
     const dataToSave = {
       category: String(category),
       title: String(title),
       subCategory: body.subCategory ? String(body.subCategory) : null,
-      details: typeof body.details === 'string' ? body.details : JSON.stringify(body.details || {}),
+      details: processedDetails,
       status: body.status || "APPROVED"
     };
 
-    // الحفظ في قاعدة البيانات عبر Prisma
     let newItem;
     try {
       newItem = await prisma.academyItem.create({ data: dataToSave });
     } catch (dbError) {
       console.error("Prisma Creation Error:", dbError);
-      return NextResponse.json(
-        { error: `فشل الحفظ في قاعدة البيانات: ${dbError.message}` }, 
-        { status: 500 }
-      );
-    }
 
-    // إرسال البريد الإلكتروني كإشعار إداري (معزول لكي لا يوقف النشر في حال تعثره)
-    try {
-      if (process.env.EMAIL_PASS) {
-        const mailOptions = {
-          from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
-          to: [gmailAdminEmail, ...externalAdminEmails].join(','),
-          subject: `إضافة أكاديمية جديدة: ${dataToSave.title}`,
-          html: `
-            <div dir="rtl" style="font-family: sans-serif; line-height: 1.6;">
-              <h3>تم إضافة عنصر أكاديمي جديد بنجاح</h3>
-              <p><strong>العنوان:</strong> ${dataToSave.title}</p>
-              <p><strong>التصنيف:</strong> ${dataToSave.category}</p>
-              <pre>${JSON.stringify(body, null, 2)}</pre>
-            </div>
-          `
+      // محاولة ثانية بصلة كائن إذا كان المخطط يتوقع Json بدلاً من String
+      try {
+        const fallbackData = {
+          ...dataToSave,
+          details: typeof body.details === 'object' ? body.details : {}
         };
-        await transporter.sendMail(mailOptions);
+        newItem = await prisma.academyItem.create({ data: fallbackData });
+      } catch (fallbackError) {
+        return NextResponse.json(
+          { error: `خطأ Prisma: ${dbError.message}` }, 
+          { status: 500 }
+        );
       }
-    } catch (emailErr) {
-      console.warn("تعذر إرسال بريد الإشعار، لكن تم النشر والحفظ بنجاح:", emailErr);
     }
 
-    // استدعاء محرك الإشعارات بأمان
+    // إرسال البريد كإشعار إداري فرعي دون تعطيل النشر
+    if (process.env.EMAIL_PASS) {
+      transporter.sendMail({
+        from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
+        to: [gmailAdminEmail, ...externalAdminEmails].join(','),
+        subject: `إضافة أكاديمية جديدة: ${dataToSave.title}`,
+        html: `<div dir="rtl"><h3>تم إضافة عنصر جديد</h3><p>العنوان: ${dataToSave.title}</p></div>`
+      }).catch(err => console.warn("تعذر إرسال الإشعار البريدي:", err));
+    }
+
+    // معالجة الإشعارات بأسلوب آمن
     try {
       const notificationEngine = await import('@/lib/notificationEngine').catch(() => null);
       if (notificationEngine && typeof notificationEngine.processNotifications === 'function') {
-        notificationEngine.processNotifications(newItem.id).catch(err => console.error("خطأ في معالجة الإشعارات:", err));
+        notificationEngine.processNotifications(newItem.id).catch(err => console.error("خطأ إشعارات:", err));
       }
-    } catch (notifErr) {
-      console.warn("تخطّي محرك الإشعارات:", notifErr);
+    } catch (e) {
+      // ignore
     }
 
     return NextResponse.json(newItem, { status: 201 });
@@ -123,18 +128,25 @@ export async function PUT(req) {
     const { id, status, ...updateData } = body;
     if (!id) return NextResponse.json({ error: "المعرف (id) مطلوب" }, { status: 400 });
 
+    let processedDetails;
+    if (updateData.details !== undefined) {
+      processedDetails = typeof updateData.details === 'string' 
+        ? updateData.details 
+        : JSON.stringify(updateData.details || {});
+    }
+
     const allowedFields = {
       category: updateData.category ? String(updateData.category) : undefined,
       title: updateData.title ? String(updateData.title) : undefined,
       subCategory: updateData.subCategory !== undefined ? (updateData.subCategory ? String(updateData.subCategory) : null) : undefined,
-      details: updateData.details !== undefined ? (typeof updateData.details === 'string' ? updateData.details : JSON.stringify(updateData.details || {})) : undefined,
+      details: processedDetails,
       status: status || updateData.status
     };
 
     Object.keys(allowedFields).forEach(key => allowedFields[key] === undefined && delete allowedFields[key]);
 
     const updated = await prisma.academyItem.update({
-      where: { id: id },
+      where: { id: String(id) },
       data: allowedFields
     });
 
@@ -152,7 +164,7 @@ export async function DELETE(req) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: "المعرف (id) مطلوب" }, { status: 400 });
 
-    await prisma.academyItem.delete({ where: { id: id } });
+    await prisma.academyItem.delete({ where: { id: String(id) } });
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Error in Academy DELETE API:", error);
