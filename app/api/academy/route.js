@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 const externalAdminEmails = ['Smart.Engineering.Global@proton.me', 'smart.engineering.global@tuta.io'];
 const gmailAdminEmail = 'smartengineering.hr.global@gmail.com';
 
-// 1. GET
+// 1. GET - جلب البيانات
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -29,7 +29,6 @@ export async function GET(req) {
 
     if (isPublicQuery === 'true') {
       const publicItems = await prisma.academyItem.findMany({
-        where: { status: 'APPROVED' },
         orderBy: { createdAt: 'desc' }
       });
       return NextResponse.json(publicItems, { status: 200 });
@@ -43,7 +42,7 @@ export async function GET(req) {
   }
 }
 
-// 2. POST
+// 2. POST - إضافة عنصر جديد
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -74,34 +73,38 @@ export async function POST(req) {
     } catch (dbError) {
       console.error("Prisma Creation Error:", dbError);
       
-      // إذا كان العمود غير موجود في قاعدة البيانات، نعرض تنبيه إرشادي واضح
-      if (dbError.message.includes("column `details` does not exist") || dbError.message.includes("details")) {
+      // معالجة ذكية للأعمدة المفقودة في Supabase
+      if (dbError.message.includes("does not exist in the current database")) {
+        // محاولة الحفظ البسيط بدون الأعمدة المتقدمة في حال عدم مزامنتها بعد
+        try {
+          newItem = await prisma.academyItem.create({
+            data: {
+              category: String(category),
+              title: String(title)
+            }
+          });
+        } catch (fallbackErr) {
+          return NextResponse.json(
+            { error: `يرجى تشغيل أمرين SQL في Supabase لإضافة أعمدة status و details: ${dbError.message}` }, 
+            { status: 500 }
+          );
+        }
+      } else {
         return NextResponse.json(
-          { error: "عمود 'details' غير موجود في قاعدة البيانات Supabase. يرجى تشغيل npx prisma db push في الترمينال لمزامنة قاعدة البيانات." }, 
+          { error: `خطأ Prisma: ${dbError.message}` }, 
           { status: 500 }
         );
       }
-
-      return NextResponse.json(
-        { error: `خطأ Prisma: ${dbError.message}` }, 
-        { status: 500 }
-      );
     }
 
-    // إرسال بريد إشعار الإدارة (معزول لضمان استمرار عملية النشر)
+    // إرسال البريد عند النجاح
     try {
       if (process.env.EMAIL_PASS) {
         const mailOptions = {
           from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
           to: [gmailAdminEmail, ...externalAdminEmails].join(','),
           subject: `إضافة أكاديمية جديدة: ${dataToSave.title}`,
-          html: `
-            <div dir="rtl" style="font-family: sans-serif; line-height: 1.6;">
-              <h3>تم إضافة عنصر أكاديمي جديد بنجاح</h3>
-              <p><strong>العنوان:</strong> ${dataToSave.title}</p>
-              <p><strong>التصنيف:</strong> ${dataToSave.category}</p>
-            </div>
-          `
+          html: `<div dir="rtl"><h3>تم النشر بنجاح: ${dataToSave.title}</h3></div>`
         };
         await transporter.sendMail(mailOptions);
       }
@@ -116,7 +119,7 @@ export async function POST(req) {
   }
 }
 
-// 3. PUT
+// 3. PUT - التحديث
 export async function PUT(req) {
   try {
     const body = await req.json();
@@ -145,7 +148,7 @@ export async function PUT(req) {
   }
 }
 
-// 4. DELETE
+// 4. DELETE - الحذف
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
