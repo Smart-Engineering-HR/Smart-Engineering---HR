@@ -137,6 +137,23 @@ model ScholarshipApplication {
   createdAt     DateTime    @default(now())
 }
 
+// 👈 أضف هذا الموديل الجديد هنا بنفس الحقول التي يطلبها الـ API
+model AcademyApplication {
+  id              String   @id @default(uuid())
+  fullName        String
+  email           String
+  phone           String
+  scholarshipName String?
+  degree          String?
+  gpa             String?
+  university      String?
+  major           String?
+  languageLevel   String?
+  status          String   @default("PENDING")
+  details         String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
 // ==========================================
 // 6. المكتبة والبرمجيات
 // ==========================================
