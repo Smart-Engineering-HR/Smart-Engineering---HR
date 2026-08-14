@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 const externalAdminEmails = ['Smart.Engineering.Global@proton.me', 'smart.engineering.global@tuta.io'];
 const gmailAdminEmail = 'smartengineering.hr.global@gmail.com';
 
-// 1. GET - جلب البيانات
+// 1. GET - جلب البيانات (للجمهور أو للإدارة)
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -24,7 +24,7 @@ export async function GET(req) {
       const item = await prisma.academyItem.findUnique({ where: { id: id } });
       return item 
         ? NextResponse.json(item, { status: 200 }) 
-        : NextResponse.json({ error: "العنصر غير موجود" }, { status: 404 });
+        : NextResponse.json({ error: "العنصر غير موجود في قاعدة البيانات" }, { status: 404 });
     }
 
     if (isPublicQuery === 'true') {
@@ -43,7 +43,7 @@ export async function GET(req) {
   }
 }
 
-// 2. POST - إضافة عنصر جديد
+// 2. POST - إضافة عنصر جديد إلى الأكاديمية
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -52,14 +52,13 @@ export async function POST(req) {
     const category = body.category || "proCourses";
 
     if (!title || !category) {
-      return NextResponse.json({ error: "العنوان والتصنيف مطلوبان" }, { status: 400 });
+      return NextResponse.json({ error: "العنوان والتصنيف مطلوبان بشكل أساسي" }, { status: 400 });
     }
 
     const detailsValue = typeof body.details === 'string' 
       ? body.details 
       : JSON.stringify(body.details || {});
 
-    // تجهيز البيانات فقط بالحقول المعروفة في schema.prisma
     const dataToSave = {
       category: String(category),
       title: String(title),
@@ -74,19 +73,25 @@ export async function POST(req) {
     } catch (dbError) {
       console.error("Prisma Creation Error:", dbError);
       return NextResponse.json(
-        { error: `خطأ Prisma: ${dbError.message}` }, 
+        { error: `خطأ التخزين في Prisma: ${dbError.message}` }, 
         { status: 500 }
       );
     }
 
-    // إرسال البريد عند النجاح
+    // إرسال البريد عند النشر الناجح
     try {
       if (process.env.EMAIL_PASS) {
         const mailOptions = {
           from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
           to: [gmailAdminEmail, ...externalAdminEmails].join(','),
-          subject: `إضافة أكاديمية جديدة: ${dataToSave.title}`,
-          html: `<div dir="rtl"><h3>تم النشر بنجاح: ${dataToSave.title}</h3></div>`
+          subject: `إضافة جديدة في الأكاديمية: ${dataToSave.title}`,
+          html: `
+            <div dir="rtl" style="font-family: sans-serif;">
+              <h3 style="color: #059669;">تم نشر عنصر جديد بنجاح</h3>
+              <p><strong>العنوان:</strong> ${dataToSave.title}</p>
+              <p><strong>التصنيف:</strong> ${dataToSave.category}</p>
+            </div>
+          `
         };
         await transporter.sendMail(mailOptions);
       }
@@ -101,7 +106,7 @@ export async function POST(req) {
   }
 }
 
-// 3. PUT - التحديث
+// 3. PUT - التحديث والتعديل
 export async function PUT(req) {
   try {
     const body = await req.json();
@@ -130,7 +135,7 @@ export async function PUT(req) {
   }
 }
 
-// 4. DELETE - الحذف
+// 4. DELETE - الحذف القطعي
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -138,7 +143,7 @@ export async function DELETE(req) {
     if (!id) return NextResponse.json({ error: "المعرف (id) مطلوب" }, { status: 400 });
 
     await prisma.academyItem.delete({ where: { id: id } });
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true, message: "تم الحذف بنجاح" }, { status: 200 });
   } catch (error) {
     console.error("Error in Academy DELETE API:", error);
     return NextResponse.json({ error: error.message || "فشل الحذف من قاعدة البيانات" }, { status: 500 });
