@@ -13,7 +13,6 @@ const transporter = nodemailer.createTransport({
 const externalAdminEmails = ['Smart.Engineering.Global@proton.me', 'smart.engineering.global@tuta.io'];
 const gmailAdminEmail = 'smartengineering.hr.global@gmail.com';
 
-// 1. GET - جلب البيانات (للجمهور أو للإدارة)
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -43,11 +42,9 @@ export async function GET(req) {
   }
 }
 
-// 2. POST - إضافة عنصر جديد إلى الأكاديمية
 export async function POST(req) {
   try {
     const body = await req.json();
-    
     const title = body.title || body.name || "عنصر أكاديمي جديد";
     const category = body.category || "proCourses";
 
@@ -67,36 +64,19 @@ export async function POST(req) {
       status: body.status || "APPROVED"
     };
 
-    let newItem;
-    try {
-      newItem = await prisma.academyItem.create({ data: dataToSave });
-    } catch (dbError) {
-      console.error("Prisma Creation Error:", dbError);
-      return NextResponse.json(
-        { error: `خطأ التخزين في Prisma: ${dbError.message}` }, 
-        { status: 500 }
-      );
-    }
+    const newItem = await prisma.academyItem.create({ data: dataToSave });
 
-    // إرسال البريد عند النشر الناجح
     try {
       if (process.env.EMAIL_PASS) {
-        const mailOptions = {
+        await transporter.sendMail({
           from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
           to: [gmailAdminEmail, ...externalAdminEmails].join(','),
           subject: `إضافة جديدة في الأكاديمية: ${dataToSave.title}`,
-          html: `
-            <div dir="rtl" style="font-family: sans-serif;">
-              <h3 style="color: #059669;">تم نشر عنصر جديد بنجاح</h3>
-              <p><strong>العنوان:</strong> ${dataToSave.title}</p>
-              <p><strong>التصنيف:</strong> ${dataToSave.category}</p>
-            </div>
-          `
-        };
-        await transporter.sendMail(mailOptions);
+          html: `<div dir="rtl"><h3>تم نشر عنصر جديد: ${dataToSave.title}</h3></div>`
+        });
       }
-    } catch (emailErr) {
-      console.warn("تعذر إرسال البريد ولكن النشر تم بنجاح:", emailErr);
+    } catch (e) {
+      console.warn("إشعارات الإيميل تعثرت لكن النشر نجح:", e);
     }
 
     return NextResponse.json(newItem, { status: 201 });
@@ -106,7 +86,6 @@ export async function POST(req) {
   }
 }
 
-// 3. PUT - التحديث والتعديل
 export async function PUT(req) {
   try {
     const body = await req.json();
@@ -131,11 +110,10 @@ export async function PUT(req) {
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error("Error in Academy PUT API:", error);
-    return NextResponse.json({ error: error.message || "فشل التعديل في قاعدة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "فشل التعديل" }, { status: 500 });
   }
 }
 
-// 4. DELETE - الحذف القطعي
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -146,6 +124,6 @@ export async function DELETE(req) {
     return NextResponse.json({ success: true, message: "تم الحذف بنجاح" }, { status: 200 });
   } catch (error) {
     console.error("Error in Academy DELETE API:", error);
-    return NextResponse.json({ error: error.message || "فشل الحذف من قاعدة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "فشل الحذف" }, { status: 500 });
   }
 }

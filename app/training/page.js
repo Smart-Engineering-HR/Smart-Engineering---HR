@@ -7,6 +7,7 @@ export default function TrainingPublicPage() {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [selectedScholarship, setSelectedScholarship] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const [data, setData] = useState({
     proCourses: [],
@@ -23,7 +24,6 @@ export default function TrainingPublicPage() {
     fullNameAr: "",
     fullNameEn: "",
     birthDate: "",
-    birthPlace: "",
     nationality: "",
     residence: "",
     email: "",
@@ -31,23 +31,21 @@ export default function TrainingPublicPage() {
     lastDegree: "بكالوريوس",
     gpa: "",
     institute: "",
-    graduationYear: "",
     currentSpecialty: "",
     scholarshipTitle: "",
     targetDegree: "ماجستير",
     targetSpecialty1: "",
     targetSpecialty2: "",
     englishProficiency: "بدون شهادة",
-    passportCopy: "",
-    academicCertificates: "",
-    motivationLetter: "",
-    cvResume: "",
-    recommendationLetters: "",
-    languageCert: "",
-    personalPhoto: ""
+    passportCopy: null,
+    academicCertificates: null,
+    motivationLetter: null,
+    cvResume: null,
+    recommendationLetters: null,
+    languageCert: null,
+    personalPhoto: null
   });
 
-  // جلب البيانات المعتمدة والمنشورة من السيرفر
   const loadData = async () => {
     try {
       setLoading(true);
@@ -90,8 +88,32 @@ export default function TrainingPublicPage() {
     loadData();
   }, []);
 
+  // دالة قراءة ورفع الملفات الفعالة وتحويلها إلى Base64
+  const handleFileChange = (e, fieldName) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        alert("⚠️ حجم الملف كبير جداً، يرجى اختيار ملف بحجم أقل من 10 ميجابايت.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setApplyForm(prev => ({
+          ...prev,
+          [fieldName]: {
+            name: file.name,
+            type: file.type,
+            data: reader.result // Data URL (Base64)
+          }
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleApplySubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
 
     try {
       const payload = {
@@ -105,29 +127,25 @@ export default function TrainingPublicPage() {
         body: JSON.stringify(payload)
       });
 
+      const resData = await res.json();
+
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "فشل إرسال طلب التقديم");
+        throw new Error(resData.error || "فشل إرسال طلب التقديم");
       }
 
-      alert("✅ تم إرسال ملف تقديمك بنجاح! تم حفظ الطلب في قاعدة البيانات وإرسال إشعار للبريد الإلكتروني للجهات المختصة.");
+      alert("✅ تم إرسال طلبك وملفاتك المرفقة بنجاح! تم حفظ الطلب في قاعدة البيانات وإعادة توجيهه فوراً لإيميلات الإدارة.");
       setShowApplyModal(false);
       setApplyForm({
-        fullNameAr: "", fullNameEn: "", birthDate: "", birthPlace: "", nationality: "", residence: "",
-        email: "", phone: "", lastDegree: "بكالوريوس", gpa: "", institute: "", graduationYear: "",
+        fullNameAr: "", fullNameEn: "", birthDate: "", nationality: "", residence: "",
+        email: "", phone: "", lastDegree: "بكالوريوس", gpa: "", institute: "",
         currentSpecialty: "", scholarshipTitle: "", targetDegree: "ماجستير", targetSpecialty1: "",
-        targetSpecialty2: "", englishProficiency: "بدون شهادة", passportCopy: "", academicCertificates: "",
-        motivationLetter: "", cvResume: "", recommendationLetters: "", languageCert: "", personalPhoto: ""
+        targetSpecialty2: "", englishProficiency: "بدون شهادة", passportCopy: null, academicCertificates: null,
+        motivationLetter: null, cvResume: null, recommendationLetters: null, languageCert: null, personalPhoto: null
       });
     } catch (err) {
       alert("❌ خطأ أثناء الإرسال: " + err.message);
-    }
-  };
-
-  const handleFileChangeMock = (e, fieldName) => {
-    const file = e.target.files[0];
-    if (file) {
-      setApplyForm(prev => ({ ...prev, [fieldName]: file.name }));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -313,9 +331,9 @@ export default function TrainingPublicPage() {
                   <p><strong>اسم المدرب:</strong> {selectedItem.data.trainer}</p>
                   <p><strong>مدة الدورة:</strong> {selectedItem.data.duration}</p>
                   <hr style={{borderColor: "#233554", margin: "15px 0"}}/>
-                  <h4>💡 لماذا بايثون بالذات في الهندسة الإنشائية؟ (الأهمية):</h4>
+                  <h4>💡 لماذا بايثون بالذات في الهندسة الإنشائية؟:</h4>
                   <p>{selectedItem.data.whyPython}</p>
-                  <h4>🎯 ماذا ستتعلم في هذه الدورة؟ (المحتوى المتوقع):</h4>
+                  <h4>🎯 ماذا ستتعلم في هذه الدورة؟:</h4>
                   <p>{selectedItem.data.learningOutcomes}</p>
                   <h4>👥 لمن تفيد هذه الدورة؟:</h4>
                   <p>{selectedItem.data.targetAudience}</p>
@@ -332,7 +350,7 @@ export default function TrainingPublicPage() {
                   <hr style={{borderColor: "#233554", margin: "15px 0"}}/>
                   <h4>📋 أهم المحاور والمعلومات:</h4>
                   <p>{selectedItem.data.axes}</p>
-                  <h4>🌟 أهمية هذه الدورة (لماذا هي حاسمة لمستقبلك؟):</h4>
+                  <h4>🌟 أهمية هذه الدورة:</h4>
                   <p>{selectedItem.data.importance}</p>
                   <h4>💡 نصيحة للبدء:</h4>
                   <p>{selectedItem.data.tips}</p>
@@ -352,7 +370,7 @@ export default function TrainingPublicPage() {
                   </div>
 
                   <div style={styles.detailSection}>
-                    <h3 style={styles.detailHeading}>2. التمويل والمزايا المالية (ماذا تغطي المنحة؟)</h3>
+                    <h3 style={styles.detailHeading}>2. التمويل والمزايا المالية</h3>
                     <p><strong>نوع التمويل:</strong> {selectedItem.data.fundType}</p>
                     {selectedItem.data.fundPartialDetails && <p><strong>تفاصيل التغطية الجزئية:</strong> {selectedItem.data.fundPartialDetails}</p>}
                     <p><strong>الإعفاء من الرسوم الدراسية:</strong> {selectedItem.data.tuition}</p>
@@ -364,7 +382,7 @@ export default function TrainingPublicPage() {
                   </div>
 
                   <div style={styles.detailSection}>
-                    <h3 style={styles.detailHeading}>3. شروط الأهلية والقبول (من يحق له التقديم؟)</h3>
+                    <h3 style={styles.detailHeading}>3. شروط الأهلية والقبول</h3>
                     <p><strong>الجنسيات المؤهلة:</strong> {selectedItem.data.nationalities}</p>
                     <p><strong>السن المطلوب:</strong> {selectedItem.data.age}</p>
                     <p><strong>المعدل الأكاديمي الأدنى (GPA):</strong> {selectedItem.data.gpa}</p>
@@ -373,8 +391,8 @@ export default function TrainingPublicPage() {
                   </div>
 
                   <div style={styles.detailSection}>
-                    <h3 style={styles.detailHeading}>4. الوثائق والمستندات المطلوبة (ملف التقديم)</h3>
-                    <p>{selectedItem.data.requiredDocs || "الشهادات الأكاديمية، جواز السفر، السيرة الذاتية (CV)، خطاب الدافع، خطابات التوصية، المخطط البحثي (للدراسات العليا)، والفحص الطبي."}</p>
+                    <h3 style={styles.detailHeading}>4. الوثائق والمستندات المطلوبة</h3>
+                    <p>{selectedItem.data.requiredDocs || "الشهادات الأكاديمية، جواز السفر، السيرة الذاتية (CV)، خطاب الدافع، خطابات التوصية، والمخطط البحثي."}</p>
                   </div>
 
                   <div style={styles.detailSection}>
@@ -440,8 +458,8 @@ export default function TrainingPublicPage() {
                   <input type="text" required value={applyForm.fullNameEn} onChange={e => setApplyForm({...applyForm, fullNameEn: e.target.value})} style={styles.input}/>
                 </div>
                 <div>
-                  <label style={styles.label}>تاريخ الميلاد والمنشأ (اليوم/الشهر/السنة):</label>
-                  <input type="text" placeholder="مثال: 15/05/1998 - صنعاء" required value={applyForm.birthDate} onChange={e => setApplyForm({...applyForm, birthDate: e.target.value})} style={styles.input}/>
+                  <label style={styles.label}>تاريخ الميلاد والمنشأ:</label>
+                  <input type="text" placeholder="15/05/1998 - صنعاء" required value={applyForm.birthDate} onChange={e => setApplyForm({...applyForm, birthDate: e.target.value})} style={styles.input}/>
                 </div>
                 <div>
                   <label style={styles.label}>الجنسية الحالية:</label>
@@ -465,7 +483,7 @@ export default function TrainingPublicPage() {
               <h4 style={styles.formGroupTitle}>2. الخلفية الأكاديمية (Academic Background)</h4>
               <div style={styles.formGrid}>
                 <div>
-                  <label style={styles.label}>آخر مؤهل علمي تم الحصول عليه:</label>
+                  <label style={styles.label}>آخر مؤهل علمي:</label>
                   <select value={applyForm.lastDegree} onChange={e => setApplyForm({...applyForm, lastDegree: e.target.value})} style={styles.select}>
                     <option value="ثانوية عامة">ثانوية عامة</option>
                     <option value="بكالوريوس">بكالوريوس</option>
@@ -474,10 +492,10 @@ export default function TrainingPublicPage() {
                 </div>
                 <div>
                   <label style={styles.label}>المعدل التراكمي (GPA / النسبة المئوية):</label>
-                  <input type="text" placeholder="مثال: 3.8 من 4.0 أو 90%" required value={applyForm.gpa} onChange={e => setApplyForm({...applyForm, gpa: e.target.value})} style={styles.input}/>
+                  <input type="text" placeholder="مثال: 3.8 من 4.0" required value={applyForm.gpa} onChange={e => setApplyForm({...applyForm, gpa: e.target.value})} style={styles.input}/>
                 </div>
                 <div>
-                  <label style={styles.label}>اسم المؤسسة التعليمية (المدرسة/الجامعة) وسنة التخرج:</label>
+                  <label style={styles.label}>اسم المؤسسة التعليمية (الجامعة/المدرسة):</label>
                   <input type="text" placeholder="مثال: جامعة صنعاء - 2024" required value={applyForm.institute} onChange={e => setApplyForm({...applyForm, institute: e.target.value})} style={styles.input}/>
                 </div>
                 <div>
@@ -486,8 +504,8 @@ export default function TrainingPublicPage() {
                 </div>
               </div>
 
-              {/* 3. تفاصيل التقديم والمنحة المستهدفة */}
-              <h4 style={styles.formGroupTitle}>3. تفاصيل التقديم والمنحة المستهدفة (Application Details)</h4>
+              {/* 3. تفاصيل التقديم */}
+              <h4 style={styles.formGroupTitle}>3. تفاصيل التقديم والمنحة المستهدفة</h4>
               <div style={styles.formGrid}>
                 <div>
                   <label style={styles.label}>المنحة المطلوبة:</label>
@@ -528,39 +546,48 @@ export default function TrainingPublicPage() {
               </div>
 
               {/* 4. الملفات والمستندات المطلوب إرفاقها */}
-              <h4 style={styles.formGroupTitle}>4. الملفات والمستندات المطلوب إرفاقها (PDF / JPG / PNG)</h4>
+              <h4 style={styles.formGroupTitle}>4. رفع الملفات والمستندات (PDF / Images)</h4>
               <div style={styles.formGrid}>
                 <div>
-                  <label style={styles.label}>نسخة من جواز السفر (ساري المفعول):</label>
-                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e => handleFileChangeMock(e, 'passportCopy')} style={styles.fileInput}/>
+                  <label style={styles.label}>نسخة من جواز السفر:</label>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e => handleFileChange(e, 'passportCopy')} style={styles.fileInput}/>
+                  {applyForm.passportCopy && <span style={styles.fileSelectedLabel}>✅ تم محاذاة: {applyForm.passportCopy.name}</span>}
                 </div>
                 <div>
                   <label style={styles.label}>الشهادات الأكاديمية وكشف الدرجات:</label>
-                  <input type="file" accept=".pdf,.zip" onChange={e => handleFileChangeMock(e, 'academicCertificates')} style={styles.fileInput}/>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg,.zip" onChange={e => handleFileChange(e, 'academicCertificates')} style={styles.fileInput}/>
+                  {applyForm.academicCertificates && <span style={styles.fileSelectedLabel}>✅ تم محاذاة: {applyForm.academicCertificates.name}</span>}
                 </div>
                 <div>
-                  <label style={styles.label}>خطاب الدافع / بيان الغرض (Motivation Letter):</label>
-                  <input type="file" accept=".pdf,.docx" onChange={e => handleFileChangeMock(e, 'motivationLetter')} style={styles.fileInput}/>
+                  <label style={styles.label}>خطاب الدافع (Motivation Letter):</label>
+                  <input type="file" accept=".pdf,.docx,.doc" onChange={e => handleFileChange(e, 'motivationLetter')} style={styles.fileInput}/>
+                  {applyForm.motivationLetter && <span style={styles.fileSelectedLabel}>✅ تم محاذاة: {applyForm.motivationLetter.name}</span>}
                 </div>
                 <div>
                   <label style={styles.label}>السيرة الذاتية (CV / Resume):</label>
-                  <input type="file" accept=".pdf" onChange={e => handleFileChangeMock(e, 'cvResume')} style={styles.fileInput}/>
+                  <input type="file" accept=".pdf" onChange={e => handleFileChange(e, 'cvResume')} style={styles.fileInput}/>
+                  {applyForm.cvResume && <span style={styles.fileSelectedLabel}>✅ تم محاذاة: {applyForm.cvResume.name}</span>}
                 </div>
                 <div>
                   <label style={styles.label}>خطابات التوصية (Recommendation Letters):</label>
-                  <input type="file" accept=".pdf,.zip" onChange={e => handleFileChangeMock(e, 'recommendationLetters')} style={styles.fileInput}/>
+                  <input type="file" accept=".pdf,.zip" onChange={e => handleFileChange(e, 'recommendationLetters')} style={styles.fileInput}/>
+                  {applyForm.recommendationLetters && <span style={styles.fileSelectedLabel}>✅ تم محاذاة: {applyForm.recommendationLetters.name}</span>}
                 </div>
                 <div>
                   <label style={styles.label}>شهادة إثبات اللغة (إن وجدت):</label>
-                  <input type="file" accept=".pdf" onChange={e => handleFileChangeMock(e, 'languageCert')} style={styles.fileInput}/>
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => handleFileChange(e, 'languageCert')} style={styles.fileInput}/>
+                  {applyForm.languageCert && <span style={styles.fileSelectedLabel}>✅ تم محاذاة: {applyForm.languageCert.name}</span>}
                 </div>
                 <div>
-                  <label style={styles.label}>الصورة الشخصية (خلفية بيضاء JPG/PNG):</label>
-                  <input type="file" accept=".jpg,.jpeg,.png" onChange={e => handleFileChangeMock(e, 'personalPhoto')} style={styles.fileInput}/>
+                  <label style={styles.label}>الصورة الشخصية (خلفية بيضاء):</label>
+                  <input type="file" accept=".jpg,.jpeg,.png" onChange={e => handleFileChange(e, 'personalPhoto')} style={styles.fileInput}/>
+                  {applyForm.personalPhoto && <span style={styles.fileSelectedLabel}>✅ تم محاذاة: {applyForm.personalPhoto.name}</span>}
                 </div>
               </div>
 
-              <button type="submit" style={styles.submitFormBtn}>إرسال الطلب والملفات مباشرة إلى إدارة المنصة 🚀</button>
+              <button type="submit" style={styles.submitFormBtn} disabled={submitting}>
+                {submitting ? "⏳ جاري تشفير وتأمين إرسال الملفات والطلب..." : "إرسال الطلب والملفات مباشرة إلى إدارة المنصة 🚀"}
+              </button>
             </form>
           </div>
         </div>
@@ -581,7 +608,7 @@ const styles = {
   sectionTitle: { textAlign: "center", color: "#fff", fontSize: "28px", marginBottom: "25px", borderBottom: "2px dashed #233554", paddingBottom: "10px" },
   subSectionTitle: { color: "#64ffda", borderRight: "4px solid #64ffda", paddingRight: "10px", marginTop: "30px", fontSize: "20px" },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px", marginTop: "15px" },
-  card: { background: "#112240", border: "1px solid #233554", borderRadius: "8px", padding: "20px", cursor: "pointer", transition: "0.3s" },
+  card: { background: "#112240", border: "1px solid #233554", borderRadius: "8px", padding: "20px", cursor: "pointer" },
   staticCard: { background: "#112240", border: "1px solid #233554", borderRadius: "8px", padding: "20px" },
   cardTitle: { color: "#64ffda", marginTop: 0, marginBottom: "12px", fontSize: "18px" },
   moreLabel: { color: "#00e6ff", fontSize: "13px", display: "block", marginTop: "15px", fontWeight: "bold" },
@@ -605,5 +632,6 @@ const styles = {
   input: { width: "100%", padding: "10px", borderRadius: "5px", border: "1px solid #233554", background: "#112240", color: "#fff", boxSizing: "border-box" },
   select: { width: "100%", padding: "10px", borderRadius: "5px", border: "1px solid #233554", background: "#112240", color: "#fff", boxSizing: "border-box" },
   fileInput: { width: "100%", padding: "8px", borderRadius: "5px", border: "1px dashed #233554", background: "#112240", color: "#8892b0", fontSize: "12px", boxSizing: "border-box" },
+  fileSelectedLabel: { color: "#64ffda", fontSize: "11px", display: "block", marginTop: "4px" },
   submitFormBtn: { width: "100%", padding: "15px", background: "#64ffda", color: "#0a192f", border: "none", borderRadius: "6px", fontSize: "18px", fontWeight: "bold", cursor: "pointer", marginTop: "25px" }
 };

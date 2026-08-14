@@ -10,11 +10,9 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// البريد الإلكتروني المعتمد للإشعارات وإدارة المنصة
 const externalAdminEmails = ['Smart.Engineering.Global@proton.me', 'smart.engineering.global@tuta.io'];
 const gmailAdminEmail = 'smartengineering.hr.global@gmail.com';
 
-// 1. GET - جلب كافة الطلبات للإدارة
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -29,7 +27,6 @@ export async function GET(req) {
 
     const allApplications = await prisma.academyApplication.findMany({ orderBy: { createdAt: 'desc' } });
     
-    // تحويل حقل التفاصيل المرن إن وجد
     const formattedApps = allApplications.map(app => {
       let extra = {};
       if (app.details) {
@@ -45,7 +42,6 @@ export async function GET(req) {
   }
 }
 
-// 2. POST - إرسال طلب جديد مع الشمولية التامة وحفظه وإرسال الإيميلات
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -53,9 +49,9 @@ export async function POST(req) {
     const fullName = body.fullNameAr || body.fullName || "غير محدد";
     const email = body.email || "no-email@provided.com";
     const phone = body.phone || "000000000";
-    const scholarshipName = body.scholarshipTitle || body.scholarshipName || "غير محدد";
+    const scholarshipName = body.scholarshipTitle || body.scholarshipName || "منحة عامة";
 
-    // تجميع الحقول التفصيلية
+    // تجميع الكائن الشامل للتخزين في قاعدة البيانات
     const detailsObject = {
       fullNameAr: body.fullNameAr,
       fullNameEn: body.fullNameEn,
@@ -93,24 +89,51 @@ export async function POST(req) {
       details: JSON.stringify(detailsObject)
     };
 
+    // 1. التخزين المباشر في قاعدة البيانات Prisma
     let newApplication;
     try {
       newApplication = await prisma.academyApplication.create({ data: dataToSave });
     } catch (e) {
-      console.warn("تعذر الحفظ بالشكل المباشر، سيتم التخزين بحقول احتياطية:", e);
-      newApplication = { id: Date.now().toString(), ...dataToSave, ...detailsObject };
+      console.error("Prisma Save Error:", e);
+      return NextResponse.json({ error: "فشل التخزين في قاعدة البيانات: " + e.message }, { status: 500 });
     }
 
-    // إرسال الرسالة إلى جميع إيميلات الإدارة المحددة في التعليمات
+    // 2. معالجة وتضمين المرفقات الفعلية في البريد الإلكتروني
+    const emailAttachments = [];
+    const fileKeys = [
+      { key: 'passportCopy', label: 'جواز_السفر' },
+      { key: 'academicCertificates', label: 'الشهادات_الأكاديمية' },
+      { key: 'motivationLetter', label: 'خطاب_الدافع' },
+      { key: 'cvResume', label: 'السيرة_الذاتية' },
+      { key: 'recommendationLetters', label: 'خطابات_التوصية' },
+      { key: 'languageCert', label: 'شهادة_اللغة' },
+      { key: 'personalPhoto', label: 'الصورة_الشخصية' }
+    ];
+
+    fileKeys.forEach(item => {
+      const fileObj = body[item.key];
+      if (fileObj && fileObj.data && typeof fileObj.data === 'string') {
+        const parts = fileObj.data.split(';base64,');
+        if (parts.length === 2) {
+          emailAttachments.push({
+            filename: `${item.label}_${fileObj.name || 'document'}`,
+            content: parts[1],
+            encoding: 'base64'
+          });
+        }
+      }
+    });
+
+    // 3. إرسال البريد الإلكتروني إلى كافة إيميلات الإدارة المعتمدة
     const mailOptions = {
       from: `"منصة الهندسة الذكية 🚀" <${gmailAdminEmail}>`,
       to: [gmailAdminEmail, ...externalAdminEmails].join(','),
-      subject: `📥 طلب تقديم أكاديمي جديد: ${scholarshipName} - ${fullName}`,
+      subject: `📥 طلب تقديم جديد للمنحة: ${scholarshipName} - ${fullName}`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; line-height: 1.8; color: #1e293b;">
           <div style="background: #0f172a; color: #64ffda; padding: 20px; border-radius: 8px;">
-            <h2 style="margin: 0;">طلب تقديم جديد عبر منصة الهندسة الذكية</h2>
-            <p style="color: #94a3b8; margin: 5px 0 0 0;">تم استقبال الطلب بنجاح وهو بانتظار المراجعة.</p>
+            <h2 style="margin: 0;">طلب تقديم أكاديمي جديد عبر المنصة</h2>
+            <p style="color: #94a3b8; margin: 5px 0 0 0;">تم استلام الملفات والبيانات وتخزينها في قاعدة البيانات بنجاح.</p>
           </div>
 
           <h3 style="color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">1. البيانات الشخصية:</h3>
@@ -122,60 +145,51 @@ export async function POST(req) {
           <p><strong>البريد الإلكتروني:</strong> ${email}</p>
           <p><strong>رقم الهاتف:</strong> ${phone}</p>
 
-          <h3 style="color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">2. الخلفية الأكاديمية والتقديم:</h3>
-          <p><strong>المنحة / البرنامج المستهدف:</strong> ${scholarshipName}</p>
+          <h3 style="color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">2. الخلفية الأكاديمية والبرنامج:</h3>
+          <p><strong>المنحة المستهدفة:</strong> ${scholarshipName}</p>
           <p><strong>آخر مؤهل علمي:</strong> ${body.lastDegree || '-'}</p>
           <p><strong>المعدل التراكمي (GPA):</strong> ${body.gpa || '-'}</p>
-          <p><strong>المؤسسة التعليمية / الجامعة:</strong> ${body.institute || '-'}</p>
+          <p><strong>الجامعة / المؤسسة:</strong> ${body.institute || '-'}</p>
           <p><strong>التخصص الحالي / السابق:</strong> ${body.currentSpecialty || '-'}</p>
           <p><strong>الدرجة العلمية المستهدفة:</strong> ${body.targetDegree || '-'}</p>
           <p><strong>التخصص المرغوب (خيار 1):</strong> ${body.targetSpecialty1 || '-'}</p>
           <p><strong>التخصص المرغوب (خيار 2):</strong> ${body.targetSpecialty2 || '-'}</p>
           <p><strong>مستوى اللغة الإنجليزية:</strong> ${body.englishProficiency || '-'}</p>
 
-          <h3 style="color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">3. أسماء المستندات المرفقة:</h3>
-          <ul>
-            <li>جواز السفر: ${body.passportCopy || 'غير مرفق'}</li>
-            <li>الشهادات الأكاديمية: ${body.academicCertificates || 'غير مرفق'}</li>
-            <li>خطاب الدافع: ${body.motivationLetter || 'غير مرفق'}</li>
-            <li>السيرة الذاتية: ${body.cvResume || 'غير مرفق'}</li>
-            <li>خطابات التوصية: ${body.recommendationLetters || 'غير مرفق'}</li>
-            <li>الصورة الشخصية: ${body.personalPhoto || 'غير مرفق'}</li>
-          </ul>
+          <h3 style="color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">3. الملفات والمستندات:</h3>
+          <p style="color: #059669; font-weight: bold;">📎 تم إرفاق كافة المستندات المرفوعة مباشرة في هذا البريد مع حفظها في لوحة تحكم الأدمن.</p>
 
           <hr style="border: none; border-top: 1px solid #cbd5e1; margin: 20px 0;"/>
-          <p style="font-size: 12px; color: #64748b;">تاريخ الاستلام: ${new Date().toLocaleString('ar-EG')}</p>
+          <p style="font-size: 12px; color: #64748b;">تاريخ التقديم: ${new Date().toLocaleString('ar-EG')}</p>
         </div>
-      `
+      `,
+      attachments: emailAttachments
     };
 
     try {
       if (process.env.EMAIL_PASS) {
         await transporter.sendMail(mailOptions);
       }
-    } catch (e) {
-      console.error("Email Error:", e);
+    } catch (mailErr) {
+      console.error("Email Sending Error:", mailErr);
     }
 
     return NextResponse.json({ success: true, item: newApplication }, { status: 201 });
   } catch (error) {
     console.error("Error in Academy Apply POST API:", error);
-    return NextResponse.json({ error: "فشل معالجة الطلب: تأكد من إدخال البيانات بصورة صحيحة" }, { status: 500 });
+    return NextResponse.json({ error: "فشل معالجة الطلب: " + error.message }, { status: 500 });
   }
 }
 
-// 3. PUT - تعديل الطلب
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, status, ...updateData } = body;
+    const { id, status } = body;
     if (!id) return NextResponse.json({ error: "المعرف مطلوب" }, { status: 400 });
 
     const updated = await prisma.academyApplication.update({
       where: { id: id },
-      data: {
-        status: status || updateData.status
-      }
+      data: { status: status || "APPROVED" }
     });
 
     return NextResponse.json(updated, { status: 200 });
@@ -185,7 +199,6 @@ export async function PUT(req) {
   }
 }
 
-// 4. DELETE - حذف الطلب من الأرشيف
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
