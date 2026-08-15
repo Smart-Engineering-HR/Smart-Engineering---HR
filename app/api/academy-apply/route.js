@@ -16,10 +16,43 @@ const adminEmails = [
   'smart.engineering.global@tuta.io'
 ];
 
-// 1. GET: جلب جميع الطلبات وتفكيك حقل details لصفحة الأدمن
+// دالة مساعدة لتفكيك وتحويل الملفات سواء كانت روابط أو Base64 أو كائنات
+function parseFileField(field, defaultName) {
+  if (!field) return null;
+  let fileName = defaultName;
+  let rawData = '';
+
+  if (typeof field === 'string') {
+    rawData = field;
+  } else if (typeof field === 'object') {
+    fileName = field.name || defaultName;
+    rawData = field.data || field.url || field.path || '';
+  }
+
+  if (!rawData) return null;
+
+  if (rawData.startsWith('data:')) {
+    const matches = rawData.match(/^data:(.+);base64,(.+)$/);
+    if (matches) {
+      return {
+        fileName,
+        contentType: matches[1],
+        buffer: Buffer.from(matches[2], 'base64'),
+        isBase64: true
+      };
+    }
+  }
+
+  return { fileName, url: rawData, isBase64: false };
+}
+
+// 1. GET: جلب جميع الطلبات للوحة التحكم
 export async function GET() {
   try {
-    const applications = await prisma.academyApplication.findMany({
+    const dbModel = prisma.academyApplication || prisma.AcademyApplication;
+    if (!dbModel) return NextResponse.json([]);
+
+    const applications = await dbModel.findMany({
       orderBy: { createdAt: 'desc' }
     });
 
@@ -32,10 +65,7 @@ export async function GET() {
           extra = {};
         }
       }
-      return {
-        ...app,
-        ...extra
-      };
+      return { ...app, ...extra };
     });
 
     return NextResponse.json(formattedApps, { status: 200 });
@@ -45,63 +75,90 @@ export async function GET() {
   }
 }
 
-// 2. POST: استقبال الطلب والحفظ وإرسال البريد والمرفقات
+// 2. POST: معالجة الطلب، تحويل الملفات لمرفقات البريد، والحفظ في DB
 export async function POST(req) {
   try {
     const contentType = req.headers.get('content-type') || '';
     let bodyData = {};
-    let attachmentsList = [];
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       for (const [key, value] of formData.entries()) {
-        if (value && typeof value === 'object' && value.name) {
-          const buffer = Buffer.from(await value.arrayBuffer());
-          attachmentsList.push({
-            filename: value.name,
-            content: buffer
-          });
-          bodyData[key] = value.name;
-        } else {
-          bodyData[key] = value;
-        }
+        bodyData[key] = value;
       }
     } else {
       bodyData = await req.json();
     }
 
-    const fullName = bodyData.fullName || bodyData.applicantName || bodyData.name || 'متقدم جديد';
+    const fullName = bodyData.fullName || bodyData.fullNameAr || bodyData.applicantName || bodyData.name || 'متقدم جديد';
     const email = bodyData.email || 'غير محدد';
-    const phone = bodyData.phone || 'غير محدد';
-    const scholarshipName = bodyData.scholarshipName || bodyData.itemTitle || bodyData.scholarshipTitle || 'منحة / برنامج أكاديمي';
+    const phone = bodyData.phone || bodyData.mobile || 'غير محدد';
+    const scholarshipName = bodyData.scholarshipName || bodyData.scholarshipTitle || bodyData.itemTitle || 'منحة / برنامج أكاديمي';
 
-    const extraDetails = {
-      itemId: bodyData.itemId || '',
-      passportUrl: bodyData.passportUrl || bodyData.passport || '',
-      cvUrl: bodyData.cvUrl || bodyData.cv || '',
-      motivationUrl: bodyData.motivationUrl || bodyData.motivation || '',
-      recommendationUrl: bodyData.recommendationUrl || bodyData.recommendation || '',
-      languageCertUrl: bodyData.languageCertUrl || bodyData.languageCert || '',
-      photoUrl: bodyData.photoUrl || bodyData.photo || ''
+    // فحص جميع مسميات حقول الملفات المتوقعة من الفرونت إند
+    const fileFields = {
+      passport: bodyData.passportUrl || bodyData.passport || bodyData.passportCopy || bodyData.passportFile,
+      cv: bodyData.cvUrl || bodyData.cv || bodyData.cvResume || bodyData.cvFile,
+      motivation: bodyData.motivationUrl || bodyData.motivation || bodyData.motivationLetter || bodyData.motivationFile,
+      recommendation: bodyData.recommendationUrl || bodyData.recommendation || bodyData.recommendationLetters || bodyData.recommendationFile,
+      languageCert: bodyData.languageCertUrl || bodyData.languageCert || bodyData.languageCertFile,
+      photo: bodyData.photoUrl || bodyData.photo || bodyData.personalPhoto || bodyData.photoFile
     };
 
-    // أ) الحفظ في قاعدة البيانات
-    let savedApp = null;
-    try {
-      savedApp = await prisma.academyApplication.create({
-        data: {
-          fullName: String(fullName),
-          email: String(email),
-          phone: String(phone),
-          scholarshipName: String(scholarshipName),
-          details: JSON.stringify(extraDetails)
+    const attachmentsList = [];
+    const htmlLinks = [];
+    const detailsSaved = { itemId: bodyData.itemId || '' };
+
+    const labels = {
+      passport: "جواز السفر",
+      cv: "السيرة الذاتية",
+      motivation: "خطاب الدافع",
+      recommendation: "خطابات التوصية",
+      languageCert: "شهادة اللغة",
+      photo: "الصورة الشخصية"
+    };
+
+    for (const [key, rawVal] of Object.entries(fileFields)) {
+      if (!rawVal) continue;
+      const label = labels[key] || key;
+      const parsed = parseFileField(rawVal, `${label}.pdf`);
+
+      if (parsed) {
+        if (parsed.isBase64) {
+          attachmentsList.push({
+            filename: parsed.fileName,
+            content: parsed.buffer,
+            contentType: parsed.contentType
+          });
+          htmlLinks.push(`<li><strong>${label}:</strong> تم إرفاق الملف مباشرة مع هذا البريد (${parsed.fileName})</li>`);
+          detailsSaved[key] = `مرفق: ${parsed.fileName}`;
+        } else {
+          htmlLinks.push(`<li><strong>${label}:</strong> <a href="${parsed.url}" target="_blank">اضغط هنا لعرض / تنزيل المستند</a></li>`);
+          detailsSaved[key] = parsed.url;
         }
-      });
-    } catch (dbError) {
-      console.error("Prisma Save Error:", dbError.message);
+      }
     }
 
-    // ب) إرسال البريد الإلكتروني مع المرفقات إلى الإدارة
+    // حفظ الطلب في قاعدة البيانات
+    let savedApp = null;
+    try {
+      const dbModel = prisma.academyApplication || prisma.AcademyApplication;
+      if (dbModel) {
+        savedApp = await dbModel.create({
+          data: {
+            fullName: String(fullName),
+            email: String(email),
+            phone: String(phone),
+            scholarshipName: String(scholarshipName),
+            details: JSON.stringify({ ...detailsSaved, rawData: bodyData })
+          }
+        });
+      }
+    } catch (dbErr) {
+      console.error("Database Save Error:", dbErr);
+    }
+
+    // إرسال الإيميل مع الملفات الكاملة كـ Attachments
     if (process.env.EMAIL_PASS) {
       const emailHtml = `
         <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #0d9488; border-radius: 8px; background-color: #f9fafb;">
@@ -111,16 +168,9 @@ export async function POST(req) {
           <p><strong>📧 البريد الإلكتروني:</strong> ${email}</p>
           <p><strong>📱 رقم الهاتف:</strong> ${phone}</p>
           <br />
-          <h3 style="color: #0d9488;">📂 المستندات والروابط:</h3>
-          <ul>
-            ${extraDetails.passportUrl ? `<li><strong>جواز السفر:</strong> <a href="${extraDetails.passportUrl}">رابط الجواز</a></li>` : ''}
-            ${extraDetails.cvUrl ? `<li><strong>السيرة الذاتية:</strong> <a href="${extraDetails.cvUrl}">رابط السيرة الذاتية</a></li>` : ''}
-            ${extraDetails.motivationUrl ? `<li><strong>خطاب الدافع:</strong> <a href="${extraDetails.motivationUrl}">رابط الخطاب</a></li>` : ''}
-            ${extraDetails.recommendationUrl ? `<li><strong>خطابات التوصية:</strong> <a href="${extraDetails.recommendationUrl}">رابط التوصية</a></li>` : ''}
-            ${extraDetails.languageCertUrl ? `<li><strong>شهادة اللغة:</strong> <a href="${extraDetails.languageCertUrl}">رابط الشهادة</a></li>` : ''}
-            ${extraDetails.photoUrl ? `<li><strong>الصورة الشخصية:</strong> <a href="${extraDetails.photoUrl}">رابط الصورة</a></li>` : ''}
-          </ul>
-          <p style="font-size: 12px; color: #6b7280; margin-top: 15px;">تم إرفاق الملفات المرفوعة مباشرة مع هذا البريد.</p>
+          <h3 style="color: #0d9488;">📂 المستندات والروابط المرفقة:</h3>
+          ${htmlLinks.length > 0 ? `<ul>${htmlLinks.join('')}</ul>` : '<p style="color: #dc2626;">لم يتم إرفاق ملفات نصية أو روابط، تم إرفاق المستندات في المرفقات السفلى إن وجدت.</p>'}
+          <p style="font-size: 12px; color: #6b7280; margin-top: 15px;">تجد كافة الملفات المرفوعة مفيشة ومرفقة بالكامل أسفل هذه الرسالة.</p>
         </div>
       `;
 
