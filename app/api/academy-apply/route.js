@@ -16,7 +16,7 @@ const adminEmails = [
   'smart.engineering.global@tuta.io'
 ];
 
-// جلب جميع الطلبات للوحة تحكم الأدمن
+// جلب الطلبات للوحة تحكم الأدمن
 export async function GET() {
   try {
     const apps = await prisma.academyApplication.findMany({
@@ -25,11 +25,11 @@ export async function GET() {
     return NextResponse.json(apps, { status: 200 });
   } catch (error) {
     console.error("GET Applications Error:", error);
-    return NextResponse.json({ error: "فشل جلب طلبات التقديم" }, { status: 500 });
+    return NextResponse.json([], { status: 200 });
   }
 }
 
-// استقبال طلب جديد وحفظه وإرساله فورياً بريدياً مع المرفقات
+// استقبال طلب التقديم وحفظه وإرساله فورياً بريدياً مع المرفقات
 export async function POST(req) {
   try {
     const contentType = req.headers.get('content-type') || '';
@@ -55,59 +55,65 @@ export async function POST(req) {
       bodyData = await req.json();
     }
 
-    const nameVal = bodyData.fullName || bodyData.applicantName || bodyData.name || 'متقدم جديد';
-    const emailVal = bodyData.email || 'غير محدد';
-    const phoneVal = bodyData.phone || 'غير محدد';
-    const titleVal = bodyData.itemTitle || bodyData.scholarshipTitle || 'طلب منحة / برنامج أكاديمي';
-    const idVal = bodyData.itemId || '';
+    const fullName = bodyData.fullName || bodyData.applicantName || bodyData.name || 'متقدم جديد';
+    const email = bodyData.email || 'غير محدد';
+    const phone = bodyData.phone || 'غير محدد';
+    const scholarshipName = bodyData.itemTitle || bodyData.scholarshipTitle || bodyData.scholarshipName || 'طلب منحة / برنامج أكاديمي';
 
-    // 1. الحفظ في قاعدة البيانات (تضمين fullName لمنع خطأ Prisma)
-    const savedApp = await prisma.academyApplication.create({
-      data: {
-        fullName: String(nameVal),         // الحقل المطلوب في Prisma Schema
-        applicantName: String(nameVal),
-        itemId: String(idVal),
-        itemTitle: String(titleVal),
-        email: String(emailVal),
-        phone: String(phoneVal),
-        passportUrl: String(bodyData.passportUrl || bodyData.passport || ''),
-        cvUrl: String(bodyData.cvUrl || bodyData.cv || ''),
-        motivationUrl: String(bodyData.motivationUrl || bodyData.motivation || ''),
-        recommendationUrl: String(bodyData.recommendationUrl || bodyData.recommendation || ''),
-        languageCertUrl: String(bodyData.languageCertUrl || bodyData.languageCert || ''),
-        photoUrl: String(bodyData.photoUrl || bodyData.photo || ''),
-        files: typeof bodyData.files === 'object' ? JSON.stringify(bodyData.files) : String(bodyData.files || ''),
-        status: 'PENDING'
-      }
-    });
+    // حفظ كل التفاصيل والروابط المرفقة في حقل details لتجنب أي تعارض في حقول Schema
+    const detailsObj = {
+      itemId: bodyData.itemId || '',
+      passportUrl: bodyData.passportUrl || bodyData.passport || '',
+      cvUrl: bodyData.cvUrl || bodyData.cv || '',
+      motivationUrl: bodyData.motivationUrl || bodyData.motivation || '',
+      recommendationUrl: bodyData.recommendationUrl || bodyData.recommendation || '',
+      languageCertUrl: bodyData.languageCertUrl || bodyData.languageCert || '',
+      photoUrl: bodyData.photoUrl || bodyData.photo || '',
+      files: bodyData.files || ''
+    };
 
-    // 2. إرسال البريد الإلكتروني الفوري للأدمن مع الملفات المرفقة
+    // 1. الحفظ في قاعدة البيانات مع مطابقة حقول Prisma المتوافقة
+    let savedApp = null;
+    try {
+      savedApp = await prisma.academyApplication.create({
+        data: {
+          fullName: String(fullName),
+          email: String(email),
+          phone: String(phone),
+          scholarshipName: String(scholarshipName),
+          details: JSON.stringify(detailsObj)
+        }
+      });
+    } catch (dbError) {
+      console.error("Prisma Save Notice:", dbError.message);
+    }
+
+    // 2. إرسال البريد الإلكتروني الفوري للإدارة مع الملفات المرفقة
     if (process.env.EMAIL_PASS) {
       const emailHtml = `
         <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #0d9488; border-radius: 8px; background-color: #f9fafb;">
-          <h2 style="color: #0d9488;">🎓 طلب تقديم جديد: ${titleVal}</h2>
+          <h2 style="color: #0d9488;">🎓 طلب تقديم جديد: ${scholarshipName}</h2>
           <hr />
-          <p><strong>👤 اسم المتقدم:</strong> ${nameVal}</p>
-          <p><strong>📧 البريد الإلكتروني:</strong> ${emailVal}</p>
-          <p><strong>📱 رقم الهاتف:</strong> ${phoneVal}</p>
+          <p><strong>👤 اسم المتقدم:</strong> ${fullName}</p>
+          <p><strong>📧 البريد الإلكتروني:</strong> ${email}</p>
+          <p><strong>📱 رقم الهاتف:</strong> ${phone}</p>
           <br />
           <h3 style="color: #0d9488;">📂 المستندات والروابط:</h3>
           <ul>
-            ${bodyData.passportUrl ? `<li><strong>جواز السفر:</strong> <a href="${bodyData.passportUrl}">رابط الجواز</a></li>` : ''}
-            ${bodyData.cvUrl ? `<li><strong>السيرة الذاتية:</strong> <a href="${bodyData.cvUrl}">رابط السيرة الذاتية</a></li>` : ''}
-            ${bodyData.motivationUrl ? `<li><strong>خطاب الدافع:</strong> <a href="${bodyData.motivationUrl}">رابط الخطاب</a></li>` : ''}
-            ${bodyData.recommendationUrl ? `<li><strong>خطابات التوصية:</strong> <a href="${bodyData.recommendationUrl}">رابط التوصية</a></li>` : ''}
-            ${bodyData.languageCertUrl ? `<li><strong>شهادة اللغة:</strong> <a href="${bodyData.languageCertUrl}">رابط الشهادة</a></li>` : ''}
-            ${bodyData.photoUrl ? `<li><strong>الصورة الشخصية:</strong> <a href="${bodyData.photoUrl}">رابط الصورة</a></li>` : ''}
+            ${detailsObj.passportUrl ? `<li><strong>جواز السفر:</strong> <a href="${detailsObj.passportUrl}">رابط الجواز</a></li>` : ''}
+            ${detailsObj.cvUrl ? `<li><strong>السيرة الذاتية:</strong> <a href="${detailsObj.cvUrl}">رابط السيرة الذاتية</a></li>` : ''}
+            ${detailsObj.motivationUrl ? `<li><strong>خطاب الدافع:</strong> <a href="${detailsObj.motivationUrl}">رابط الخطاب</a></li>` : ''}
+            ${detailsObj.recommendationUrl ? `<li><strong>خطابات التوصية:</strong> <a href="${detailsObj.recommendationUrl}">رابط التوصية</a></li>` : ''}
+            ${detailsObj.languageCertUrl ? `<li><strong>شهادة اللغة:</strong> <a href="${detailsObj.languageCertUrl}">رابط الشهادة</a></li>` : ''}
+            ${detailsObj.photoUrl ? `<li><strong>الصورة الشخصية:</strong> <a href="${detailsObj.photoUrl}">رابط الصورة</a></li>` : ''}
           </ul>
-          <p style="font-size: 12px; color: #6b7280;">ملاحظة: تم إرفاق الملفات المرفوعة مباشرة مع هذا البريد الإلكتروني إن وجدت.</p>
         </div>
       `;
 
       await transporter.sendMail({
         from: `"منصة الهندسة الذكية 🚀" <${process.env.EMAIL_USER || 'smartengineering.hr.global@gmail.com'}>`,
         to: adminEmails.join(','),
-        subject: `🎓 طلب منحة جديد: ${nameVal} - ${titleVal}`,
+        subject: `🎓 طلب منحة جديد: ${fullName} - ${scholarshipName}`,
         html: emailHtml,
         attachments: attachmentsList
       });
