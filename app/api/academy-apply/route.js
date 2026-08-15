@@ -16,7 +16,7 @@ const adminEmails = [
   'smart.engineering.global@tuta.io'
 ];
 
-// جلب الطلبات للاستعراض في لوحة الأدمن
+// جلب جميع الطلبات للوحة تحكم الأدمن
 export async function GET() {
   try {
     const apps = await prisma.academyApplication.findMany({
@@ -25,87 +25,98 @@ export async function GET() {
     return NextResponse.json(apps, { status: 200 });
   } catch (error) {
     console.error("GET Applications Error:", error);
-    return NextResponse.json({ error: "فشل جلب الطلبات من قاعدة البيانات" }, { status: 500 });
+    return NextResponse.json({ error: "فشل جلب طلبات التقديم" }, { status: 500 });
   }
 }
 
-// استقبال طلب جديد وحفظه وإرساله بريدياً
+// استقبال طلب جديد وحفظه وإرساله فورياً بريدياً مع المرفقات
 export async function POST(req) {
   try {
-    const body = await req.json();
+    const contentType = req.headers.get('content-type') || '';
+    let bodyData = {};
+    let attachmentsList = [];
 
-    const applicantName = body.applicantName || body.name || body.fullName || 'متقدم جديد';
-    const email = body.email || 'غير محدد';
-    const phone = body.phone || 'غير محدد';
-    const itemTitle = body.itemTitle || body.scholarshipTitle || 'طلب منحة / تدريب';
-    const itemId = body.itemId || '';
+    // معالجة البيانات والملفات المرفوعة سواء كانت FormData أو JSON
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      for (const [key, value] of formData.entries()) {
+        if (value && typeof value === 'object' && value.name) {
+          const buffer = Buffer.from(await value.arrayBuffer());
+          attachmentsList.push({
+            filename: value.name,
+            content: buffer
+          });
+          bodyData[key] = value.name;
+        } else {
+          bodyData[key] = value;
+        }
+      }
+    } else {
+      bodyData = await req.json();
+    }
 
-    // حفظ الطلب في قاعدة البيانات
+    const nameVal = bodyData.fullName || bodyData.applicantName || bodyData.name || 'متقدم جديد';
+    const emailVal = bodyData.email || 'غير محدد';
+    const phoneVal = bodyData.phone || 'غير محدد';
+    const titleVal = bodyData.itemTitle || bodyData.scholarshipTitle || 'طلب منحة / برنامج أكاديمي';
+    const idVal = bodyData.itemId || '';
+
+    // 1. الحفظ في قاعدة البيانات (تضمين fullName لمنع خطأ Prisma)
     const savedApp = await prisma.academyApplication.create({
       data: {
-        itemId: String(itemId),
-        itemTitle: String(itemTitle),
-        applicantName: String(applicantName),
-        email: String(email),
-        phone: String(phone),
-        passportUrl: String(body.passportUrl || body.passport || ''),
-        cvUrl: String(body.cvUrl || body.cv || ''),
-        motivationUrl: String(body.motivationUrl || body.motivation || ''),
-        recommendationUrl: String(body.recommendationUrl || body.recommendation || ''),
-        languageCertUrl: String(body.languageCertUrl || body.languageCert || ''),
-        photoUrl: String(body.photoUrl || body.photo || ''),
-        files: typeof body.files === 'object' ? JSON.stringify(body.files) : String(body.files || ''),
+        fullName: String(nameVal),         // الحقل المطلوب في Prisma Schema
+        applicantName: String(nameVal),
+        itemId: String(idVal),
+        itemTitle: String(titleVal),
+        email: String(emailVal),
+        phone: String(phoneVal),
+        passportUrl: String(bodyData.passportUrl || bodyData.passport || ''),
+        cvUrl: String(bodyData.cvUrl || bodyData.cv || ''),
+        motivationUrl: String(bodyData.motivationUrl || bodyData.motivation || ''),
+        recommendationUrl: String(bodyData.recommendationUrl || bodyData.recommendation || ''),
+        languageCertUrl: String(bodyData.languageCertUrl || bodyData.languageCert || ''),
+        photoUrl: String(bodyData.photoUrl || bodyData.photo || ''),
+        files: typeof bodyData.files === 'object' ? JSON.stringify(bodyData.files) : String(bodyData.files || ''),
         status: 'PENDING'
       }
     });
 
-    // إرسال الإشعار لبريد الإدارة
+    // 2. إرسال البريد الإلكتروني الفوري للأدمن مع الملفات المرفقة
     if (process.env.EMAIL_PASS) {
       const emailHtml = `
-        <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #0d9488; border-radius: 8px;">
-          <h2 style="color: #0d9488;">🎓 طلب تقديم جديد: ${itemTitle}</h2>
+        <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #0d9488; border-radius: 8px; background-color: #f9fafb;">
+          <h2 style="color: #0d9488;">🎓 طلب تقديم جديد: ${titleVal}</h2>
           <hr />
-          <p><strong>اسم المتقدم:</strong> ${applicantName}</p>
-          <p><strong>البريد الإلكتروني:</strong> ${email}</p>
-          <p><strong>رقم الهاتف:</strong> ${phone}</p>
-          <h3>📂 المستندات المرفوعة:</h3>
+          <p><strong>👤 اسم المتقدم:</strong> ${nameVal}</p>
+          <p><strong>📧 البريد الإلكتروني:</strong> ${emailVal}</p>
+          <p><strong>📱 رقم الهاتف:</strong> ${phoneVal}</p>
+          <br />
+          <h3 style="color: #0d9488;">📂 المستندات والروابط:</h3>
           <ul>
-            ${body.passportUrl ? `<li><a href="${body.passportUrl}">نسخة جواز السفر</a></li>` : ''}
-            ${body.cvUrl ? `<li><a href="${body.cvUrl}">السيرة الذاتية (CV)</a></li>` : ''}
-            ${body.motivationUrl ? `<li><a href="${body.motivationUrl}">خطاب الدافع</a></li>` : ''}
-            ${body.recommendationUrl ? `<li><a href="${body.recommendationUrl}">خطابات التوصية</a></li>` : ''}
-            ${body.languageCertUrl ? `<li><a href="${body.languageCertUrl}">شهادة اللغة</a></li>` : ''}
-            ${body.photoUrl ? `<li><a href="${body.photoUrl}">الصورة الشخصية</a></li>` : ''}
+            ${bodyData.passportUrl ? `<li><strong>جواز السفر:</strong> <a href="${bodyData.passportUrl}">رابط الجواز</a></li>` : ''}
+            ${bodyData.cvUrl ? `<li><strong>السيرة الذاتية:</strong> <a href="${bodyData.cvUrl}">رابط السيرة الذاتية</a></li>` : ''}
+            ${bodyData.motivationUrl ? `<li><strong>خطاب الدافع:</strong> <a href="${bodyData.motivationUrl}">رابط الخطاب</a></li>` : ''}
+            ${bodyData.recommendationUrl ? `<li><strong>خطابات التوصية:</strong> <a href="${bodyData.recommendationUrl}">رابط التوصية</a></li>` : ''}
+            ${bodyData.languageCertUrl ? `<li><strong>شهادة اللغة:</strong> <a href="${bodyData.languageCertUrl}">رابط الشهادة</a></li>` : ''}
+            ${bodyData.photoUrl ? `<li><strong>الصورة الشخصية:</strong> <a href="${bodyData.photoUrl}">رابط الصورة</a></li>` : ''}
           </ul>
+          <p style="font-size: 12px; color: #6b7280;">ملاحظة: تم إرفاق الملفات المرفوعة مباشرة مع هذا البريد الإلكتروني إن وجدت.</p>
         </div>
       `;
 
       await transporter.sendMail({
         from: `"منصة الهندسة الذكية 🚀" <${process.env.EMAIL_USER || 'smartengineering.hr.global@gmail.com'}>`,
         to: adminEmails.join(','),
-        subject: `🎓 طلب تقديم جديد من: ${applicantName} - ${itemTitle}`,
-        html: emailHtml
+        subject: `🎓 طلب منحة جديد: ${nameVal} - ${titleVal}`,
+        html: emailHtml,
+        attachments: attachmentsList
       });
     }
 
     return NextResponse.json({ success: true, data: savedApp }, { status: 201 });
 
   } catch (error) {
-    console.error("POST Application Error:", error);
-    return NextResponse.json({ error: error.message || "حدث خطأ في معالجة الطلب" }, { status: 500 });
-  }
-}
-
-// حذف طلب من الأدمن
-export async function DELETE(req) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: "المعرف مطلوب" }, { status: 400 });
-
-    await prisma.academyApplication.delete({ where: { id: id } });
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error) {
-    return NextResponse.json({ error: "فشل الحذف" }, { status: 500 });
+    console.error("Academy Application Error:", error);
+    return NextResponse.json({ error: error.message || "حدث خطأ أثناء معالجة الطلب" }, { status: 500 });
   }
 }
