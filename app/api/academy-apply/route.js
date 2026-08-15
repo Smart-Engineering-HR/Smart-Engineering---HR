@@ -16,139 +16,96 @@ const adminEmails = [
   'smart.engineering.global@tuta.io'
 ];
 
-// 1. GET - جلب جميع الطلبات للوحة تحكم الأدمن
-export async function GET(req) {
+// جلب الطلبات للاستعراض في لوحة الأدمن
+export async function GET() {
   try {
-    const applications = await prisma.academyApplication.findMany({
+    const apps = await prisma.academyApplication.findMany({
       orderBy: { createdAt: 'desc' }
     });
-    return NextResponse.json(applications, { status: 200 });
+    return NextResponse.json(apps, { status: 200 });
   } catch (error) {
-    console.error("Error fetching applications:", error);
-    return NextResponse.json({ error: "فشل جلب طلبات التقديم" }, { status: 500 });
+    console.error("GET Applications Error:", error);
+    return NextResponse.json({ error: "فشل جلب الطلبات من قاعدة البيانات" }, { status: 500 });
   }
 }
 
-// 2. POST - حفظ طلب التقديم وإرسال الإيميلات
+// استقبال طلب جديد وحفظه وإرساله بريدياً
 export async function POST(req) {
   try {
-    const contentType = req.headers.get('content-type') || '';
-    let bodyData = {};
-    let attachmentsList = [];
+    const body = await req.json();
 
-    if (contentType.includes('multipart/form-data')) {
-      const formData = await req.formData();
-      for (const [key, value] of formData.entries()) {
-        if (value && typeof value === 'object' && value.name) {
-          const buffer = Buffer.from(await value.arrayBuffer());
-          attachmentsList.push({
-            filename: value.name,
-            content: buffer
-          });
-          bodyData[key] = value.name;
-        } else {
-          bodyData[key] = value;
-        }
+    const applicantName = body.applicantName || body.name || body.fullName || 'متقدم جديد';
+    const email = body.email || 'غير محدد';
+    const phone = body.phone || 'غير محدد';
+    const itemTitle = body.itemTitle || body.scholarshipTitle || 'طلب منحة / تدريب';
+    const itemId = body.itemId || '';
+
+    // حفظ الطلب في قاعدة البيانات
+    const savedApp = await prisma.academyApplication.create({
+      data: {
+        itemId: String(itemId),
+        itemTitle: String(itemTitle),
+        applicantName: String(applicantName),
+        email: String(email),
+        phone: String(phone),
+        passportUrl: String(body.passportUrl || body.passport || ''),
+        cvUrl: String(body.cvUrl || body.cv || ''),
+        motivationUrl: String(body.motivationUrl || body.motivation || ''),
+        recommendationUrl: String(body.recommendationUrl || body.recommendation || ''),
+        languageCertUrl: String(body.languageCertUrl || body.languageCert || ''),
+        photoUrl: String(body.photoUrl || body.photo || ''),
+        files: typeof body.files === 'object' ? JSON.stringify(body.files) : String(body.files || ''),
+        status: 'PENDING'
       }
-    } else {
-      bodyData = await req.json();
-    }
+    });
 
-    const applicantName = bodyData.applicantName || bodyData.name || bodyData.fullName || 'متقدم جديد';
-    const email = bodyData.email || 'غير محدد';
-    const phone = bodyData.phone || 'غير محدد';
-    const itemTitle = bodyData.itemTitle || bodyData.scholarshipTitle || 'منحة / برنامج أكاديمي';
-    const itemId = bodyData.itemId || '';
+    // إرسال الإشعار لبريد الإدارة
+    if (process.env.EMAIL_PASS) {
+      const emailHtml = `
+        <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #0d9488; border-radius: 8px;">
+          <h2 style="color: #0d9488;">🎓 طلب تقديم جديد: ${itemTitle}</h2>
+          <hr />
+          <p><strong>اسم المتقدم:</strong> ${applicantName}</p>
+          <p><strong>البريد الإلكتروني:</strong> ${email}</p>
+          <p><strong>رقم الهاتف:</strong> ${phone}</p>
+          <h3>📂 المستندات المرفوعة:</h3>
+          <ul>
+            ${body.passportUrl ? `<li><a href="${body.passportUrl}">نسخة جواز السفر</a></li>` : ''}
+            ${body.cvUrl ? `<li><a href="${body.cvUrl}">السيرة الذاتية (CV)</a></li>` : ''}
+            ${body.motivationUrl ? `<li><a href="${body.motivationUrl}">خطاب الدافع</a></li>` : ''}
+            ${body.recommendationUrl ? `<li><a href="${body.recommendationUrl}">خطابات التوصية</a></li>` : ''}
+            ${body.languageCertUrl ? `<li><a href="${body.languageCertUrl}">شهادة اللغة</a></li>` : ''}
+            ${body.photoUrl ? `<li><a href="${body.photoUrl}">الصورة الشخصية</a></li>` : ''}
+          </ul>
+        </div>
+      `;
 
-    const passportUrl = bodyData.passportUrl || bodyData.passport || '';
-    const cvUrl = bodyData.cvUrl || bodyData.cv || '';
-    const motivationUrl = bodyData.motivationUrl || bodyData.motivation || '';
-    const recommendationUrl = bodyData.recommendationUrl || bodyData.recommendation || '';
-    const languageCertUrl = bodyData.languageCertUrl || bodyData.languageCert || '';
-    const photoUrl = bodyData.photoUrl || bodyData.photo || '';
-    const filesData = typeof bodyData.files === 'object' ? JSON.stringify(bodyData.files) : (bodyData.files || '');
-
-    // أ) الحفظ في قاعدة البيانات
-    let savedApp;
-    try {
-      savedApp = await prisma.academyApplication.create({
-        data: {
-          itemId: String(itemId),
-          itemTitle: String(itemTitle),
-          applicantName: String(applicantName),
-          email: String(email),
-          phone: String(phone),
-          passportUrl: String(passportUrl),
-          cvUrl: String(cvUrl),
-          motivationUrl: String(motivationUrl),
-          recommendationUrl: String(recommendationUrl),
-          languageCertUrl: String(languageCertUrl),
-          photoUrl: String(photoUrl),
-          files: String(filesData),
-          status: 'PENDING'
-        }
+      await transporter.sendMail({
+        from: `"منصة الهندسة الذكية 🚀" <${process.env.EMAIL_USER || 'smartengineering.hr.global@gmail.com'}>`,
+        to: adminEmails.join(','),
+        subject: `🎓 طلب تقديم جديد من: ${applicantName} - ${itemTitle}`,
+        html: emailHtml
       });
-    } catch (dbErr) {
-      console.error("DB Save Warning:", dbErr);
-    }
-
-    // ب) إرسال الإيميل للإدارة
-    try {
-      if (process.env.EMAIL_PASS) {
-        const htmlTemplate = `
-          <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #14b8a6; border-radius: 10px; background-color: #f9fafb;">
-            <h2 style="color: #0f766e;">🎓 طلب تقديم جديد: ${itemTitle}</h2>
-            <hr />
-            <p><strong>👤 اسم المتقدم:</strong> ${applicantName}</p>
-            <p><strong>📧 البريد الإلكتروني:</strong> ${email}</p>
-            <p><strong>📱 رقم الهاتف:</strong> ${phone}</p>
-            <br />
-            <h3 style="color: #0f766e;">📂 المستندات والمرفقات:</h3>
-            <ul>
-              ${passportUrl ? `<li><strong>جواز السفر:</strong> <a href="${passportUrl}">رابط / ملف</a></li>` : ''}
-              ${cvUrl ? `<li><strong>السيرة الذاتية:</strong> <a href="${cvUrl}">رابط / ملف</a></li>` : ''}
-              ${motivationUrl ? `<li><strong>خطاب الدافع:</strong> <a href="${motivationUrl}">رابط / ملف</a></li>` : ''}
-              ${recommendationUrl ? `<li><strong>خطابات التوصية:</strong> <a href="${recommendationUrl}">رابط / ملف</a></li>` : ''}
-              ${languageCertUrl ? `<li><strong>شهادة اللغة:</strong> <a href="${languageCertUrl}">رابط / ملف</a></li>` : ''}
-              ${photoUrl ? `<li><strong>الصورة الشخصية:</strong> <a href="${photoUrl}">رابط / ملف</a></li>` : ''}
-            </ul>
-            <p style="font-size: 12px; color: #6b7280;">تم إرسال هذا الطلب آلياً من منصة الهندسة الذكية HR & Academy.</p>
-          </div>
-        `;
-
-        await transporter.sendMail({
-          from: `"منصة الهندسة الذكية 🚀" <${process.env.EMAIL_USER || 'smartengineering.hr.global@gmail.com'}>`,
-          to: adminEmails.join(','),
-          subject: `🎓 طلب تقديم جديد: ${applicantName} - ${itemTitle}`,
-          html: htmlTemplate,
-          attachments: attachmentsList
-        });
-      } else {
-        console.warn("EMAIL_PASS غير مفعّل في بيئة المتغيرات.");
-      }
-    } catch (emailErr) {
-      console.error("Email Sending Error:", emailErr);
     }
 
     return NextResponse.json({ success: true, data: savedApp }, { status: 201 });
 
   } catch (error) {
-    console.error("Error in POST academy-apply:", error);
-    return NextResponse.json({ error: error.message || "حدث خطأ أثناء معالجة الطلب" }, { status: 500 });
+    console.error("POST Application Error:", error);
+    return NextResponse.json({ error: error.message || "حدث خطأ في معالجة الطلب" }, { status: 500 });
   }
 }
 
-// 3. DELETE - حذف طلب من لوحة الأدمن
+// حذف طلب من الأدمن
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: "المعرف id مطلوب" }, { status: 400 });
+    if (!id) return NextResponse.json({ error: "المعرف مطلوب" }, { status: 400 });
 
     await prisma.academyApplication.delete({ where: { id: id } });
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Error in DELETE academy-apply:", error);
-    return NextResponse.json({ error: "فشل حذف الطلب" }, { status: 500 });
+    return NextResponse.json({ error: "فشل الحذف" }, { status: 500 });
   }
 }
