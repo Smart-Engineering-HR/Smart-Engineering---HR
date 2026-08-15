@@ -179,7 +179,7 @@ export default function AcademyAdminDashboard() {
     }
   };
 
-  // دالة تحويل وعرض أزرار تنزيل الملف المرفوع في لوحة الأدمن
+  // دالة تحويل وعرض أزرار تنزيل أو فتح الملف المرفوع
   const renderFileDownloadBtn = (label, fileItem) => {
     if (!fileItem) return <p style={{ fontSize: "12px", margin: "2px 0", color: "#8892b0" }}>📄 {label}: غير مرفق</p>;
 
@@ -208,7 +208,29 @@ export default function AcademyAdminDashboard() {
       );
     }
 
-    return <p style={{ fontSize: "12px", margin: "2px 0", color: "#fff" }}>📄 {label}: {String(fileItem)}</p>;
+    return (
+      <div style={{ margin: "4px 0" }}>
+        <span style={{ fontSize: "12px", color: "#64ffda" }}>📄 {label}: </span>
+        <a
+          href={String(fileItem)}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            background: "#64ffda",
+            color: "#0a192f",
+            padding: "3px 10px",
+            borderRadius: "4px",
+            textDecoration: "none",
+            fontWeight: "bold",
+            fontSize: "12px",
+            display: "inline-block",
+            marginRight: "5px"
+          }}
+        >
+          🔗 عرض / تنزيل الملف
+        </a>
+      </div>
+    );
   };
 
   if (!isLoggedIn) {
@@ -463,37 +485,26 @@ export default function AcademyAdminDashboard() {
                   <div style={styles.appGrid}>
                     <div>
                       <h5 style={{color: "#00e6ff", margin: "5px 0"}}>👤 البيانات الشخصية:</h5>
-                      <p style={styles.appDetailText}><strong>الاسم بالعربية:</strong> {app.fullNameAr || app.fullName}</p>
-                      <p style={styles.appDetailText}><strong>Name in English:</strong> {app.fullNameEn || "-"}</p>
-                      <p style={styles.appDetailText}><strong>تاريخ الميلاد والمنشأ:</strong> {app.birthDate || "-"}</p>
-                      <p style={styles.appDetailText}><strong>الجنسية الحالية:</strong> {app.nationality || "-"}</p>
-                      <p style={styles.appDetailText}><strong>بلد الإقامة:</strong> {app.residence || "-"}</p>
+                      <p style={styles.appDetailText}><strong>الاسم الكامل:</strong> {app.fullName || app.fullNameAr || app.applicantName}</p>
                       <p style={styles.appDetailText}><strong>البريد الإلكتروني:</strong> {app.email}</p>
                       <p style={styles.appDetailText}><strong>رقم الهاتف:</strong> {app.phone}</p>
                     </div>
 
                     <div>
-                      <h5 style={{color: "#00e6ff", margin: "5px 0"}}>🎓 الخلفية الأكاديمية:</h5>
-                      <p style={styles.appDetailText}><strong>آخر مؤهل:</strong> {app.lastDegree || app.degree}</p>
-                      <p style={styles.appDetailText}><strong>المعدل التراكمي:</strong> {app.gpa}</p>
-                      <p style={styles.appDetailText}><strong>المؤسسة / الجامعة:</strong> {app.institute || app.university}</p>
-                      <p style={styles.appDetailText}><strong>التخصص السابق:</strong> {app.currentSpecialty || app.major}</p>
-                      <p style={styles.appDetailText}><strong>الدرجة المستهدفة:</strong> {app.targetDegree}</p>
-                      <p style={styles.appDetailText}><strong>التخصص المرغوب (1):</strong> {app.targetSpecialty1}</p>
-                      <p style={styles.appDetailText}><strong>التخصص المرغوب (2):</strong> {app.targetSpecialty2 || "-"}</p>
-                      <p style={styles.appDetailText}><strong>مستوى اللغة:</strong> {app.englishProficiency || app.languageLevel}</p>
+                      <h5 style={{color: "#00e6ff", margin: "5px 0"}}>🎓 الخلفية الأكاديمية والتفاصيل:</h5>
+                      <p style={styles.appDetailText}><strong>المنحة / البرنامج:</strong> {app.scholarshipName}</p>
+                      <p style={styles.appDetailText}><strong>معرف البرنامج (ID):</strong> {app.itemId || "-"}</p>
                     </div>
                   </div>
 
                   <div style={{marginTop: "12px", background: "#0a192f", padding: "12px", borderRadius: "6px", border: "1px solid #233554"}}>
-                    <h5 style={{color: "#ffd700", margin: "0 0 8px 0"}}>📁 الملفات المرفوعة (تنزيل وفتح فورياً):</h5>
-                    {renderFileDownloadBtn("جواز السفر", app.passportCopy)}
-                    {renderFileDownloadBtn("الشهادات الأكاديمية", app.academicCertificates)}
-                    {renderFileDownloadBtn("خطاب الدافع", app.motivationLetter)}
-                    {renderFileDownloadBtn("السيرة الذاتية", app.cvResume)}
-                    {renderFileDownloadBtn("خطابات التوصية", app.recommendationLetters)}
-                    {renderFileDownloadBtn("شهادة اللغة", app.languageCert)}
-                    {renderFileDownloadBtn("الصورة الشخصية", app.personalPhoto)}
+                    <h5 style={{color: "#ffd700", margin: "0 0 8px 0"}}>📁 الملفات والمستندات المرفوعة:</h5>
+                    {renderFileDownloadBtn("جواز السفر", app.passportUrl || app.passportCopy)}
+                    {renderFileDownloadBtn("السيرة الذاتية", app.cvUrl || app.cvResume)}
+                    {renderFileDownloadBtn("خطاب الدافع", app.motivationUrl || app.motivationLetter)}
+                    {renderFileDownloadBtn("خطابات التوصية", app.recommendationUrl || app.recommendationLetters)}
+                    {renderFileDownloadBtn("شهادة اللغة", app.languageCertUrl || app.languageCert)}
+                    {renderFileDownloadBtn("الصورة الشخصية", app.photoUrl || app.personalPhoto)}
                   </div>
                 </div>
               ))}

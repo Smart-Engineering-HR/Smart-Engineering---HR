@@ -16,27 +16,42 @@ const adminEmails = [
   'smart.engineering.global@tuta.io'
 ];
 
-// جلب الطلبات للوحة تحكم الأدمن
+// 1. GET: جلب جميع الطلبات وتفكيك حقل details لصفحة الأدمن
 export async function GET() {
   try {
-    const apps = await prisma.academyApplication.findMany({
+    const applications = await prisma.academyApplication.findMany({
       orderBy: { createdAt: 'desc' }
     });
-    return NextResponse.json(apps, { status: 200 });
+
+    const formattedApps = applications.map(app => {
+      let extra = {};
+      if (app.details) {
+        try {
+          extra = typeof app.details === 'string' ? JSON.parse(app.details) : app.details;
+        } catch (e) {
+          extra = {};
+        }
+      }
+      return {
+        ...app,
+        ...extra
+      };
+    });
+
+    return NextResponse.json(formattedApps, { status: 200 });
   } catch (error) {
     console.error("GET Applications Error:", error);
     return NextResponse.json([], { status: 200 });
   }
 }
 
-// استقبال طلب التقديم وحفظه وإرساله فورياً بريدياً مع المرفقات
+// 2. POST: استقبال الطلب والحفظ وإرسال البريد والمرفقات
 export async function POST(req) {
   try {
     const contentType = req.headers.get('content-type') || '';
     let bodyData = {};
     let attachmentsList = [];
 
-    // معالجة البيانات والملفات المرفوعة سواء كانت FormData أو JSON
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       for (const [key, value] of formData.entries()) {
@@ -58,21 +73,19 @@ export async function POST(req) {
     const fullName = bodyData.fullName || bodyData.applicantName || bodyData.name || 'متقدم جديد';
     const email = bodyData.email || 'غير محدد';
     const phone = bodyData.phone || 'غير محدد';
-    const scholarshipName = bodyData.itemTitle || bodyData.scholarshipTitle || bodyData.scholarshipName || 'طلب منحة / برنامج أكاديمي';
+    const scholarshipName = bodyData.scholarshipName || bodyData.itemTitle || bodyData.scholarshipTitle || 'منحة / برنامج أكاديمي';
 
-    // حفظ كل التفاصيل والروابط المرفقة في حقل details لتجنب أي تعارض في حقول Schema
-    const detailsObj = {
+    const extraDetails = {
       itemId: bodyData.itemId || '',
       passportUrl: bodyData.passportUrl || bodyData.passport || '',
       cvUrl: bodyData.cvUrl || bodyData.cv || '',
       motivationUrl: bodyData.motivationUrl || bodyData.motivation || '',
       recommendationUrl: bodyData.recommendationUrl || bodyData.recommendation || '',
       languageCertUrl: bodyData.languageCertUrl || bodyData.languageCert || '',
-      photoUrl: bodyData.photoUrl || bodyData.photo || '',
-      files: bodyData.files || ''
+      photoUrl: bodyData.photoUrl || bodyData.photo || ''
     };
 
-    // 1. الحفظ في قاعدة البيانات مع مطابقة حقول Prisma المتوافقة
+    // أ) الحفظ في قاعدة البيانات
     let savedApp = null;
     try {
       savedApp = await prisma.academyApplication.create({
@@ -81,18 +94,18 @@ export async function POST(req) {
           email: String(email),
           phone: String(phone),
           scholarshipName: String(scholarshipName),
-          details: JSON.stringify(detailsObj)
+          details: JSON.stringify(extraDetails)
         }
       });
     } catch (dbError) {
-      console.error("Prisma Save Notice:", dbError.message);
+      console.error("Prisma Save Error:", dbError.message);
     }
 
-    // 2. إرسال البريد الإلكتروني الفوري للإدارة مع الملفات المرفقة
+    // ب) إرسال البريد الإلكتروني مع المرفقات إلى الإدارة
     if (process.env.EMAIL_PASS) {
       const emailHtml = `
         <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #0d9488; border-radius: 8px; background-color: #f9fafb;">
-          <h2 style="color: #0d9488;">🎓 طلب تقديم جديد: ${scholarshipName}</h2>
+          <h2 style="color: #0d9488;">🎓 طلب تقديم جديد على منحة: ${scholarshipName}</h2>
           <hr />
           <p><strong>👤 اسم المتقدم:</strong> ${fullName}</p>
           <p><strong>📧 البريد الإلكتروني:</strong> ${email}</p>
@@ -100,13 +113,14 @@ export async function POST(req) {
           <br />
           <h3 style="color: #0d9488;">📂 المستندات والروابط:</h3>
           <ul>
-            ${detailsObj.passportUrl ? `<li><strong>جواز السفر:</strong> <a href="${detailsObj.passportUrl}">رابط الجواز</a></li>` : ''}
-            ${detailsObj.cvUrl ? `<li><strong>السيرة الذاتية:</strong> <a href="${detailsObj.cvUrl}">رابط السيرة الذاتية</a></li>` : ''}
-            ${detailsObj.motivationUrl ? `<li><strong>خطاب الدافع:</strong> <a href="${detailsObj.motivationUrl}">رابط الخطاب</a></li>` : ''}
-            ${detailsObj.recommendationUrl ? `<li><strong>خطابات التوصية:</strong> <a href="${detailsObj.recommendationUrl}">رابط التوصية</a></li>` : ''}
-            ${detailsObj.languageCertUrl ? `<li><strong>شهادة اللغة:</strong> <a href="${detailsObj.languageCertUrl}">رابط الشهادة</a></li>` : ''}
-            ${detailsObj.photoUrl ? `<li><strong>الصورة الشخصية:</strong> <a href="${detailsObj.photoUrl}">رابط الصورة</a></li>` : ''}
+            ${extraDetails.passportUrl ? `<li><strong>جواز السفر:</strong> <a href="${extraDetails.passportUrl}">رابط الجواز</a></li>` : ''}
+            ${extraDetails.cvUrl ? `<li><strong>السيرة الذاتية:</strong> <a href="${extraDetails.cvUrl}">رابط السيرة الذاتية</a></li>` : ''}
+            ${extraDetails.motivationUrl ? `<li><strong>خطاب الدافع:</strong> <a href="${extraDetails.motivationUrl}">رابط الخطاب</a></li>` : ''}
+            ${extraDetails.recommendationUrl ? `<li><strong>خطابات التوصية:</strong> <a href="${extraDetails.recommendationUrl}">رابط التوصية</a></li>` : ''}
+            ${extraDetails.languageCertUrl ? `<li><strong>شهادة اللغة:</strong> <a href="${extraDetails.languageCertUrl}">رابط الشهادة</a></li>` : ''}
+            ${extraDetails.photoUrl ? `<li><strong>الصورة الشخصية:</strong> <a href="${extraDetails.photoUrl}">رابط الصورة</a></li>` : ''}
           </ul>
+          <p style="font-size: 12px; color: #6b7280; margin-top: 15px;">تم إرفاق الملفات المرفوعة مباشرة مع هذا البريد.</p>
         </div>
       `;
 
@@ -122,7 +136,7 @@ export async function POST(req) {
     return NextResponse.json({ success: true, data: savedApp }, { status: 201 });
 
   } catch (error) {
-    console.error("Academy Application Error:", error);
+    console.error("API Route Error:", error);
     return NextResponse.json({ error: error.message || "حدث خطأ أثناء معالجة الطلب" }, { status: 500 });
   }
 }
