@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  ShieldAlert, PlusCircle, Trash2, Edit, Save, Eye, User, Mail, Phone, FileText, RefreshCw
+  ShieldAlert, PlusCircle, Trash2, Edit, Save, Eye, User, Mail, Phone, RefreshCw
 } from "lucide-react";
 
 export default function SoftwareToolsAdmin() {
@@ -31,18 +31,25 @@ export default function SoftwareToolsAdmin() {
     template: ""
   });
 
-  // آمن وقادر على معالجة أخطاء HTML والشبكة دون توقف الصفحة
+  // معالجة آمنة تمنع إظهار صفحات HTML في النافذة المنبثقة للخطأ
   const safeFetchJson = async (url, options = {}) => {
     try {
       const res = await fetch(url, options);
       const text = await res.text();
+      
       try {
-        return { ok: res.ok, status: res.status, data: JSON.parse(text) };
+        const parsed = JSON.parse(text);
+        return { ok: res.ok, status: res.status, data: parsed };
       } catch (err) {
-        return { ok: false, status: res.status, error: "استجابة غير صالحة من السيرفر: " + text.slice(0, 100) };
+        // في حال أرجع الخادم صفحة HTML (مثل 404 أو 500)
+        return { 
+          ok: false, 
+          status: res.status, 
+          error: `حدث خطأ بالخادم (رمز ${res.status}). يرجى إعادة المحاولة أو التحقق من الربط.` 
+        };
       }
     } catch (err) {
-      return { ok: false, status: 0, error: "فشل الاتصال بالشبكة: " + err.message };
+      return { ok: false, status: 0, error: "تعذر الاتصال بالشبكة: " + err.message };
     }
   };
 
@@ -59,7 +66,6 @@ export default function SoftwareToolsAdmin() {
     const res = await safeFetchJson("/api/software-tool?type=requests");
     let serverRequests = (res.data && res.data.success) ? res.data.data : [];
     
-    // دمقرطة واسترجاع الطلبات المحفوظة محلياً لضمان عدم ضياع أي طلب جمهور
     let localRequests = [];
     try {
       localRequests = JSON.parse(localStorage.getItem("smart_tools_custom_requests") || "[]");
@@ -132,7 +138,7 @@ export default function SoftwareToolsAdmin() {
     });
 
     if (res.data && res.data.success) {
-      alert(editingId ? "تم تعديل الأداة وعكسها فوراً للجمهور!" : "تم نشر الأداة البرمجية بنجاح للجمهور!");
+      alert(editingId ? "تم تعديل الأداة بنجاح!" : "تم نشر الأداة البرمجية بنجاح للجمهور!");
       resetForm();
       setActiveTab("tools-list");
       fetchTools();
@@ -172,16 +178,13 @@ export default function SoftwareToolsAdmin() {
   };
 
   const handleDeleteRequest = async (id) => {
-    if (confirm("هل تريد إزالة هذا الطلب من الصندوق؟")) {
+    if (confirm("هل تريد إزالة هذا الطلب؟")) {
       await safeFetchJson(`/api/software-tool?id=${id}&type=request`, { method: "DELETE" });
-      
-      // إزالة من التخزين المحلي أيضاً
       try {
         let local = JSON.parse(localStorage.getItem("smart_tools_custom_requests") || "[]");
         local = local.filter(r => r.id !== id);
         localStorage.setItem("smart_tools_custom_requests", JSON.stringify(local));
       } catch(e) {}
-
       fetchRequests();
     }
   };
