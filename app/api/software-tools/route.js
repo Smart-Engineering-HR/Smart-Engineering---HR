@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
-// تهيئة خادم البريد
+// إعداد خادم البريد الإلكتروني
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -16,7 +16,7 @@ const TARGET_EMAILS = [
   "smartengineering.hr.global@gmail.com",
 ];
 
-// الذاكرة المؤقتة للبيانات
+// ذاكرة استمرار البيانات العامة
 if (!globalThis.__softwareTools) {
   globalThis.__softwareTools = [
     {
@@ -45,6 +45,26 @@ if (!globalThis.__softwareTools) {
       validation: "المساحة والمقاومة يجب أن تكون قيماً موجبة أكبر من الصفر",
       template: "قوة تحمل العمود الاسمية هي: {Result} kN",
       createdAt: new Date().toISOString(),
+    },
+    {
+      id: "tool-3",
+      title: "برمجية المعالجة الآلية للمخططات الهندسية وحصر الكميات الذكي",
+      category: "automation-software",
+      aiPlatform: "Python SaaS Engine",
+      badge: "أتمتة ذكية",
+      description: "رفع المخططات بمختلف الامتدادات (RVT, IFC, DWG, DXF, PDF) لمعالجتها وتوليد سجلات الحصر والمطابقة الفنية الفورية تلقائياً.",
+      requiredOutputs: ["transmittal-log", "excel-sheet", "gantt-chart", "marked-up-file"],
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "tool-4",
+      title: "روبوت تشخيص العيوب الإنشائية والتحليل المرئي للشروخ الخرسانية",
+      category: "ai-solutions",
+      aiPlatform: "Computer Vision & Deep Learning",
+      badge: "ذكاء اصطناعي موجه",
+      description: "تحليل صور الشروخ والعيوب البصرية وتوليد الخرائط الحرارية (Heatmaps) لتحديد العمق ونسبة الخطورة الفورية.",
+      requiredOutputs: ["heatmap", "status-report", "audit-report"],
+      createdAt: new Date().toISOString(),
     }
   ];
 }
@@ -53,15 +73,9 @@ if (!globalThis.__toolRequests) {
   globalThis.__toolRequests = [];
 }
 
-// دالة مساعدة لضمان إرجاع JSON دائماً
-function jsonResponse(data, status = 200) {
-  return new NextResponse(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-  });
-}
-
-// 1. GET: استرجاع البيانات
+// =========================================================================
+// 1. GET: جلب البيانات
+// =========================================================================
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -69,42 +83,37 @@ export async function GET(request) {
     const category = searchParams.get("category");
 
     if (type === "requests") {
-      return jsonResponse({ success: true, data: globalThis.__toolRequests || [] });
+      return NextResponse.json({ success: true, data: globalThis.__toolRequests || [] }, { status: 200 });
     }
 
-    let filteredTools = [...(globalThis.__softwareTools || [])];
+    let filteredTools = [...globalThis.__softwareTools];
     if (category && category !== "all") {
       filteredTools = filteredTools.filter((t) => t.category === category);
     }
 
-    return jsonResponse({
-      success: true,
-      count: filteredTools.length,
-      data: filteredTools,
-    });
+    return NextResponse.json({ success: true, count: filteredTools.length, data: filteredTools }, { status: 200 });
   } catch (error) {
-    return jsonResponse({ success: false, error: error.message }, 500);
+    return NextResponse.json({ success: false, error: "حدث خطأ أثناء جلب البيانات: " + error.message }, { status: 500 });
   }
 }
 
-// 2. POST: إدراج أداة جديدة أو استقبال طلب خاص
+// =========================================================================
+// 2. POST: إدراج أداة أو طلب مخصص
+// =========================================================================
 export async function POST(request) {
   try {
-    let body;
-    try {
-      body = await request.json();
-    } catch {
-      return jsonResponse({ success: false, error: "صيغة البيانات غير صحيحة (Invalid JSON)" }, 400);
-    }
-
+    const body = await request.json().catch(() => ({}));
     const { action } = body;
 
-    // A. طلب أداة خاصة من الجمهور
+    // A. معالجة طلب أداة مخصصة من الجمهور
     if (action === "request_custom_tool" || body.type === "custom_request") {
       const { name, email, phone, details } = body;
 
       if (!name || !email || !phone || !details) {
-        return jsonResponse({ success: false, error: "جميع الحقول مطلوبة." }, 400);
+        return NextResponse.json(
+          { success: false, error: "جميع الحقول (الاسم، البريد، الهاتف، التفاصيل) مطلوبة." },
+          { status: 400 }
+        );
       }
 
       const newRequest = {
@@ -119,33 +128,47 @@ export async function POST(request) {
 
       globalThis.__toolRequests.unshift(newRequest);
 
-      // إرسال البريد في الخلفية دون تعطيل الاستجابة لتجنب Timeout Vercel
+      // إرسال البريد في الخلفية بدون حظر الاستجابة لتجنب الـ Timeout
       if (process.env.EMAIL_PASS) {
-        transporter.sendMail({
-          from: `"منصة الهندسة الذكية" <${process.env.EMAIL_USER || "smartengineering.hr.global@gmail.com"}>`,
-          to: TARGET_EMAILS.join(", "),
-          subject: `📥 طلب أداة برمجية جديدة: ${name}`,
-          html: `<div dir="rtl" style="padding:20px;background:#0f172a;color:#fff;">
-            <h2 style="color:#38bdf8;">طلب جديد من: ${name}</h2>
-            <p><strong>الإيميل:</strong> ${email}</p>
-            <p><strong>الهاتف:</strong> ${phone}</p>
-            <p><strong>التفاصيل:</strong> ${details}</p>
-          </div>`,
-        }).catch((err) => console.error("Email Error:", err));
+        Promise.resolve().then(async () => {
+          try {
+            await transporter.sendMail({
+              from: `"منصة الهندسة الذكية" <${process.env.EMAIL_USER || "smartengineering.hr.global@gmail.com"}>`,
+              to: TARGET_EMAILS.join(", "),
+              subject: `📥 طلب أداة برمجية خاصة جديدة من: ${name}`,
+              html: `
+                <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc;">
+                  <h2 style="color: #38bdf8;">طلب أداة برمجية جديدة - منصة الهندسة الذكية</h2>
+                  <p><strong>اسم المهندس/الجهة:</strong> ${name}</p>
+                  <p><strong>البريد الإلكتروني:</strong> ${email}</p>
+                  <p><strong>رقم الهاتف:</strong> ${phone}</p>
+                  <hr style="border-color: #334155;" />
+                  <h3>الشرح والتفاصيل الفنية:</h3>
+                  <p style="background: #1e293b; padding: 15px; border-radius: 8px;">${details}</p>
+                  <p style="font-size: 11px; color: #94a3b8;">التاريخ: ${newRequest.date}</p>
+                </div>
+              `,
+            });
+          } catch (err) {
+            console.error("خطأ خلفي في إرسال البريد:", err.message);
+          }
+        });
       }
 
-      return jsonResponse({
-        success: true,
-        message: "تم استقبال طلبك بنجاح وحفظه في النظام.",
-        data: newRequest,
-      }, 201);
+      return NextResponse.json(
+        { success: true, message: "تم تسجيل طلبك بنجاح وحفظه في لوحة التحكم.", data: newRequest },
+        { status: 201 }
+      );
     }
 
-    // B. إدراج أداة برمجية جديدة من الأدمن
+    // B. معالجة إضافة أداة جديدة من الأدمن
     const { title, category, badge, aiPlatform, description, secretPrompt, logic, variables, validation, template, placeholders } = body;
 
     if (!title || !category || !description) {
-      return jsonResponse({ success: false, error: "العنوان والتصنيف والوصف حقول إجبارية." }, 400);
+      return NextResponse.json(
+        { success: false, error: "حقول (العنوان، التصنيف، الوصف) مطلوبة لإتمام عملية النشر." },
+        { status: 400 }
+      );
     }
 
     const newTool = {
@@ -166,26 +189,34 @@ export async function POST(request) {
 
     globalThis.__softwareTools.unshift(newTool);
 
-    return jsonResponse({
-      success: true,
-      message: "تم نشر الأداة بنجاح.",
-      data: newTool,
-    }, 201);
+    return NextResponse.json(
+      { success: true, message: "تم نشر الأداة البرمجية بنجاح وعكسها للجمهور.", data: newTool },
+      { status: 201 }
+    );
   } catch (error) {
-    return jsonResponse({ success: false, error: error.message }, 500);
+    return NextResponse.json(
+      { success: false, error: "حدث خطأ في معالجة الطلب: " + error.message },
+      { status: 500 }
+    );
   }
 }
 
-// 3. PUT: تعديل أداة
+// =========================================================================
+// 3. PUT: تحديل أداة
+// =========================================================================
 export async function PUT(request) {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { id, ...updateData } = body;
 
-    if (!id) return jsonResponse({ success: false, error: "معرف الأداة (id) مطلوب." }, 400);
+    if (!id) {
+      return NextResponse.json({ success: false, error: "معرف الأداة (id) مطلوب للتعديل." }, { status: 400 });
+    }
 
     const index = globalThis.__softwareTools.findIndex((t) => t.id === id);
-    if (index === -1) return jsonResponse({ success: false, error: "الأداة غير موجودة." }, 404);
+    if (index === -1) {
+      return NextResponse.json({ success: false, error: "الأداة البرمجية غير موجودة." }, { status: 404 });
+    }
 
     globalThis.__softwareTools[index] = {
       ...globalThis.__softwareTools[index],
@@ -193,33 +224,36 @@ export async function PUT(request) {
       updatedAt: new Date().toISOString(),
     };
 
-    return jsonResponse({
-      success: true,
-      message: "تم تحديث الأداة بنجاح.",
-      data: globalThis.__softwareTools[index],
-    });
+    return NextResponse.json(
+      { success: true, message: "تم تحديث الأداة بنجاح.", data: globalThis.__softwareTools[index] },
+      { status: 200 }
+    );
   } catch (error) {
-    return jsonResponse({ success: false, error: error.message }, 500);
+    return NextResponse.json({ success: false, error: "فشل التحديث: " + error.message }, { status: 500 });
   }
 }
 
+// =========================================================================
 // 4. DELETE: حذف أداة أو طلب
+// =========================================================================
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const type = searchParams.get("type");
 
-    if (!id) return jsonResponse({ success: false, error: "معرف العنصر مطلوب." }, 400);
+    if (!id) {
+      return NextResponse.json({ success: false, error: "معرف العنصر مطلوب للحذف." }, { status: 400 });
+    }
 
     if (type === "request") {
       globalThis.__toolRequests = globalThis.__toolRequests.filter((r) => r.id !== id);
-      return jsonResponse({ success: true, message: "تمت إزالة الطلب." });
+      return NextResponse.json({ success: true, message: "تمت إزالة الطلب من لوحة الإدارة." }, { status: 200 });
     }
 
     globalThis.__softwareTools = globalThis.__softwareTools.filter((t) => t.id !== id);
-    return jsonResponse({ success: true, message: "تم حذف الأداة." });
+    return NextResponse.json({ success: true, message: "تم حذف الأداة نهائياً." }, { status: 200 });
   } catch (error) {
-    return jsonResponse({ success: false, error: error.message }, 500);
+    return NextResponse.json({ success: false, error: "حدث خطأ أثناء الحذف: " + error.message }, { status: 500 });
   }
 }
