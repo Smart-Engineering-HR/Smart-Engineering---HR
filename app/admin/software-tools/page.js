@@ -3,20 +3,20 @@
 import React, { useState, useEffect } from "react";
 import { 
   Terminal, Cpu, Settings, ShieldAlert, Sliders, PlusCircle, 
-  Trash2, Edit, Save, Eye, User, Mail, Phone, FileText, Grid, Layers, RefreshCw
+  Trash2, Edit, Save, Eye, User, Mail, Phone, FileText, Grid, Layers
 } from "lucide-react";
 
 export default function SoftwareToolsAdmin() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-
+  // 1. ضع هذه الأسطر في بداية الدالة مباشرة
+const [isLoggedIn, setIsLoggedIn] = useState(false);
+const [loginEmail, setLoginEmail] = useState("");
+const [loginPassword, setLoginPassword] = useState("");
+const [loginError, setLoginError] = useState("");
   const [tools, setTools] = useState([]);
   const [requests, setRequests] = useState([]);
   const [activeTab, setActiveTab] = useState("tools-list");
-  const [loading, setLoading] = useState(false);
 
+  // نموذج إضافة وتحديث البيانات الهيكلية للأدوات
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -25,73 +25,57 @@ export default function SoftwareToolsAdmin() {
     aiPlatform: "ChatGPT / Claude 3",
     description: "",
     secretPrompt: "",
-    placeholdersInput: "",
+    placeholdersInput: "", // يتم تفكيك الكلمات المفصولة بفاصلة لمصفوفة
     logic: "",
-    variablesInput: "",
+    variablesInput: "", // حقول إدخال المتغيرات بصيغة مصفوفة JSON معيارية
     validation: "",
     template: ""
   });
 
-  // جلب البيانات المباشرة من الـ API Backend
-  const fetchTools = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/software-tool");
-      const data = await res.json();
-      if (data.success) {
-        setTools(data.data);
-      }
-    } catch (err) {
-      console.error("فشل جلب الأدوات:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRequests = async () => {
-    try {
-      const res = await fetch("/api/software-tool?type=requests");
-      const data = await res.json();
-      if (data.success) {
-        setRequests(data.data);
-      }
-    } catch (err) {
-      console.error("فشل جلب الطلبات:", err);
-    }
-  };
-
+  // المزامنة التزامية الفورية عبر الـ localStorage لضمان التناسق دون لمس الأكواد
   useEffect(() => {
-    const authStatus = localStorage.getItem("smart_admin_logged_in");
-    if (authStatus === "true") {
-      setIsLoggedIn(true);
-    }
-    fetchTools();
-    fetchRequests();
+    // 2. يوضع داخل الـ useEffect للحفاظ على بقاء الجلسة عند تحديث الصفحة
+const authStatus = localStorage.getItem("smart_admin_logged_in");
+if (authStatus === "true") {
+  setIsLoggedIn(true);
+}
+    const storedTools = localStorage.getItem("smart_engineering_tools");
+    if (storedTools) setTools(JSON.parse(storedTools));
+
+    const storedRequests = localStorage.getItem("smart_engineering_requests");
+    if (storedRequests) setRequests(JSON.parse(storedRequests));
   }, []);
+
+  const saveToolsToStorage = (updatedTools) => {
+    setTools(updatedTools);
+    localStorage.setItem("smart_engineering_tools", JSON.stringify(updatedTools));
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // حفظ أو تعديل الأداة عبر API
-  const handleSaveTool = async (e) => {
+  // معالجة وحفظ الأداة الهندسية وتخزينها للمزامنة مع صفحة الجمهور
+  const handleSaveTool = (e) => {
     e.preventDefault();
     if (!formData.title || !formData.description) {
       alert("الرجاء تعبئة الحقول الأساسية مثل العنوان والوصف التفصيلي.");
       return;
     }
 
+    // تفكيك الكلمات لاستخراج حقول المتغيرات الممثلة بالأقواس المربعة
     const placeholders = formData.placeholdersInput
-      ? formData.placeholdersInput.split(",").map((p) => p.trim()).filter(Boolean)
+      ? formData.placeholdersInput.split(",").map(p => p.trim())
       : [];
 
+    // التحقق الفني الصارم من سلامة مصفوفة متغيرات تطبيقات الويب الحية
     let variables = [];
     if (formData.category === "live-web-apps" && formData.variablesInput) {
       try {
         variables = JSON.parse(formData.variablesInput);
       } catch (err) {
-        alert("تنبيه: صياغة الـ JSON المخصصة لتعريف الحقول ليست صحيحة، سيتم اعتماد صيغة التخزين الافتراضية.");
+        alert("تنبيه: صياغة الـ JSON المخصصة لتعريف الحقول ليست صحيحة، سيقوم النظام تلقائياً باعتماد مصفوفة المتغيرات الافتراضية للخرسانة.");
         variables = [
           { name: "Ac", label: "مساحة المقطع الخرساني الإجمالي (mm²)", type: "number", unit: "mm²" },
           { name: "fc", label: "المقاومة المميزة للخرسانة fc' (MPa)", type: "number", unit: "MPa" }
@@ -99,58 +83,62 @@ export default function SoftwareToolsAdmin() {
       }
     }
 
-    const payload = {
-      title: formData.title,
-      category: formData.category,
-      badge: formData.badge,
-      aiPlatform: formData.aiPlatform,
-      description: formData.description,
-      secretPrompt: formData.secretPrompt,
-      placeholders,
-      logic: formData.logic,
-      variables,
-      validation: formData.validation,
-      template: formData.template
-    };
+    let updatedTools = [...tools];
 
-    try {
-      let res;
-      if (editingId) {
-        res = await fetch("/api/software-tool", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: editingId, ...payload })
-        });
-      } else {
-        res = await fetch("/api/software-tool", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-      }
-
-      const result = await res.json();
-      if (result.success) {
-        alert(editingId ? "تم تعديل الأداة بنجاح وعكسها للجمهور!" : "تم نشر الأداة البرمجية الجديدة للجمهور بنجاح!");
-        resetForm();
-        setActiveTab("tools-list");
-        fetchTools();
-      } else {
-        alert("خطأ: " + result.error);
-      }
-    } catch (err) {
-      alert("حدث خطأ أثناء الاتصال بالخادم: " + err.message);
+    if (editingId) {
+      // تعديل ومواءمة الأداة الحالية
+      updatedTools = updatedTools.map(t => t.id === editingId ? {
+        ...t,
+        title: formData.title,
+        category: formData.category,
+        badge: formData.badge,
+        aiPlatform: formData.aiPlatform,
+        description: formData.description,
+        secretPrompt: formData.secretPrompt,
+        placeholders,
+        logic: formData.logic,
+        variables: variables.length > 0 ? variables : t.variables,
+        validation: formData.validation,
+        template: formData.template
+      } : t);
+      setEditingId(null);
+      alert("تمت مواءمة وتحديث تفاصيل الأداة البرمجية وعكسها تزامناً لصفحة الجمهور.");
+    } else {
+      // إضافة أداة هندسية برمجية جديدة بالكامل للجمهور
+      const newTool = {
+        id: "tool-" + Date.now(),
+        title: formData.title,
+        category: formData.category,
+        badge: formData.badge,
+        aiPlatform: formData.aiPlatform,
+        description: formData.description,
+        secretPrompt: formData.secretPrompt,
+        placeholders,
+        logic: formData.logic || "(0.85 * fc * Ac) / 1000",
+        variables: variables.length > 0 ? variables : [
+          { name: "Ac", label: "مساحة المقطع الخرساني الإجمالي (mm²)", type: "number", unit: "mm²" },
+          { name: "fc", label: "المقاومة المميزة للخرسانة fc' (MPa)", type: "number", unit: "MPa" }
+        ],
+        validation: formData.validation || "المبادئ والقيم الرياضية يجب أن تكون إيجابية أكبر من الصفر",
+        template: formData.template || "قوة تحمل العنصر الإنشائية الاسمية هي: {Result} كيلو نيوتن"
+      };
+      updatedTools.push(newTool);
+      alert("تم بنجاح نشر وإتاحة الأداة البرمجية الإنشائية الجديدة في قائمة قنوات الجمهور.");
     }
+
+    saveToolsToStorage(updatedTools);
+    resetForm();
+    setActiveTab("tools-list");
   };
 
   const handleEditClick = (tool) => {
     setEditingId(tool.id);
     setFormData({
-      title: tool.title || "",
-      category: tool.category || "prompt-engineering",
+      title: tool.title,
+      category: tool.category,
       badge: tool.badge || "أداة حصرية",
       aiPlatform: tool.aiPlatform || "ChatGPT / Claude 3",
-      description: tool.description || "",
+      description: tool.description,
       secretPrompt: tool.secretPrompt || "",
       placeholdersInput: tool.placeholders ? tool.placeholders.join(", ") : "",
       logic: tool.logic || "",
@@ -161,36 +149,19 @@ export default function SoftwareToolsAdmin() {
     setActiveTab("add-tool");
   };
 
-  const handleDeleteClick = async (id) => {
-    if (confirm("هل أنت متأكد من رغبتك بحذف هذه الأداة نهائياً من منصة الجمهور؟")) {
-      try {
-        const res = await fetch(`/api/software-tool?id=${id}`, { method: "DELETE" });
-        const result = await res.json();
-        if (result.success) {
-          alert("تمت إزالة وحذف الأداة بنجاح.");
-          fetchTools();
-        } else {
-          alert("خطأ: " + result.error);
-        }
-      } catch (err) {
-        alert("فشل إجراء الحذف: " + err.message);
-      }
+  const handleDeleteClick = (id) => {
+    if (confirm("هل أنت متأكد تماماً وبشكل صارم من رغبتك بحذف هذه الأداة البرمجية نهائياً من قاعدة البيانات العامة لصفحة الجمهور؟")) {
+      const updatedTools = tools.filter(t => t.id !== id);
+      saveToolsToStorage(updatedTools);
+      alert("تمت إزالة وحذف الأداة الهندسية وتزامن الواجهات بنجاح.");
     }
   };
 
-  const handleDeleteRequest = async (id) => {
-    if (confirm("هل تود أرشفة وإزالة هذا الطلب الوارد؟")) {
-      try {
-        const res = await fetch(`/api/software-tool?id=${id}&type=request`, { method: "DELETE" });
-        const result = await res.json();
-        if (result.success) {
-          fetchRequests();
-        } else {
-          alert("خطأ: " + result.error);
-        }
-      } catch (err) {
-        alert("فشل الحذف: " + err.message);
-      }
+  const handleDeleteRequest = (id) => {
+    if (confirm("هل تود أرشفة وإزالة هذا الطلب الإستقصائي الوارد من صندوق الإدارة؟")) {
+      const updatedRequests = requests.filter(r => r.id !== id);
+      setRequests(updatedRequests);
+      localStorage.setItem("smart_engineering_requests", JSON.stringify(updatedRequests));
     }
   };
 
@@ -210,39 +181,43 @@ export default function SoftwareToolsAdmin() {
     });
     setEditingId(null);
   };
+// 3. اصق هذا الجزء بالكامل فوق الـ return الأساسية للملف
 
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
-    if (loginEmail === "admin@smartacademy.com" && loginPassword === "AdminPassword2026") {
-      localStorage.setItem("smart_admin_logged_in", "true");
-      setIsLoggedIn(true);
-      setLoginError("");
-    } else {
-      setLoginError("❌ بيانات الدخول غير صحيحة!");
-    }
-  };
-
-  if (!isLoggedIn) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#0a192f", direction: "rtl" }}>
-        <form onSubmit={handleLoginSubmit} style={{ background: "#112240", padding: "40px", borderRadius: "10px", width: "100%", maxWidth: "400px" }}>
-          <h2 style={{ color: "#64ffda", textAlign: "center", marginBottom: "20px" }}>🔐 تسجيل دخول لوحة الأدمن</h2>
-          {loginError && <p style={{ color: "red", textAlign: "center", marginBottom: "15px" }}>{loginError}</p>}
-          
-          <input type="email" placeholder="الإيميل الرسمي" required onChange={(e) => setLoginEmail(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "15px", borderRadius: "5px", border: "1px solid #233554", background: "#0a192f", color: "#fff" }} />
-          <input type="password" placeholder="كلمة السر" required onChange={(e) => setLoginPassword(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "20px", borderRadius: "5px", border: "1px solid #233554", background: "#0a192f", color: "#fff" }} />
-          
-          <button type="submit" style={{ width: "100%", padding: "12px", background: "#64ffda", color: "#0a192f", fontWeight: "bold", border: "none", borderRadius: "5px", cursor: "pointer" }}>تسجيل الدخول</button>
-        </form>
-      </div>
-    );
+// دالة التحقق من البيانات
+const handleLoginSubmit = (e) => {
+  e.preventDefault();
+  if (loginEmail === "admin@smartacademy.com" && loginPassword === "AdminPassword2026") {
+    localStorage.setItem("smart_admin_logged_in", "true");
+    setIsLoggedIn(true);
+    setLoginError("");
+  } else {
+    setLoginError("❌ البيانات خاطئة!");
   }
+};
 
+// حاجز الحماية: إذا لم يسجل الدخول، اقطع الكود واعرض صفحة اللوجن فقط
+if (!isLoggedIn) {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#0a192f", direction: "rtl" }}>
+      <form onSubmit={handleLoginSubmit} style={{ background: "#112240", padding: "40px", borderRadius: "10px", width: "100%", maxWidth: "400px" }}>
+        <h2 style={{ color: "#64ffda", textAlign: "center" }}>🔐 تسجيل الدخول</h2>
+        {loginError && <p style={{ color: "red", textAlign: "center" }}>{loginError}</p>}
+        
+        <input type="email" placeholder="الإيميل" required onChange={(e) => setLoginEmail(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "15px", borderRadius: "5px" }} />
+        <input type="password" placeholder="كلمة السر" required onChange={(e) => setLoginPassword(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "15px", borderRadius: "5px" }} />
+        
+        <button type="submit" style={{ width: "100%", padding: "12px", background: "#64ffda", color: "#0a192f", fontWeight: "bold", border: "none", borderRadius: "5px", cursor: "pointer" }}>دخول</button>
+      </form>
+    </div>
+  );
+}
+
+// 👈 الـ return الأساسية للوحة التحكم الخاصة بك تأتي هنا تلقائياً...
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased rtl" dir="rtl">
       <div className="container mx-auto px-4 py-8">
         
-        {/* الهيدر */}
+        {/* الهيدر الفني للوحة التحكم المطلقة */}
         <header className="flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-6 mb-8 gap-4">
           <div className="flex items-center gap-3">
             <div className="bg-red-600/15 p-3 rounded-xl border border-red-500/30 shadow-lg">
@@ -250,18 +225,11 @@ export default function SoftwareToolsAdmin() {
             </div>
             <div>
               <h1 className="text-2xl font-black text-white tracking-tight">لوحة تحكم وإدارة برمجيات منصة الهندسة الذكية</h1>
-              <p className="text-slate-400 text-xs mt-0.5">التحكم الفوري المباشر بتبويبات البرمجيات والأدوات، واستقبال طلبات الجمهور المباشرة</p>
+              <p className="text-slate-400 text-xs mt-0.5">التحكم الفوري الشامل بتبويبات البرمجيات والأدوات، تعديل حقول المعادلات ومعالجة الملفات الواردة من الجمهور</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => { fetchTools(); fetchRequests(); }}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all border border-slate-700"
-              title="تحديث البيانات"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
             <button
               onClick={() => { resetForm(); setActiveTab("add-tool"); }}
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow"
@@ -279,13 +247,13 @@ export default function SoftwareToolsAdmin() {
           </div>
         </header>
 
-        {/* علامات تبويب الإدارة */}
+        {/* علامات تبويب الإدارة والتحكم الداخلي */}
         <div className="flex border-b border-slate-800 mb-6 gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab("tools-list")}
             className={`px-4 py-2 font-bold text-xs whitespace-nowrap border-b-2 transition-all ${activeTab === "tools-list" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400 hover:text-slate-200"}`}
           >
-            استعراض وتعديل الأدوات المنشورة ({tools.length})
+            استعراض وتعديل الأدوات المنشورة بقائمة الجمهور ({tools.length})
           </button>
           <button
             onClick={() => setActiveTab("add-tool")}
@@ -302,12 +270,12 @@ export default function SoftwareToolsAdmin() {
           </button>
         </div>
 
-        {/* التبويب 1: جدول إدارة البرمجيات */}
+        {/* التبويب 1: جدول إدارة وتعديل وحذف برمجيات الجمهور */}
         {activeTab === "tools-list" && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
             {tools.length === 0 ? (
               <div className="p-12 text-center text-slate-500 text-xs">
-                {loading ? "جاري تحميل الأدوات من الخادم..." : "لا توجد أدوات منشورة حالياً."}
+                لا توجد أدوات أو برمجيات منشورة حالياً بقائمة الجمهور العامة. يرجى التوجه لعلامة تبويب الإضافة لإدراج أول مادة هندسية برمجية.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -365,34 +333,34 @@ export default function SoftwareToolsAdmin() {
           </div>
         )}
 
-        {/* التبويب 2: نموذج إضافة/تعديل الأدوات */}
+        {/* التبويب 2: استمارة نشر وتعديل الأدوات والبرمجيات وضبط قيود التحقق والمعادلات السحابية */}
         {activeTab === "add-tool" && (
           <form onSubmit={handleSaveTool} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl max-w-4xl mx-auto">
             <div>
               <h2 className="text-lg font-bold text-white mb-1">
                 {editingId ? "تعديل ومواءمة محددات الأداة البرمجية القائمة" : "نشر وإعلان أداة هندسية أو برمجية حصرية جديدة للجمهور"}
               </h2>
-              <p className="text-xs text-slate-400 leading-relaxed">يرجى ملء كافة المعايير بدقة لضمان انعكاسها المباشر في صفحة الجمهور.</p>
+              <p className="text-xs text-slate-400 leading-relaxed">يرجى ملء كافة المعايير الهيكلية وتعبئة الفراغات بدقة متناهية لضمان عمل محركات معالجة المخططات، والخرائط الحرارية، ومحرك المعادلات الحسابية المباشر بكفاءة مطلقة تزامناً مع واجهات الجمهور.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">عنوان الأداة البرمجية التفصيلي *</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">عنوان الأداة البرمجية التفصيلي (يظهر للجمهور) *</label>
                 <input 
                   type="text" required name="title" value={formData.title} onChange={handleInputChange}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-blue-500 font-medium"
-                  placeholder="مثال: حاسبة هبوط القواعد الإنشائية"
+                  placeholder="مثال: حاسبة هبوط القواعد الإنشائية أو نظام التدقيق الآلي للمخططات"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">التصنيف والتبويب *</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">التصنيف والتبويب المندرج في شريط التنقل الشامل *</label>
                 <select 
                   name="category" value={formData.category} onChange={handleInputChange}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-blue-500 font-bold text-slate-300"
                 >
                   <option value="prompt-engineering">هندسة الأوامر الذكية (Prompt Engineering)</option>
-                  <option value="live-web-apps">تطبيقات الويب الحية (Live Web Apps)</option>
+                  <option value="live-web-apps">تلييقات الويب الحية (Live Web Apps)</option>
                   <option value="automation-software">برمجيات الأتمتة المتقدمة (Automation Software)</option>
                   <option value="ai-solutions">حلول الذكاء الاصطناعي الموجه (AI Solutions)</option>
                   <option value="management-control">الإدارة والتحكم الفني الشامل (Management & Control)</option>
@@ -402,91 +370,112 @@ export default function SoftwareToolsAdmin() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">الشارة التسويقية *</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">الشارة التسويقية والترويجية لبطاقة العرض *</label>
                 <input 
                   type="text" name="badge" value={formData.badge} onChange={handleInputChange}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-blue-500"
-                  placeholder="مثال: أداة حصرية، معتمد كودياً..."
+                  placeholder="مثال: أداة حصرية، معتمد كودياً، معالجة حية..."
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">بيئة المعالجة أو منصة AI *</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">بيئة المعالجة أو منصة الـ AI الموصى بها *</label>
                 <input 
                   type="text" name="aiPlatform" value={formData.aiPlatform} onChange={handleInputChange}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-blue-500 font-mono text-cyan-400"
-                  placeholder="ChatGPT / Claude 3, Python SaaS Engine..."
+                  placeholder="ChatGPT / Claude 3, Python SaaS Engine, Computer Vision..."
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">وصف فني تفصيلي *</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">وصف فني جاذب يوضح الفائدة الهندسية والعملية للأداة بالتفصيل *</label>
               <textarea 
                 rows="3" required name="description" value={formData.description} onChange={handleInputChange}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-blue-500 leading-relaxed"
-                placeholder="اشرح آلية عمل الأداة..."
+                placeholder="اشرح للمكاتب والمهندسين آلية عمل الأداة وكيف تختصر أعمال الحصر والتدقيق الإنشائي بما يتوافق مع المعايير القياسية..."
               ></textarea>
             </div>
 
+            {/* حقول تكوين هندسة الأوامر الذكية واكتشاف الأقواس */}
             {formData.category === "prompt-engineering" && (
               <div className="p-5 bg-slate-950 rounded-2xl border border-slate-800 space-y-4">
-                <h3 className="text-xs font-bold text-blue-400">تكوين الـ Prompt السري والكلمات المتغيرة</h3>
+                <h3 className="text-xs font-bold text-blue-400">تطوير وتكوين نص الـ Prompt السري والكلمات المتغيرة</h3>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1.5">نص الأمر السري (استخدم [المتغير] للفراغات):</label>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1.5">نص الأمر الهندسي السري الكامل (استخدم الأقواس المربعة لإسناد الفراغات مثل [المادة]):</label>
                   <textarea 
                     rows="4" name="secretPrompt" value={formData.secretPrompt} onChange={handleInputChange}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono leading-relaxed"
-                    placeholder="أنت مهندس مواد، قم بتحليل مادة [المادة]..."
+                    placeholder="مثال: أنت مهندس مواد مستشار، قم بتحليل جودة مادة [اسم المادة] الموردة لعنصر [العنصر الإنشائي] طبقاً لكود التصميم..."
                   ></textarea>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1.5">المتغيرات المستخرجة (مفصولة بفاصلة ,):</label>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1.5">المتغيرات المستخرجة والمطابقة للبرومبت الخفي (مفصولة بفواصل , ):</label>
                   <input 
                     type="text" name="placeholdersInput" value={formData.placeholdersInput} onChange={handleInputChange}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white"
-                    placeholder="المادة, العنصر الإنشائي"
+                    placeholder="اسم المادة, العنصر الإنشائي"
                   />
+                  <span className="text-[10px] text-slate-500 block mt-1">سيقوم النظام تلقائياً بقراءة المدخلات وتوليد حقول ديناميكية منسقة ومستقلة للجمهور قبل عملية التصدير والنسخ.</span>
                 </div>
               </div>
             )}
 
+            {/* حقول ربط وتغذية المعادلات الرياضية والـ JSON لتطبيقات الويب الحية */}
             {formData.category === "live-web-apps" && (
               <div className="p-5 bg-slate-950 rounded-2xl border border-slate-800 space-y-4">
-                <h3 className="text-xs font-bold text-cyan-400">محرك المعادلات للحاسبة الحية</h3>
+                <h3 className="text-xs font-bold text-cyan-400">محرك تخطيط الحسابات الهندسية والمعادلات المباشرة (Math Engine Mapping)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 mb-1.5">المعادلة الرياضية (JavaScript):</label>
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1.5">المعادلة المنطقية الرياضية القابلة للتنفيذ المباشر (JavaScript Syntax):</label>
                     <input 
                       type="text" name="logic" value={formData.logic} onChange={handleInputChange}
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono text-left"
-                      placeholder="(0.85 * fc * Ac) / 1000"
+                      placeholder="مثال: (0.85 * fc * Ac) / 1000"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 mb-1.5">شروط التحقق (Validation):</label>
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1.5">شروط وقيود التحقق الصارمة للواجهة (Validation Rules):</label>
                     <input 
                       type="text" name="validation" value={formData.validation} onChange={handleInputChange}
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white"
-                      placeholder="القيم يجب أن تكون موجبة"
+                      placeholder="مثال: يجب أن تكون قيم مساحة المقطع والمقاومة موجبة"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1.5">صياغة التقرير النهائي:</label>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1.5">قالب صياغة التقرير الفني النهائي المظهر للمستخدم بالمتصفح:</label>
                   <input 
                     type="text" name="template" value={formData.template} onChange={handleInputChange}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white"
-                    placeholder="قوة التحمل هي: {Result} kN"
+                    placeholder="قوة تحمل العنصر الخرساني طبقاً لكود ACI هي: {Result} kN"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1.5">مصفوفة المتغيرات (JSON):</label>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1.5">هيكلية وأسماء حقول المتغيرات والوحدات للواجهة العامة (بنية مصفوفة JSON المعيارية):</label>
                   <textarea 
                     rows="5" name="variablesInput" value={formData.variablesInput} onChange={handleInputChange}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono text-left leading-relaxed"
-                    placeholder={`[\n  { "name": "Ac", "label": "المساحة", "type": "number", "unit": "mm²" }\n]`}
+                    placeholder={`[\n  { "name": "Ac", "label": "مساحة المقطع الإجمالية", "type": "number", "unit": "mm²" },\n  { "name": "fc", "label": "مقاومة الخرسانة المميزة fc'", "type": "number", "unit": "MPa" }\n]`}
                   ></textarea>
+                </div>
+              </div>
+            )}
+
+            {/* تفعيل وتوجيه المحركات الخلفية وسكربتات البايثون المخصصة للمخططات لبرمجيات الأتمتة وحلول الذكاء الاصطناعي والإدارة */}
+            {(formData.category === "automation-software" || formData.category === "ai-solutions" || formData.category === "management-control") && (
+              <div className="p-5 bg-slate-950 rounded-2xl border border-slate-800 space-y-4">
+                <h3 className="text-xs font-bold text-emerald-400">إعدادات محركات الأتمتة السحابية وتوجيه معالجة المخططات (SaaS Engine Mapping)</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">تتيح لك هذه الخانات التكوينية ربط الواجهة التفاعلية بسكربتات Python ونماذج تشخيص ومعايرة المخططات والصور المرفوعة من الجمهور، لتوليد مخرجات معقدة تلقائياً (مثل جداول الحصر Excel، سجلات المخططات Transmittal Log، والخرائط الحرارية Heatmaps للتصدير بنظام الـ SaaS المعمول به في موقع الهندسة الذكية).</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-slate-400 mb-1">اسم سكربت المعالجة الموجه خلفياً:</label>
+                    <input type="text" placeholder="structural_audit_engine.py" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white font-mono" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">الصيغ والامتدادات المقبولة للرفع والتدقيق:</label>
+                    <input type="text" placeholder=".rvt, .ifc, .dwg, .dxf, .pdf, .png" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white" />
+                  </div>
                 </div>
               </div>
             )}
@@ -496,26 +485,26 @@ export default function SoftwareToolsAdmin() {
                 type="button" onClick={() => { resetForm(); setActiveTab("tools-list"); }}
                 className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition-all"
               >
-                إلغاء
+                إلغاء العملية
               </button>
               <button 
                 type="submit"
                 className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all flex items-center gap-1.5"
               >
                 <Save className="h-4 w-4" />
-                <span>حفظ الأداة البرمجية وتحديث صفحة الجمهور</span>
+                <span>حفظ الأداة البرمجية وتحديث واجهة الجمهور فوراً</span>
               </button>
             </div>
           </form>
         )}
 
-        {/* التبويب 3: صندوق الطلبات المستلمة */}
+        {/* التبويب 3: استعراض وإدارة طلبات الأدوات البرمجية الخاصة المستلمة والمربوطة بالإيميلات الرسمية الثلاثة */}
         {activeTab === "received-requests" && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl max-w-4xl mx-auto">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-slate-800 pb-5 mb-6 gap-4">
               <div>
-                <h2 className="text-base font-bold text-white">صندوق طلبات بناء الأدوات والبرمجيات الخاصة الواردة</h2>
-                <p className="text-slate-400 text-xs mt-0.5">يتم رصد الطلبات الواردة وإرسالها تلقائياً للإيميلات المعتمدة:</p>
+                <h2 className="text-base font-bold text-white">صندوق طلبات بناء الأدوات والبرمجيات الخاصة الواردة من الجمهور</h2>
+                <p className="text-slate-400 text-xs mt-0.5">يتم رصد وحفظ هذه البيانات الواردة برمجياً وتوجيه الإشعارات فورياً للإيميلات الثلاثة المعتمدة التابعة للمنصة:</p>
               </div>
               <div className="flex flex-col text-left font-mono text-[10px] text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-850 space-y-0.5 select-all">
                 <span className="text-blue-400 font-bold">✓ Smart.Engineering.Global@proton.me</span>
@@ -526,7 +515,7 @@ export default function SoftwareToolsAdmin() {
 
             {requests.length === 0 ? (
               <div className="p-12 text-center text-slate-500 text-xs">
-                صندوق الوارد فارغ. لم يتم تلقي طلبات خاصة حتى اللحظة.
+                صندوق الوارد فارغ. لم يتم تلقي أو استقبال أي طلبات خارجية لتطوير أدوات مخصصة من المكاتب الهندسية والجمهور حتى اللحظة.
               </div>
             ) : (
               <div className="space-y-4">
@@ -535,7 +524,7 @@ export default function SoftwareToolsAdmin() {
                     <button 
                       onClick={() => handleDeleteRequest(req.id)}
                       className="absolute left-4 top-4 text-slate-500 hover:text-red-400 p-1.5 rounded transition-colors"
-                      title="حذف الطلب"
+                      title="أرشفة وإزالة الطلب النهائي من لوحة الأدمن"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -553,13 +542,13 @@ export default function SoftwareToolsAdmin() {
                         <Phone className="h-4 w-4 text-emerald-400" />
                         <span>{req.phone}</span>
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono mr-auto">{req.date || req.createdAt}</span>
+                      <span className="text-[10px] text-slate-500 font-mono mr-auto">{req.date}</span>
                     </div>
 
                     <div className="bg-slate-900 p-4 rounded-xl border border-slate-850">
                       <span className="text-[10px] font-bold text-slate-400 block mb-1.5 flex items-center gap-1">
                         <FileText className="h-3.5 w-3.5 text-amber-400" />
-                        <span>المواصفات والتفاصيل الفنية المطلوبة:</span>
+                        <span>المواصفات الفنية والشرح التفصيلي البرمجي للأداة الهندسية المطلوبة:</span>
                       </span>
                       <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">{req.details}</p>
                     </div>
