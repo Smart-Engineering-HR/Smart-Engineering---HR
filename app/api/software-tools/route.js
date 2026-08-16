@@ -6,52 +6,77 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER || "smartengineering.hr.global@gmail.com",
-    pass: process.env.EMAIL_PASS || "",
+    pass: process.env.EMAIL_PASS || "", // App Password
   },
 });
 
+// البريد الإلكتروني المعتمد لاستقبال الإشعارات والطلبات
 const TARGET_EMAILS = [
   "Smart.Engineering.Global@proton.me",
   "smart.engineering.global@tuta.io",
   "smartengineering.hr.global@gmail.com",
 ];
 
-// قاعدة البيانات المؤقتة على مستوى الخادم
-let softwareTools = [
-  {
-    id: "tool-1",
-    title: "النظام الذكي لهندسة الأوامر وإعداد برومبت الخرسانة والمواد",
-    category: "prompt-engineering",
-    aiPlatform: "ChatGPT / Claude 3",
-    badge: "أداة حصرية معتمدة",
-    description: "توليد أوامر برمجية صارمة لصياغة تقارير فحص ومطابقة المواد الإنشائية وفق SBC و ACI.",
-    secretPrompt: "أنت مهندس مواد خبير، قم بتحليل [المادة] المستعملة في [العنصر الإنشائي] بمساحة [input_area] وبسعر [input_price].",
-    input_area: "250",
-    input_price: "1500",
-    placeholders: ["المادة", "العنصر الإنشائي", "input_area", "input_price"],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tool-2",
-    title: "حاسبة التحمل القصي والميكانيكي للأعمدة الخرسانية",
-    category: "live-web-apps",
-    aiPlatform: "محرك معادلات المنصة",
-    badge: "حساب فوري مباشر",
-    description: "حساب التحمل الاسمي للأعمدة الخرسانية الخاضعة لأحمال مركزية وفق معادلات ACI 318.",
-    variables: [
-      { name: "Ac", label: "مساحة المقطع الخرساني الإجمالي (mm²)", type: "number", unit: "mm²" },
-      { name: "fc", label: "المقاومة المميزة للخرسانة fc' (MPa)", type: "number", unit: "MPa" }
-    ],
-    logic: "(0.85 * fc * Ac) / 1000",
-    validation: "المساحة والمقاومة يجب أن تكون قيماً موجبة أكبر من الصفر",
-    template: "قوة تحمل العمود الاسمية هي: {Result} kN",
-    createdAt: new Date().toISOString(),
-  },
-];
+// استخدام globalThis لضمان استمرارية البيانات في الذاكرة دون إعادة تعيينها أثناء التشغيل
+if (!globalThis.__softwareTools) {
+  globalThis.__softwareTools = [
+    {
+      id: "tool-1",
+      title: "النظام الذكي لهندسة الأوامر وإعداد برومبت الخرسانة والمواد",
+      category: "prompt-engineering",
+      aiPlatform: "ChatGPT / Claude 3",
+      badge: "أداة حصرية معتمدة",
+      description: "توليد أوامر برمجية صارمة لصياغة تقارير فحص ومطابقة المواد الإنشائية وفق SBC و ACI.",
+      secretPrompt: "أنت مهندس مواد خبير، قم بتحليل مادة [المادة] المستخدمة في [العنصر الإنشائي] وفق كود [الكود المعتمد].",
+      placeholders: ["المادة", "العنصر الإنشائي", "الكود المعتمد"],
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "tool-2",
+      title: "حاسبة التحمل القصي والميكانيكي للأعمدة الخرسانية",
+      category: "live-web-apps",
+      aiPlatform: "محرك معادلات المنصة",
+      badge: "حساب فوري مباشر",
+      description: "حساب التحمل الاسمي للأعمدة الخرسانية الخاضعة لأحمال مركزية وفق معادلات ACI 318.",
+      variables: [
+        { name: "Ac", label: "مساحة المقطع الخرساني الإجمالي (mm²)", type: "number", unit: "mm²" },
+        { name: "fc", label: "المقاومة المميزة للخرسانة fc' (MPa)", type: "number", unit: "MPa" }
+      ],
+      logic: "(0.85 * fc * Ac) / 1000",
+      validation: "المساحة والمقاومة يجب أن تكون قيماً موجبة أكبر من الصفر",
+      template: "قوة تحمل العمود الاسمية هي: {Result} kN",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "tool-3",
+      title: "برمجية المعالجة الآلية للمخططات الهندسية وحصر الكميات الذكي",
+      category: "automation-software",
+      aiPlatform: "Python SaaS Engine",
+      badge: "أتمتة ذكية",
+      description: "رفع المخططات بمختلف الامتدادات (RVT, IFC, DWG, DXF, PDF) لمعالجتها وتوليد سجلات الحصر والمطابقة الفنية الفورية تلقائياً.",
+      requiredOutputs: ["transmittal-log", "excel-sheet", "gantt-chart", "marked-up-file"],
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "tool-4",
+      title: "روبوت تشخيص العيوب الإنشائية والتحليل المرئي للشروخ الخرسانية",
+      category: "ai-solutions",
+      aiPlatform: "Computer Vision & Deep Learning",
+      badge: "ذكاء اصطناعي موجه",
+      description: "تحليل صور الشروخ والعيوب البصرية وتوليد الخرائط الحرارية (Heatmaps) لتحديد العمق ونسبة الخطورة الفورية.",
+      requiredOutputs: ["heatmap", "status-report", "audit-report"],
+      createdAt: new Date().toISOString(),
+    }
+  ];
+}
 
-let toolRequests = [];
+if (!globalThis.__toolRequests) {
+  globalThis.__toolRequests = [];
+}
 
-// 1. GET: جلب الأدوات أو الطلبات
+// =========================================================================
+// 1. GET: استرجاع الأدوات والطلبات
+// =========================================================================
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -59,32 +84,47 @@ export async function GET(request) {
     const category = searchParams.get("category");
 
     if (type === "requests") {
-      return NextResponse.json({ success: true, data: toolRequests }, { status: 200 });
+      return NextResponse.json({ success: true, data: globalThis.__toolRequests }, { status: 200 });
     }
 
-    let filteredTools = [...softwareTools];
+    let filteredTools = [...globalThis.__softwareTools];
     if (category && category !== "all") {
       filteredTools = filteredTools.filter((t) => t.category === category);
     }
 
-    return NextResponse.json({ success: true, count: filteredTools.length, data: filteredTools }, { status: 200 });
+    return NextResponse.json(
+      {
+        success: true,
+        count: filteredTools.length,
+        data: filteredTools,
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    return NextResponse.json({ success: false, error: "حدث خطأ أثناء جلب البيانات: " + error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "حدث خطأ أثناء جلب البيانات: " + error.message },
+      { status: 500 }
+    );
   }
 }
 
-// 2. POST: إضافة أداة جديدة أو تقديم طلب أداة خاصة
+// =========================================================================
+// 2. POST: إضافة أداة جديدة أو استقبال طلب أداة خاصة
+// =========================================================================
 export async function POST(request) {
   try {
     const body = await request.json();
     const { action } = body;
 
-    // A. تقديم طلب أداة خاصة من الجمهور
+    // A. معالجة طلب أداة برمجية خاصة من الجمهور
     if (action === "request_custom_tool" || body.type === "custom_request") {
       const { name, email, phone, details } = body;
 
       if (!name || !email || !phone || !details) {
-        return NextResponse.json({ success: false, error: "جميع الحقول مطلوبة." }, { status: 400 });
+        return NextResponse.json(
+          { success: false, error: "جميع الحقول (الاسم، الايميل، التلفون، التفاصيل) مطلوبة." },
+          { status: 400 }
+        );
       }
 
       const newRequest = {
@@ -93,41 +133,56 @@ export async function POST(request) {
         email,
         phone,
         details,
-        date: new Date().toLocaleString("ar-SA"),
         createdAt: new Date().toISOString(),
+        date: new Date().toLocaleString("ar-SA"),
       };
 
-      toolRequests.push(newRequest);
+      globalThis.__toolRequests.unshift(newRequest);
 
-      // إرسال البريد الإلكتروني للإدارة
+      // إرسال البريد الإلكتروني للأجهزة والإيميلات الرسمية
       if (process.env.EMAIL_PASS) {
-        const mailOptions = {
-          from: `"منصة الهندسة الذكية" <${process.env.EMAIL_USER || "smartengineering.hr.global@gmail.com"}>`,
-          to: TARGET_EMAILS.join(", "),
-          subject: `📥 طلب أداة برمجية خاصة جديدة من: ${name}`,
-          html: `
-            <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc;">
-              <h2 style="color: #38bdf8;">طلب أداة برمجية جديدة - منصة الهندسة الذكية</h2>
-              <p><strong>الاسم:</strong> ${name}</p>
-              <p><strong>البريد الإلكتروني:</strong> ${email}</p>
-              <p><strong>الهاتف:</strong> ${phone}</p>
-              <hr style="border-color: #334155;" />
-              <h3>التفاصيل الفنية:</h3>
-              <p style="background: #1e293b; padding: 15px; border-radius: 8px;">${details}</p>
-            </div>
-          `,
-        };
-        await transporter.sendMail(mailOptions).catch((err) => console.error("خطأ إرسال البريد:", err));
+        try {
+          const mailOptions = {
+            from: `"منصة الهندسة الذكية" <${process.env.EMAIL_USER || "smartengineering.hr.global@gmail.com"}>`,
+            to: TARGET_EMAILS.join(", "),
+            subject: `📥 طلب أداة برمجية خاصة جديدة من: ${name}`,
+            html: `
+              <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc;">
+                <h2 style="color: #38bdf8;">طلب أداة برمجية جديدة - منصة الهندسة الذكية</h2>
+                <p><strong>اسم المهندس/الجهة:</strong> ${name}</p>
+                <p><strong>البريد الإلكتروني:</strong> ${email}</p>
+                <p><strong>رقم الهاتف:</strong> ${phone}</p>
+                <hr style="border-color: #334155;" />
+                <h3>الشرح والتفاصيل الفنية للأداة المطلوبة:</h3>
+                <p style="background: #1e293b; padding: 15px; border-radius: 8px;">${details}</p>
+                <p style="font-size: 11px; color: #94a3b8;">تاريخ الطلب: ${newRequest.date}</p>
+              </div>
+            `,
+          };
+          await transporter.sendMail(mailOptions);
+        } catch (err) {
+          console.error("خطأ أثناء إرسال البريد الإلكتروني:", err);
+        }
       }
 
-      return NextResponse.json({ success: true, message: "تم إرسال الطلب بنجاح.", data: newRequest }, { status: 201 });
+      return NextResponse.json(
+        {
+          success: true,
+          message: "تم استقبال طلبك بنجاح وحفظه في لوحة الإدارة وإرسال إشعارات البريد.",
+          data: newRequest,
+        },
+        { status: 201 }
+      );
     }
 
-    // B. نشر أداة جديدة من لوحة التحكم
+    // B. معالجة إضافة أداة برمجية جديدة من الأدمن
     const { title, category, badge, aiPlatform, description, secretPrompt, logic, variables, validation, template, placeholders } = body;
 
     if (!title || !category || !description) {
-      return NextResponse.json({ success: false, error: "الحقول الأساسية مطلوبة." }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "يجب تعبئة جميع الحقول الأساسية للنشر (العنوان، التصنيف، الوصف)." },
+        { status: 400 }
+      );
     }
 
     const newTool = {
@@ -146,42 +201,72 @@ export async function POST(request) {
       createdAt: new Date().toISOString(),
     };
 
-    softwareTools.push(newTool);
+    globalThis.__softwareTools.unshift(newTool);
 
-    return NextResponse.json({ success: true, message: "تم نشر الأداة بنجاح.", data: newTool }, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "تم نشر الأداة البرمجية بنجاح وعكسها للجمهور.",
+        data: newTool,
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    return NextResponse.json({ success: false, error: "فشل معالجة الطلب: " + error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "فشل معالجة الطلب: " + error.message },
+      { status: 500 }
+    );
   }
 }
 
-// 3. PUT: تحديث أداة برمجية
+// =========================================================================
+// 3. PUT: تعديل أداة قائمة
+// =========================================================================
 export async function PUT(request) {
   try {
     const body = await request.json();
     const { id, ...updateData } = body;
 
     if (!id) {
-      return NextResponse.json({ success: false, error: "معرف الأداة مطلوب." }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "معرف الأداة (id) مطلوب لإتمام عملية التعديل." },
+        { status: 400 }
+      );
     }
 
-    const index = softwareTools.findIndex((t) => t.id === id);
+    const index = globalThis.__softwareTools.findIndex((t) => t.id === id);
     if (index === -1) {
-      return NextResponse.json({ success: false, error: "الأداة غير موجودة." }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "الأداة البرمجية المطلوبة غير موجودة." },
+        { status: 404 }
+      );
     }
 
-    softwareTools[index] = {
-      ...softwareTools[index],
+    globalThis.__softwareTools[index] = {
+      ...globalThis.__softwareTools[index],
       ...updateData,
       updatedAt: new Date().toISOString(),
     };
 
-    return NextResponse.json({ success: true, message: "تم تحديث الأداة بنجاح.", data: softwareTools[index] }, { status: 200 });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "تم تحديث الأداة البرمجية وعكس التعديلات للجمهور بنجاح.",
+        data: globalThis.__softwareTools[index],
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    return NextResponse.json({ success: false, error: "حدث خطأ أثناء التحديث: " + error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "حدث خطأ أثناء التحديث: " + error.message },
+      { status: 500 }
+    );
   }
 }
 
-// 4. DELETE: حذف أداة أو طلب
+// =========================================================================
+// 4. DELETE: حذف أداة أو طلب مخصص
+// =========================================================================
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -189,17 +274,41 @@ export async function DELETE(request) {
     const type = searchParams.get("type");
 
     if (!id) {
-      return NextResponse.json({ success: false, error: "المعرف مطلوب." }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "معرف العنصر مطلوب لإتمام الحذف." },
+        { status: 400 }
+      );
     }
 
     if (type === "request") {
-      toolRequests = toolRequests.filter((r) => r.id !== id);
-      return NextResponse.json({ success: true, message: "تم حذف الطلب بنجاح." }, { status: 200 });
+      const initLen = globalThis.__toolRequests.length;
+      globalThis.__toolRequests = globalThis.__toolRequests.filter((r) => r.id !== id);
+      
+      if (globalThis.__toolRequests.length === initLen) {
+        return NextResponse.json({ success: false, error: "الطلب غير موجود." }, { status: 404 });
+      }
+
+      return NextResponse.json(
+        { success: true, message: "تمت إزالة الطلب بنجاح من لوحة الإدارة." },
+        { status: 200 }
+      );
     }
 
-    softwareTools = softwareTools.filter((t) => t.id !== id);
-    return NextResponse.json({ success: true, message: "تم حذف الأداة بنجاح." }, { status: 200 });
+    const initLen = globalThis.__softwareTools.length;
+    globalThis.__softwareTools = globalThis.__softwareTools.filter((t) => t.id !== id);
+
+    if (globalThis.__softwareTools.length === initLen) {
+      return NextResponse.json({ success: false, error: "الأداة غير موجودة." }, { status: 404 });
+    }
+
+    return NextResponse.json(
+      { success: true, message: "تم حذف الأداة البرمجية نهائياً من منصة الجمهور." },
+      { status: 200 }
+    );
   } catch (error) {
-    return NextResponse.json({ success: false, error: "حدث خطأ أثناء الحذف: " + error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "حدث خطأ أثناء عملية الحذف: " + error.message },
+      { status: 500 }
+    );
   }
 }
