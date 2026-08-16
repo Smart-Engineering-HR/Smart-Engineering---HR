@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { 
-  ShieldAlert, PlusCircle, Trash2, Edit, Save, Eye, User, Mail, Phone, RefreshCw
-} from "lucide-react";
+import { ShieldAlert, PlusCircle, Trash2, Edit, Save, Eye, User, Mail, Phone, RefreshCw } from "lucide-react";
 
 export default function SoftwareToolsAdmin() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -16,7 +14,7 @@ export default function SoftwareToolsAdmin() {
   const [activeTab, setActiveTab] = useState("tools-list");
   const [loading, setLoading] = useState(false);
 
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     category: "prompt-engineering",
@@ -31,88 +29,69 @@ export default function SoftwareToolsAdmin() {
     template: ""
   });
 
-  // معالجة آمنة تمنع إظهار صفحات HTML في النافذة المنبثقة للخطأ
-  const safeFetchJson = async (url, options = {}) => {
+  const safeFetchJson = async (url: string, options = {}) => {
     try {
       const res = await fetch(url, options);
       const text = await res.text();
-      
       try {
         const parsed = JSON.parse(text);
         return { ok: res.ok, status: res.status, data: parsed };
-      } catch (err) {
-        // في حال أرجع الخادم صفحة HTML (مثل 404 أو 500)
-        return { 
-          ok: false, 
-          status: res.status, 
-          error: `حدث خطأ بالخادم (رمز ${res.status}). يرجى إعادة المحاولة أو التحقق من الربط.` 
-        };
+      } catch {
+        return { ok: false, status: res.status, error: `خطأ بالخادم (${res.status}). يرجى التحقق من الربط.` };
       }
-    } catch (err) {
+    } catch (err: any) {
       return { ok: false, status: 0, error: "تعذر الاتصال بالشبكة: " + err.message };
     }
   };
 
   const fetchTools = async () => {
     setLoading(true);
-    const res = await safeFetchJson("/api/software-tool");
-    if (res.data && res.data.success) {
-      setTools(res.data.data);
-    }
+    const res = await safeFetchJson("/api/software-tools");
+    if (res.data?.success) setTools(res.data.data);
     setLoading(false);
   };
 
   const fetchRequests = async () => {
-    const res = await safeFetchJson("/api/software-tool?type=requests");
-    let serverRequests = (res.data && res.data.success) ? res.data.data : [];
-    
+    const res = await safeFetchJson("/api/software-tools?type=requests");
+    const serverRequests = res.data?.success ? res.data.data : [];
     let localRequests = [];
     try {
       localRequests = JSON.parse(localStorage.getItem("smart_tools_custom_requests") || "[]");
-    } catch(e) {}
+    } catch {}
 
     const merged = [...serverRequests];
-    localRequests.forEach(lr => {
-      if (!merged.some(sr => sr.id === lr.id || (sr.email === lr.email && sr.details === lr.details))) {
-        merged.unshift(lr);
-      }
+    localRequests.forEach((lr: any) => {
+      if (!merged.some((sr: any) => sr.id === lr.id)) merged.unshift(lr);
     });
-
     setRequests(merged);
   };
 
   useEffect(() => {
-    if (localStorage.getItem("smart_admin_logged_in") === "true") {
-      setIsLoggedIn(true);
-    }
+    if (localStorage.getItem("smart_admin_logged_in") === "true") setIsLoggedIn(true);
     fetchTools();
     fetchRequests();
   }, []);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSaveTool = async (e) => {
+  const handleSaveTool = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.description) {
-      alert("الرجاء تعبئة الحقول الأساسية (العنوان والوصف).");
+      alert("يرجى تعبئة العنوان والوصف.");
       return;
     }
 
-    const placeholders = formData.placeholdersInput
-      ? formData.placeholdersInput.split(",").map((p) => p.trim()).filter(Boolean)
-      : [];
-
+    const placeholders = formData.placeholdersInput ? formData.placeholdersInput.split(",").map(p => p.trim()).filter(Boolean) : [];
     let variables = [];
     if (formData.category === "live-web-apps" && formData.variablesInput.trim()) {
       try {
         variables = JSON.parse(formData.variablesInput);
-      } catch (err) {
+      } catch {
         variables = [
-          { name: "Ac", label: "مساحة المقطع (mm²)", type: "number", unit: "mm²" },
-          { name: "fc", label: "مقاومة الخرسانة (MPa)", type: "number", unit: "MPa" }
+          { name: "Ac", label: "مساحة المقطع (mm²)", type: "number" },
+          { name: "fc", label: "مقاومة الخرسانة (MPa)", type: "number" }
         ];
       }
     }
@@ -131,14 +110,14 @@ export default function SoftwareToolsAdmin() {
       template: formData.template
     };
 
-    const res = await safeFetchJson("/api/software-tool", {
+    const res = await safeFetchJson("/api/software-tools", {
       method: editingId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload)
     });
 
-    if (res.data && res.data.success) {
-      alert(editingId ? "تم تعديل الأداة بنجاح!" : "تم نشر الأداة البرمجية بنجاح للجمهور!");
+    if (res.data?.success) {
+      alert(editingId ? "تم تعديل الأداة بنجاح!" : "تم نشر الأداة بنجاح!");
       resetForm();
       setActiveTab("tools-list");
       fetchTools();
@@ -147,7 +126,7 @@ export default function SoftwareToolsAdmin() {
     }
   };
 
-  const handleEditClick = (tool) => {
+  const handleEditClick = (tool: any) => {
     setEditingId(tool.id);
     setFormData({
       title: tool.title || "",
@@ -165,10 +144,10 @@ export default function SoftwareToolsAdmin() {
     setActiveTab("add-tool");
   };
 
-  const handleDeleteClick = async (id) => {
+  const handleDeleteClick = async (id: string) => {
     if (confirm("هل أنت متأكد من حذف هذه الأداة نهائياً؟")) {
-      const res = await safeFetchJson(`/api/software-tool?id=${id}`, { method: "DELETE" });
-      if (res.data && res.data.success) {
+      const res = await safeFetchJson(`/api/software-tools?id=${id}`, { method: "DELETE" });
+      if (res.data?.success) {
         alert("تم الحذف بنجاح.");
         fetchTools();
       } else {
@@ -177,36 +156,27 @@ export default function SoftwareToolsAdmin() {
     }
   };
 
-  const handleDeleteRequest = async (id) => {
+  const handleDeleteRequest = async (id: string) => {
     if (confirm("هل تريد إزالة هذا الطلب؟")) {
-      await safeFetchJson(`/api/software-tool?id=${id}&type=request`, { method: "DELETE" });
+      await safeFetchJson(`/api/software-tools?id=${id}&type=request`, { method: "DELETE" });
       try {
         let local = JSON.parse(localStorage.getItem("smart_tools_custom_requests") || "[]");
-        local = local.filter(r => r.id !== id);
+        local = local.filter((r: any) => r.id !== id);
         localStorage.setItem("smart_tools_custom_requests", JSON.stringify(local));
-      } catch(e) {}
+      } catch {}
       fetchRequests();
     }
   };
 
   const resetForm = () => {
     setFormData({
-      title: "",
-      category: "prompt-engineering",
-      badge: "أداة حصرية",
-      aiPlatform: "ChatGPT / Claude 3",
-      description: "",
-      secretPrompt: "",
-      placeholdersInput: "",
-      logic: "",
-      variablesInput: "",
-      validation: "",
-      template: ""
+      title: "", category: "prompt-engineering", badge: "أداة حصرية", aiPlatform: "ChatGPT / Claude 3",
+      description: "", secretPrompt: "", placeholdersInput: "", logic: "", variablesInput: "", validation: "", template: ""
     });
     setEditingId(null);
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginEmail === "admin@smartacademy.com" && loginPassword === "AdminPassword2026") {
       localStorage.setItem("smart_admin_logged_in", "true");
@@ -269,7 +239,6 @@ export default function SoftwareToolsAdmin() {
           </button>
           <button onClick={() => setActiveTab("received-requests")} className={`px-4 py-2 font-bold text-xs border-b-2 transition-all relative ${activeTab === "received-requests" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400"}`}>
             طلبات الجمهور الخاص المباشرة ({requests.length})
-            {requests.length > 0 && <span className="ml-1 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">جديد</span>}
           </button>
         </div>
 
@@ -290,7 +259,7 @@ export default function SoftwareToolsAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/40">
-                    {tools.map((tool) => (
+                    {tools.map((tool: any) => (
                       <tr key={tool.id} className="hover:bg-slate-800/20">
                         <td className="p-4 font-bold text-white">{tool.title}</td>
                         <td className="p-4 text-slate-400">{tool.category}</td>
@@ -312,7 +281,6 @@ export default function SoftwareToolsAdmin() {
         {activeTab === "add-tool" && (
           <form onSubmit={handleSaveTool} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6 max-w-4xl mx-auto">
             <h2 className="text-lg font-bold text-white">{editingId ? "تعديل أداة" : "نشر أداة برمجية جديدة للجمهور"}</h2>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">العنوان *</label>
@@ -325,7 +293,6 @@ export default function SoftwareToolsAdmin() {
                   <option value="live-web-apps">تطبيقات الويب الحية (Live Web Apps)</option>
                   <option value="automation-software">برمجيات الأتمتة المتقدمة</option>
                   <option value="ai-solutions">حلول الذكاء الاصطناعي</option>
-                  <option value="management-control">الإدارة والتحكم الفني</option>
                 </select>
               </div>
             </div>
@@ -343,13 +310,13 @@ export default function SoftwareToolsAdmin() {
 
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1.5">الوصف الفني *</label>
-              <textarea rows="3" required name="description" value={formData.description} onChange={handleInputChange} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white"></textarea>
+              <textarea rows={3} required name="description" value={formData.description} onChange={handleInputChange} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white"></textarea>
             </div>
 
             {formData.category === "prompt-engineering" && (
               <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-4">
                 <label className="block text-xs font-bold text-blue-400">نص البرومبت السري ([المتغير]):</label>
-                <textarea rows="3" name="secretPrompt" value={formData.secretPrompt} onChange={handleInputChange} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono"></textarea>
+                <textarea rows={3} name="secretPrompt" value={formData.secretPrompt} onChange={handleInputChange} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono"></textarea>
                 <input type="text" name="placeholdersInput" placeholder="المتغيرات مفصولة بفاصلة (مثال: المادة, الكود)" value={formData.placeholdersInput} onChange={handleInputChange} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" />
               </div>
             )}
@@ -375,16 +342,15 @@ export default function SoftwareToolsAdmin() {
             {requests.length === 0 ? (
               <div className="p-8 text-center text-slate-500 text-xs">لا توجد طلبات خاصة حالياً.</div>
             ) : (
-              requests.map((req) => (
+              requests.map((req: any) => (
                 <div key={req.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 relative space-y-3">
                   <button onClick={() => handleDeleteRequest(req.id)} className="absolute left-4 top-4 text-slate-500 hover:text-red-400 p-1"><Trash2 className="h-4 w-4" /></button>
                   <div className="flex flex-wrap gap-4 text-xs font-semibold">
                     <div className="flex items-center gap-1 text-white font-bold"><User className="h-4 w-4 text-blue-400" /><span>{req.name}</span></div>
                     <div className="flex items-center gap-1 text-slate-400"><Mail className="h-4 w-4 text-cyan-400" /><span>{req.email}</span></div>
                     <div className="flex items-center gap-1 text-slate-400"><Phone className="h-4 w-4 text-emerald-400" /><span>{req.phone}</span></div>
-                    <span className="text-[10px] text-slate-500 font-mono mr-auto">{req.date || req.createdAt}</span>
                   </div>
-                  <div className="bg-slate-900 p-3.5 rounded-xl border border-slate-850 text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">{req.details}</div>
+                  <div className="bg-slate-900 p-3.5 rounded-xl border border-slate-800 text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">{req.details}</div>
                 </div>
               ))
             )}

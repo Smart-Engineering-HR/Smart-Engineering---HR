@@ -1,10 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { 
-  Terminal, Cpu, Settings, ShieldAlert, Sliders, ArrowRight, 
-  Search, Copy, CheckCircle2, Upload, HelpCircle, User, Mail, Phone, FileText
-} from "lucide-react";
+import { Terminal, Cpu, Settings, Sliders, Search, Copy, Upload, HelpCircle } from "lucide-react";
 
 export default function SoftwareToolsPublic() {
   const [activeTab, setActiveTab] = useState("all");
@@ -12,26 +9,25 @@ export default function SoftwareToolsPublic() {
   const [tools, setTools] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [activePromptModal, setActivePromptModal] = useState(null);
-  const [promptInputs, setPromptInputs] = useState({});
+  const [activePromptModal, setActivePromptModal] = useState<any>(null);
+  const [promptInputs, setPromptInputs] = useState<Record<string, string>>({});
   
-  const [activeAppModal, setActiveAppModal] = useState(null);
-  const [appInputs, setAppInputs] = useState({});
-  const [appResult, setAppResult] = useState(null);
+  const [activeAppModal, setActiveAppModal] = useState<any>(null);
+  const [appInputs, setAppInputs] = useState<Record<string, string>>({});
+  const [appResult, setAppResult] = useState<any>(null);
 
   const [orderForm, setOrderForm] = useState({ name: "", email: "", phone: "", details: "" });
-  const [orderSubmitted, setOrderSubmitted] = useState(false);
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
   const fetchTools = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/software-tool");
+      const res = await fetch("/api/software-tools");
       const text = await res.text();
       try {
         const data = JSON.parse(text);
         if (data.success) setTools(data.data);
-      } catch(e) {}
+      } catch {}
     } catch (err) {
       console.error(err);
     } finally {
@@ -43,17 +39,17 @@ export default function SoftwareToolsPublic() {
     fetchTools();
   }, []);
 
-  const filteredTools = tools.filter(tool => {
+  const filteredTools = tools.filter((tool: any) => {
     const matchesTab = activeTab === "all" || tool.category === activeTab;
     const matchesSearch = tool.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           tool.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
-  const handleOpenPrompt = (tool) => {
+  const handleOpenPrompt = (tool: any) => {
     setActivePromptModal(tool);
-    const inputs = {};
-    tool.placeholders?.forEach(p => { inputs[p] = ""; });
+    const inputs: Record<string, string> = {};
+    tool.placeholders?.forEach((p: string) => { inputs[p] = ""; });
     setPromptInputs(inputs);
   };
 
@@ -67,10 +63,10 @@ export default function SoftwareToolsPublic() {
     setActivePromptModal(null);
   };
 
-  const handleOpenApp = (tool) => {
+  const handleOpenApp = (tool: any) => {
     setActiveAppModal(tool);
-    const inputs = {};
-    tool.variables?.forEach(v => { inputs[v.name] = ""; });
+    const inputs: Record<string, string> = {};
+    tool.variables?.forEach((v: any) => { inputs[v.name] = ""; });
     setAppInputs(inputs);
     setAppResult(null);
   };
@@ -80,20 +76,19 @@ export default function SoftwareToolsPublic() {
       let logicStr = activeAppModal.logic;
       Object.keys(appInputs).forEach(key => {
         const val = parseFloat(appInputs[key]) || 0;
-        logicStr = logicStr.replaceAll(key, val);
+        logicStr = logicStr.replaceAll(key, val.toString());
       });
       const calcResult = eval(logicStr);
       setAppResult({
         numeric: calcResult.toFixed(2),
-        report: activeAppModal.template ? activeAppModal.template.replace("{Result}", calcResult.toFixed(2)) : `النتيجة المحسوبة هي ${calcResult.toFixed(2)}`
+        report: activeAppModal.template ? activeAppModal.template.replace("{Result}", calcResult.toFixed(2)) : `النتيجة: ${calcResult.toFixed(2)}`
       });
-    } catch (err) {
-      alert("الرجاء التأكد من صحة مدخلات أرقام الحساب.");
+    } catch {
+      alert("يرجى التأكد من صحة المدخلات الحسابية.");
     }
   };
 
-  // إرسال طلب خاص مع حفظ نسخة احتياطية محلية لضمان وصولها للأدمن فوراً
-  const handleOrderSubmit = async (e) => {
+  const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orderForm.name || !orderForm.email || !orderForm.phone || !orderForm.details) {
       alert("جميع الحقول مطلوبة.");
@@ -104,31 +99,26 @@ export default function SoftwareToolsPublic() {
     const newReq = {
       id: "req-" + Date.now(),
       ...orderForm,
-      createdAt: new Date().toISOString(),
-      date: new Date().toLocaleString("ar-SA")
+      createdAt: new Date().toISOString()
     };
 
-    // 1. حفظ في LocalStorage كنسخة احتياطية سريعة للأدمن
     try {
       const existing = JSON.parse(localStorage.getItem("smart_tools_custom_requests") || "[]");
       existing.unshift(newReq);
       localStorage.setItem("smart_tools_custom_requests", JSON.stringify(existing));
-    } catch(err) {}
+    } catch {}
 
-    // 2. الإرسال إلى API السيرفر
     try {
-      await fetch("/api/software-tool", {
+      await fetch("/api/software-tools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "request_custom_tool", ...orderForm })
       });
-    } catch(err) {}
+    } catch {}
 
     setSubmittingOrder(false);
-    setOrderSubmitted(true);
-    alert("تم إرسال وحفظ طلبك بنجاح وسيتلقاه الأدمن في لوحة التحكم!");
+    alert("تم إرسال الطلب بنجاح للإدارة!");
     setOrderForm({ name: "", email: "", phone: "", details: "" });
-    setTimeout(() => setOrderSubmitted(false), 4000);
   };
 
   return (
@@ -144,7 +134,6 @@ export default function SoftwareToolsPublic() {
               <p className="text-slate-400 text-xs mt-1">بوابة البرمجيات والأدوات الهندسيّة التفاعلية</p>
             </div>
           </div>
-          
           <button onClick={() => window.location.href = "/"} className="bg-slate-800 hover:bg-slate-700 text-blue-400 font-bold px-6 py-3 rounded-xl border border-slate-700 text-sm">
             العودة إلى القائمة الرئيسية ↗
           </button>
@@ -157,8 +146,7 @@ export default function SoftwareToolsPublic() {
               { id: "prompt-engineering", label: "هندسة الأوامر الذكية", icon: Terminal },
               { id: "live-web-apps", label: "تطبيقات الويب الحية", icon: Sliders },
               { id: "automation-software", label: "برمجيات الأتمتة المتقدمة", icon: Settings },
-              { id: "ai-solutions", label: "حلول الذكاء الاصطناعي", icon: Cpu },
-              { id: "order-custom", label: "أطلب أداتك البرمجية الخاصة", icon: HelpCircle },
+              { id: "order-custom", label: "أطلب أداتك الخاصة", icon: HelpCircle },
             ].map((tab) => (
               <li key={tab.id}>
                 <button
@@ -179,17 +167,15 @@ export default function SoftwareToolsPublic() {
           <div className="max-w-2xl mx-auto bg-slate-800/90 border border-slate-700 p-8 rounded-3xl shadow-2xl">
             <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
               <HelpCircle className="h-6 w-6 text-blue-400" />
-              <span>طلب بناء وتطوير أداة برمجية هندسية مخصصة</span>
+              <span>طلب بناء وتطوير أداة برمجية مخصصة</span>
             </h2>
-            <p className="text-slate-400 text-xs mb-6">سيتم استقبال الطلب فوراً في لوحة تحكم الأدمن وإرسال إشعار للبريد الإلكتروني.</p>
-
-            <form onSubmit={handleOrderSubmit} className="space-y-4">
+            <form onSubmit={handleOrderSubmit} className="space-y-4 mt-6">
               <input type="text" required placeholder="اسم المهندس أو الشركة *" value={orderForm.name} onChange={e => setOrderForm({...orderForm, name: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input type="email" required placeholder="البريد الإلكتروني *" value={orderForm.email} onChange={e => setOrderForm({...orderForm, email: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white" />
                 <input type="tel" required placeholder="رقم الهاتف/الواتساب *" value={orderForm.phone} onChange={e => setOrderForm({...orderForm, phone: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white" />
               </div>
-              <textarea rows="5" required placeholder="الشرح والتفاصيل الفنية والأدوات المطلوبة *" value={orderForm.details} onChange={e => setOrderForm({...orderForm, details: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white"></textarea>
+              <textarea rows={5} required placeholder="الشرح والتفاصيل الفنية *" value={orderForm.details} onChange={e => setOrderForm({...orderForm, details: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white"></textarea>
               <button type="submit" disabled={submittingOrder} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-xs shadow">
                 {submittingOrder ? "جاري الإرسال..." : "إرسال الطلب فورياً للإدارة"}
               </button>
@@ -199,17 +185,17 @@ export default function SoftwareToolsPublic() {
           <>
             <div className="max-w-xl mx-auto mb-8 relative">
               <Search className="absolute right-4 top-3.5 h-4 w-4 text-slate-400" />
-              <input type="text" placeholder="ابحث عن أداة برمجية..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-2xl pr-11 pl-4 py-3.5 text-xs text-white" />
+              <input type="text" placeholder="ابحث عن أداة..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-2xl pr-11 pl-4 py-3.5 text-xs text-white" />
             </div>
 
             {loading ? (
-              <div className="text-center py-12 text-slate-400 text-xs">جاري جلب البرمجيات...</div>
+              <div className="text-center py-12 text-slate-400 text-xs">جاري التجميل...</div>
             ) : filteredTools.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs">لا توجد أدوات حالياً تحت هذا التبويب.</div>
+              <div className="text-center py-12 text-slate-400 text-xs">لا توجد أدوات حالياً.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredTools.map((tool) => (
-                  <div key={tool.id} className="bg-slate-800/90 border border-slate-700 rounded-2xl p-6 flex flex-col justify-between hover:border-slate-500 transition-all">
+                {filteredTools.map((tool: any) => (
+                  <div key={tool.id} className="bg-slate-800/90 border border-slate-700 rounded-2xl p-6 flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-start mb-3">
                         <span className="bg-blue-500/10 text-blue-400 text-[10px] px-2.5 py-0.5 rounded-full border border-blue-500/20 font-bold">{tool.badge}</span>
@@ -222,7 +208,7 @@ export default function SoftwareToolsPublic() {
                     <div className="pt-4 border-t border-slate-700/60">
                       {tool.category === "prompt-engineering" && (
                         <button onClick={() => handleOpenPrompt(tool)} className="w-full bg-slate-700 hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
-                          <Terminal className="h-4 w-4" /><span>تعبئة وتوليد البرومبت</span>
+                          <Terminal className="h-4 w-4" /><span>توليد البرومبت</span>
                         </button>
                       )}
                       {tool.category === "live-web-apps" && (
@@ -231,8 +217,8 @@ export default function SoftwareToolsPublic() {
                         </button>
                       )}
                       {(tool.category !== "prompt-engineering" && tool.category !== "live-web-apps") && (
-                        <button onClick={() => alert("أداة أتمتة تفاعلية - ارفع الملف للمعالجة")} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
-                          <Upload className="h-4 w-4" /><span>تشغيل الأتمتة المعالجة</span>
+                        <button onClick={() => alert("رفع الملف للمعالجة")} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
+                          <Upload className="h-4 w-4" /><span>تشغيل الأتمتة</span>
                         </button>
                       )}
                     </div>
@@ -243,13 +229,12 @@ export default function SoftwareToolsPublic() {
           </>
         )}
 
-        {/* Modal البرومبت */}
         {activePromptModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6">
               <h3 className="text-base font-bold text-white mb-4">{activePromptModal.title}</h3>
               <div className="space-y-3 mb-6">
-                {activePromptModal.placeholders?.map((p, i) => (
+                {activePromptModal.placeholders?.map((p: string, i: number) => (
                   <div key={i}>
                     <label className="block text-xs font-bold text-slate-300 mb-1">حقل [{p}]:</label>
                     <input type="text" value={promptInputs[p] || ""} onChange={e => setPromptInputs({...promptInputs, [p]: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white" />
@@ -264,13 +249,12 @@ export default function SoftwareToolsPublic() {
           </div>
         )}
 
-        {/* Modal الحاسبة */}
         {activeAppModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6">
               <h3 className="text-base font-bold text-white mb-4">{activeAppModal.title}</h3>
               <div className="space-y-3 mb-4">
-                {activeAppModal.variables?.map((v, i) => (
+                {activeAppModal.variables?.map((v: any, i: number) => (
                   <div key={i} className="flex items-center justify-between gap-4">
                     <label className="text-xs font-bold text-slate-300">{v.label}:</label>
                     <input type="number" value={appInputs[v.name] || ""} onChange={e => setAppInputs({...appInputs, [v.name]: e.target.value})} className="w-28 bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs text-white text-left font-mono" />
