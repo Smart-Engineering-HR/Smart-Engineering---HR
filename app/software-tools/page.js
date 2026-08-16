@@ -9,12 +9,12 @@ export default function SoftwareToolsPublic() {
   const [tools, setTools] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [activePromptModal, setActivePromptModal] = useState<any>(null);
-  const [promptInputs, setPromptInputs] = useState<Record<string, string>>({});
+  const [activePromptModal, setActivePromptModal] = useState(null);
+  const [promptInputs, setPromptInputs] = useState({});
   
-  const [activeAppModal, setActiveAppModal] = useState<any>(null);
-  const [appInputs, setAppInputs] = useState<Record<string, string>>({});
-  const [appResult, setAppResult] = useState<any>(null);
+  const [activeAppModal, setActiveAppModal] = useState(null);
+  const [appInputs, setAppInputs] = useState({});
+  const [appResult, setAppResult] = useState(null);
 
   const [orderForm, setOrderForm] = useState({ name: "", email: "", phone: "", details: "" });
   const [submittingOrder, setSubmittingOrder] = useState(false);
@@ -27,7 +27,7 @@ export default function SoftwareToolsPublic() {
       try {
         const data = JSON.parse(text);
         if (data.success) setTools(data.data);
-      } catch {}
+      } catch (err) {}
     } catch (err) {
       console.error(err);
     } finally {
@@ -39,23 +39,23 @@ export default function SoftwareToolsPublic() {
     fetchTools();
   }, []);
 
-  const filteredTools = tools.filter((tool: any) => {
+  const filteredTools = tools.filter((tool) => {
     const matchesTab = activeTab === "all" || tool.category === activeTab;
     const matchesSearch = tool.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           tool.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
-  const handleOpenPrompt = (tool: any) => {
+  const handleOpenPrompt = (tool) => {
     setActivePromptModal(tool);
-    const inputs: Record<string, string> = {};
-    tool.placeholders?.forEach((p: string) => { inputs[p] = ""; });
+    const inputs = {};
+    tool.placeholders?.forEach((p) => { inputs[p] = ""; });
     setPromptInputs(inputs);
   };
 
   const handleExecutePrompt = () => {
     let finalPrompt = activePromptModal.secretPrompt;
-    Object.keys(promptInputs).forEach(key => {
+    Object.keys(promptInputs).forEach((key) => {
       finalPrompt = finalPrompt.replace(`[${key}]`, promptInputs[key]);
     });
     navigator.clipboard.writeText(finalPrompt);
@@ -63,10 +63,10 @@ export default function SoftwareToolsPublic() {
     setActivePromptModal(null);
   };
 
-  const handleOpenApp = (tool: any) => {
+  const handleOpenApp = (tool) => {
     setActiveAppModal(tool);
-    const inputs: Record<string, string> = {};
-    tool.variables?.forEach((v: any) => { inputs[v.name] = ""; });
+    const inputs = {};
+    tool.variables?.forEach((v) => { inputs[v.name] = ""; });
     setAppInputs(inputs);
     setAppResult(null);
   };
@@ -74,7 +74,7 @@ export default function SoftwareToolsPublic() {
   const handleCalculateApp = () => {
     try {
       let logicStr = activeAppModal.logic;
-      Object.keys(appInputs).forEach(key => {
+      Object.keys(appInputs).forEach((key) => {
         const val = parseFloat(appInputs[key]) || 0;
         logicStr = logicStr.replaceAll(key, val.toString());
       });
@@ -83,12 +83,12 @@ export default function SoftwareToolsPublic() {
         numeric: calcResult.toFixed(2),
         report: activeAppModal.template ? activeAppModal.template.replace("{Result}", calcResult.toFixed(2)) : `النتيجة: ${calcResult.toFixed(2)}`
       });
-    } catch {
+    } catch (err) {
       alert("يرجى التأكد من صحة المدخلات الحسابية.");
     }
   };
 
-  const handleOrderSubmit = async (e: React.FormEvent) => {
+  const handleOrderSubmit = async (e) => {
     e.preventDefault();
     if (!orderForm.name || !orderForm.email || !orderForm.phone || !orderForm.details) {
       alert("جميع الحقول مطلوبة.");
@@ -106,7 +106,7 @@ export default function SoftwareToolsPublic() {
       const existing = JSON.parse(localStorage.getItem("smart_tools_custom_requests") || "[]");
       existing.unshift(newReq);
       localStorage.setItem("smart_tools_custom_requests", JSON.stringify(existing));
-    } catch {}
+    } catch (err) {}
 
     try {
       await fetch("/api/software-tools", {
@@ -114,7 +114,7 @@ export default function SoftwareToolsPublic() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "request_custom_tool", ...orderForm })
       });
-    } catch {}
+    } catch (err) {}
 
     setSubmittingOrder(false);
     alert("تم إرسال الطلب بنجاح للإدارة!");
@@ -170,12 +170,12 @@ export default function SoftwareToolsPublic() {
               <span>طلب بناء وتطوير أداة برمجية مخصصة</span>
             </h2>
             <form onSubmit={handleOrderSubmit} className="space-y-4 mt-6">
-              <input type="text" required placeholder="اسم المهندس أو الشركة *" value={orderForm.name} onChange={e => setOrderForm({...orderForm, name: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white" />
+              <input type="text" required placeholder="اسم المهندس أو الشركة *" value={orderForm.name} onChange={(e) => setOrderForm({...orderForm, name: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="email" required placeholder="البريد الإلكتروني *" value={orderForm.email} onChange={e => setOrderForm({...orderForm, email: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white" />
-                <input type="tel" required placeholder="رقم الهاتف/الواتساب *" value={orderForm.phone} onChange={e => setOrderForm({...orderForm, phone: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white" />
+                <input type="email" required placeholder="البريد الإلكتروني *" value={orderForm.email} onChange={(e) => setOrderForm({...orderForm, email: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white" />
+                <input type="tel" required placeholder="رقم الهاتف/الواتساب *" value={orderForm.phone} onChange={(e) => setOrderForm({...orderForm, phone: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white" />
               </div>
-              <textarea rows={5} required placeholder="الشرح والتفاصيل الفنية *" value={orderForm.details} onChange={e => setOrderForm({...orderForm, details: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white"></textarea>
+              <textarea rows={5} required placeholder="الشرح والتفاصيل الفنية *" value={orderForm.details} onChange={(e) => setOrderForm({...orderForm, details: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white"></textarea>
               <button type="submit" disabled={submittingOrder} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-xs shadow">
                 {submittingOrder ? "جاري الإرسال..." : "إرسال الطلب فورياً للإدارة"}
               </button>
@@ -189,12 +189,12 @@ export default function SoftwareToolsPublic() {
             </div>
 
             {loading ? (
-              <div className="text-center py-12 text-slate-400 text-xs">جاري التجميل...</div>
+              <div className="text-center py-12 text-slate-400 text-xs">جاري التحميل...</div>
             ) : filteredTools.length === 0 ? (
               <div className="text-center py-12 text-slate-400 text-xs">لا توجد أدوات حالياً.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredTools.map((tool: any) => (
+                {filteredTools.map((tool) => (
                   <div key={tool.id} className="bg-slate-800/90 border border-slate-700 rounded-2xl p-6 flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-start mb-3">
@@ -234,10 +234,10 @@ export default function SoftwareToolsPublic() {
             <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6">
               <h3 className="text-base font-bold text-white mb-4">{activePromptModal.title}</h3>
               <div className="space-y-3 mb-6">
-                {activePromptModal.placeholders?.map((p: string, i: number) => (
+                {activePromptModal.placeholders?.map((p, i) => (
                   <div key={i}>
                     <label className="block text-xs font-bold text-slate-300 mb-1">حقل [{p}]:</label>
-                    <input type="text" value={promptInputs[p] || ""} onChange={e => setPromptInputs({...promptInputs, [p]: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white" />
+                    <input type="text" value={promptInputs[p] || ""} onChange={(e) => setPromptInputs({...promptInputs, [p]: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white" />
                   </div>
                 ))}
               </div>
@@ -254,10 +254,10 @@ export default function SoftwareToolsPublic() {
             <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6">
               <h3 className="text-base font-bold text-white mb-4">{activeAppModal.title}</h3>
               <div className="space-y-3 mb-4">
-                {activeAppModal.variables?.map((v: any, i: number) => (
+                {activeAppModal.variables?.map((v, i) => (
                   <div key={i} className="flex items-center justify-between gap-4">
                     <label className="text-xs font-bold text-slate-300">{v.label}:</label>
-                    <input type="number" value={appInputs[v.name] || ""} onChange={e => setAppInputs({...appInputs, [v.name]: e.target.value})} className="w-28 bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs text-white text-left font-mono" />
+                    <input type="number" value={appInputs[v.name] || ""} onChange={(e) => setAppInputs({...appInputs, [v.name]: e.target.value})} className="w-28 bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs text-white text-left font-mono" />
                   </div>
                 ))}
               </div>
