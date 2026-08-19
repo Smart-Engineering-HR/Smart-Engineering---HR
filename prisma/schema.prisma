@@ -63,6 +63,8 @@ model Advertisement {
   email         String
   address       String?
   website       String?
+  type          String?  // 👈 إرجاع العمود
+  is_published  Boolean? @default(false) // 👈 إرجاع العمود
   advertiseType String
   moreInfo      String?
   status        String   @default("PENDING")
@@ -72,17 +74,19 @@ model Advertisement {
 // ==========================================
 // 4. قسم الأكاديمية والتدريب
 // ==========================================
-
 model AcademyItem {
   id          String   @id @default(uuid())
   category    String
   title       String
   subCategory String?
+  description String?  // 👈 إرجاع العمود لتجنب حذفه
   details     String   @db.Text
   status      String   @default("APPROVED")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+
 
 model TrainingItem {
   id            String                 @id @default(uuid())
