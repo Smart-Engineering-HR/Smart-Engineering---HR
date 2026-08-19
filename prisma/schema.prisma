@@ -155,7 +155,7 @@ model AcademyApplication {
 }
 
 // ==========================================
-// 6. المكتبة والبرمجيات
+// 6. المكتبة والبرمجيات (محدثة لدعم قاعدة البيانات الدائمة)
 // ==========================================
 
 model StructuralCode {
@@ -167,14 +167,29 @@ model StructuralCode {
 }
 
 model SoftwareTool {
+  id           String   @id @default(uuid())
+  title        String
+  category     String
+  stage        String   @default("design") // design, execution, technical-office
+  badge        String   @default("مجانية") // مجانية, تجريبية, Pro
+  aiPlatform   String   @default("محرك المنصة")
+  description  String   @db.Text
+  secretPrompt String?  @db.Text
+  placeholders String[] @default([])
+  logic        String?  @db.Text
+  variables    Json?
+  videoUrl     String?
+  pdfPath      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model SoftwareToolRequest {
   id        String   @id @default(uuid())
-  title     String
-  subTitle  String
-  badge     String
-  phase     String
-  category  String
-  videoUrl  String?
-  pdfPath   String?
+  name      String
+  email     String
+  phone     String
+  details   String   @db.Text
   createdAt DateTime @default(now())
 }
 
