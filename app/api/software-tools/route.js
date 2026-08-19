@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
@@ -15,101 +16,7 @@ const TARGET_EMAILS = [
   "smartengineering.hr.global@gmail.com",
 ];
 
-let softwareTools = [
-  {
-    id: "tool-prompt-1",
-    title: "مكتبة برومبتات تحليل المخططات وتقارير التربة",
-    category: "prompt-engineering",
-    stage: "design",
-    badge: "مجانية",
-    aiPlatform: "ChatGPT / Claude 3",
-    description: "توليد أوامر برمجية دقيقة لتحليل نتائج اختبارات التربة ومطابقة التصميم الإنشائي مع الكود الهندسي.",
-    secretPrompt: "أنت خبير تربة وإنشاءات. قم بتحليل التقرير للمساحة [input_area] م² بحد أقصى للميزانية [input_price] $.",
-    placeholders: ["input_area", "input_price"],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tool-app-1",
-    title: "حاسبة الأعمدة والكمرات الخرسانية التفاعلية",
-    category: "live-web-apps",
-    stage: "execution",
-    badge: "Pro",
-    aiPlatform: "Live Engine",
-    description: "حساب قدرة تحمل الأعمدة والتحقق من نسبة التسليح وإجهاد الضغط فورياً داخل المتصفح.",
-    variables: [
-      { name: "b", label: "عرض العمود (مم)", type: "number", default: 300 },
-      { name: "h", label: "عمق العمود (مم)", type: "number", default: 600 },
-      { name: "fc", label: "مقاومة الخرسانة fc' (MPa)", type: "number", default: 30 },
-      { name: "fy", label: "حديد التسليح fy (MPa)", type: "number", default: 420 },
-    ],
-    logic: "((0.85 * fc * (b * h)) + (0.01 * (b * h) * fy)) / 1000",
-    template: "أقصى حمل مسموح للعمود: {Result} kN",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tool-auto-1",
-    title: "سكربت Python لحصر كميات Revit و AutoCAD",
-    category: "automation-software",
-    stage: "technical-office",
-    badge: "تجريبية",
-    aiPlatform: "Python / Revit API",
-    description: "أداة أتمتة لتصدير جداول حصر الخرسانة وحديد التسليح مباشرة إلى ملفات Excel بضغطة زر.",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tool-ai-1",
-    title: "فاحص التعارضات واكتشاف الأخطاء بالذكاء الاصطناعي",
-    category: "ai-solutions",
-    stage: "design",
-    badge: "Pro",
-    aiPlatform: "AI Computer Vision",
-    description: "رفع ملفات PDF / DWG واكتشاف التعارضات الهندسية وأخطاء الأبعاد وشبكات التكييف تلقائياً.",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tool-mgmt-1",
-    title: "نظام إدارة المكتب الفني وتتبع المناقصات",
-    category: "management-control",
-    stage: "technical-office",
-    badge: "مجانية",
-    aiPlatform: "SaaS Dashboard Engine",
-    description: "لوحة تحكم كاملة لإدارة المشاريع، متابعة المستخلصات، وسجلات الموارد البشرية والعمالة الميدانية.",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tool-calc-1",
-    title: "حاسبة حديد التسليح والأحمال الهندسية الشاملة",
-    category: "quick-calculators",
-    stage: "execution",
-    badge: "مجانية",
-    aiPlatform: "Smart Calc Engine",
-    description: "حاسبات مدنية، كهربائية، ميكانيكية والمعمارية للحساب السريع للكميات والمساحات والأحمال.",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tool-ai-engineer-1",
-    title: "المهندس الذكي AI لإدارة الاستفسارات وتوليد الحلول",
-    category: "ai-engineer",
-    stage: "design",
-    badge: "Pro",
-    aiPlatform: "AI Specialized Assistant",
-    description: "مساعد هندسي متخصص في الهندسة المدنية، المعمارية، الكهربائية، الميكانيكية، وBIM.",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "tool-converter-1",
-    title: "محول صيغ ملفات CAD/BIM والوحدات الهندسية",
-    category: "file-converter",
-    stage: "technical-office",
-    badge: "مجانية",
-    aiPlatform: "CAD Multi-Converter",
-    description: "تحويل ملفات DWG/DXF/PDF إلى Excel/CSV، وتحويل كافة الوحدات الهندسية المعقدة.",
-    createdAt: new Date().toISOString(),
-  }
-];
-
-let toolRequests = [];
-
+// 1. جلب البيانات من قاعدة البيانات الدائمة
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -117,29 +24,37 @@ export async function GET(request) {
     const category = searchParams.get("category");
     const stage = searchParams.get("stage");
 
+    // جلب طلبات الأدوات المخصصة
     if (type === "requests") {
-      return NextResponse.json({ success: true, data: toolRequests }, { status: 200 });
+      const requests = await prisma.softwareToolRequest.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+      return NextResponse.json({ success: true, data: requests }, { status: 200 });
     }
 
-    let filtered = [...softwareTools];
-    if (category && category !== "all") {
-      filtered = filtered.filter((t) => t.category === category);
-    }
-    if (stage && stage !== "all") {
-      filtered = filtered.filter((t) => t.stage === stage);
-    }
+    // بناء محددات التصفية
+    const where = {};
+    if (category && category !== "all") where.category = category;
+    if (stage && stage !== "all") where.stage = stage;
 
-    return NextResponse.json({ success: true, count: filtered.length, data: filtered }, { status: 200 });
+    const tools = await prisma.softwareTool.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ success: true, count: tools.length, data: tools }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
+// 2. إضافة أداة جديدة أو تسجيل طلب خاص
 export async function POST(request) {
   try {
     const body = await request.json();
     const { action } = body;
 
+    // طلب أداة برمجية خاصة من الزائر
     if (action === "request_custom_tool" || body.type === "custom_request") {
       const { name, email, phone, details } = body;
 
@@ -147,16 +62,9 @@ export async function POST(request) {
         return NextResponse.json({ success: false, error: "يرجى تعبئة جميع الحقول المطلوبة." }, { status: 400 });
       }
 
-      const newRequest = {
-        id: "req-" + Date.now(),
-        name,
-        email,
-        phone,
-        details,
-        createdAt: new Date().toLocaleString("ar-SA"),
-      };
-
-      toolRequests.unshift(newRequest);
+      const newRequest = await prisma.softwareToolRequest.create({
+        data: { name, email, phone, details },
+      });
 
       if (process.env.EMAIL_PASS) {
         const mailOptions = {
@@ -183,70 +91,91 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: "تم تسجيل الطلب وإرسال الإشعارات البريدية للإدارة.", data: newRequest }, { status: 201 });
     }
 
+    // معالجة أسئلة مساعد الذكاء الاصطناعي
     if (action === "ai_engineer_chat") {
       const { specialization, prompt } = body;
       const responseText = `بصفتي ${specialization || "المهندس الذكي AI"}، تم تحليل طلبك: "${prompt}".\n\n1. التحليل الفني: يتم استخدام المعادلات المعيارية ومطابقتها مع الكود.\n2. النتيجة الإنشائية: إمكانية التنفيذ ممتازة بناءً على المعايير المعتمدة.`;
       return NextResponse.json({ success: true, answer: responseText });
     }
 
+    // إضافة أداة جديدة من الأدمن
     const { title, category, stage, badge, aiPlatform, description, secretPrompt, logic, variables, placeholders } = body;
 
     if (!title || !category || !description) {
       return NextResponse.json({ success: false, error: "يرجى تعبئة الحقول الأساسية للأداة." }, { status: 400 });
     }
 
-    const newTool = {
-      id: "tool-" + Date.now(),
-      title,
-      category,
-      stage: stage || "design",
-      badge: badge || "مجانية",
-      aiPlatform: aiPlatform || "محرك المنصة",
-      description,
-      secretPrompt: secretPrompt || "",
-      placeholders: placeholders || [],
-      logic: logic || "",
-      variables: variables || [],
-      createdAt: new Date().toISOString(),
-    };
+    const newTool = await prisma.softwareTool.create({
+      data: {
+        title,
+        category,
+        stage: stage || "design",
+        badge: badge || "مجانية",
+        aiPlatform: aiPlatform || "محرك المنصة",
+        description,
+        secretPrompt: secretPrompt || "",
+        placeholders: Array.isArray(placeholders) ? placeholders : [],
+        logic: logic || "",
+        variables: variables ? JSON.parse(JSON.stringify(variables)) : null,
+      },
+    });
 
-    softwareTools.unshift(newTool);
-    return NextResponse.json({ success: true, message: "تم نشر الأداة للجمهور بنجاح.", data: newTool }, { status: 201 });
+    return NextResponse.json({ success: true, message: "تم حفظ ونشر الأداة في قاعدة البيانات بنجاح.", data: newTool }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
+// 3. تعديل أداة موجودة في قاعدة البيانات
 export async function PUT(request) {
   try {
     const body = await request.json();
     const { id, ...updateData } = body;
 
-    const index = softwareTools.findIndex((t) => t.id === id);
-    if (index === -1) {
-      return NextResponse.json({ success: false, error: "الأداة غير موجودة." }, { status: 404 });
+    if (!id) {
+      return NextResponse.json({ success: false, error: "المعرف (ID) مطلوب لتحديث البيانات." }, { status: 400 });
     }
 
-    softwareTools[index] = { ...softwareTools[index], ...updateData, updatedAt: new Date().toISOString() };
-    return NextResponse.json({ success: true, message: "تم تحديث الأداة ومزامنتها فورياً.", data: softwareTools[index] }, { status: 200 });
+    const updatedTool = await prisma.softwareTool.update({
+      where: { id },
+      data: {
+        title: updateData.title,
+        category: updateData.category,
+        stage: updateData.stage,
+        badge: updateData.badge,
+        aiPlatform: updateData.aiPlatform,
+        description: updateData.description,
+        secretPrompt: updateData.secretPrompt,
+        placeholders: Array.isArray(updateData.placeholders) ? updateData.placeholders : [],
+        logic: updateData.logic,
+        variables: updateData.variables ? JSON.parse(JSON.stringify(updateData.variables)) : undefined,
+      },
+    });
+
+    return NextResponse.json({ success: true, message: "تم تحديث الأداة دائمياً.", data: updatedTool }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
+// 4. حذف أداة أو طلب مخصص
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const type = searchParams.get("type");
 
-    if (type === "request") {
-      toolRequests = toolRequests.filter((r) => r.id !== id);
-      return NextResponse.json({ success: true, message: "تم حذف الطلب المخصص." }, { status: 200 });
+    if (!id) {
+      return NextResponse.json({ success: false, error: "المعرف (ID) مطلوب للحذف." }, { status: 400 });
     }
 
-    softwareTools = softwareTools.filter((t) => t.id !== id);
-    return NextResponse.json({ success: true, message: "تم حذف الأداة بنجاح." }, { status: 200 });
+    if (type === "request") {
+      await prisma.softwareToolRequest.delete({ where: { id } });
+      return NextResponse.json({ success: true, message: "تم حذف الطلب المخصص من قاعدة البيانات." }, { status: 200 });
+    }
+
+    await prisma.softwareTool.delete({ where: { id } });
+    return NextResponse.json({ success: true, message: "تم حذف الأداة من قاعدة البيانات بنجاح." }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
