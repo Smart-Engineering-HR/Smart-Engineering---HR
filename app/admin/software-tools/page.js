@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ShieldAlert, PlusCircle, Trash2, Edit, Save, Eye } from "lucide-react";
+import { ShieldAlert, PlusCircle, Trash2, Edit, Save, Eye, Code, Sliders } from "lucide-react";
 
 export default function SoftwareToolsAdmin() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -23,6 +23,8 @@ export default function SoftwareToolsAdmin() {
     description: "",
     secretPrompt: "",
     placeholdersInput: "input_area, input_price",
+    logic: "",
+    variablesInput: `[{"name":"b","label":"عرض القطاع (mm)","default":300},{"name":"h","label":"عمق القطاع (mm)","default":600}]`
   });
 
   const fetchData = async () => {
@@ -56,7 +58,18 @@ export default function SoftwareToolsAdmin() {
     }
 
     const placeholders = formData.placeholdersInput ? formData.placeholdersInput.split(",").map(p => p.trim()) : [];
-    const payload = { ...formData, placeholders };
+    
+    let variables = null;
+    try {
+      if (formData.variablesInput) {
+        variables = JSON.parse(formData.variablesInput);
+      }
+    } catch (err) {
+      alert("صيغة المتغيرات JSON غير صحيحة.");
+      return;
+    }
+
+    const payload = { ...formData, placeholders, variables };
     const method = editingId ? "PUT" : "POST";
     if (editingId) payload.id = editingId;
 
@@ -68,7 +81,7 @@ export default function SoftwareToolsAdmin() {
 
     const result = await res.json();
     if (result.success) {
-      alert(editingId ? "تم تحديث الأداة فورياً للجمهور!" : "تم نشر الأداة بنجاح!");
+      alert(editingId ? "تم تحديث الأداة فورياً وتفعيلها للجمهور!" : "تم نشر الأداة بنجاح!");
       resetForm();
       fetchData();
       setActiveTab("tools-list");
@@ -106,6 +119,8 @@ export default function SoftwareToolsAdmin() {
       description: "",
       secretPrompt: "",
       placeholdersInput: "input_area, input_price",
+      logic: "",
+      variablesInput: `[{"name":"b","label":"عرض القطاع (mm)","default":300},{"name":"h","label":"عمق القطاع (mm)","default":600}]`
     });
     setEditingId(null);
   };
@@ -147,7 +162,7 @@ export default function SoftwareToolsAdmin() {
             </div>
             <div>
               <h1 className="text-2xl font-black text-white">لوحة تحكم برمجيات وأدوات منصة الهندسة الذكية</h1>
-              <p className="text-slate-400 text-xs">إضافة، تعديل، حذف الأدوات واستقبال طلبات الجمهور المباشرة</p>
+              <p className="text-slate-400 text-xs">إضافة وتفعيل الأدوات للأقسام A إلى H وإدارة الطلبات</p>
             </div>
           </div>
 
@@ -168,7 +183,7 @@ export default function SoftwareToolsAdmin() {
             الأدوات المنشورة ({tools.length})
           </button>
           <button onClick={() => setActiveTab("add-tool")} className={`px-4 py-2 font-bold text-xs border-b-2 whitespace-nowrap ${activeTab === "add-tool" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400"}`}>
-            {editingId ? "تعديل الأداة الحالية" : "نشر أداة جديدة"}
+            {editingId ? "تعديل أداة وتفعيلها" : "نشر أداة جديدة"}
           </button>
           <button onClick={() => setActiveTab("received-requests")} className={`px-4 py-2 font-bold text-xs border-b-2 whitespace-nowrap ${activeTab === "received-requests" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400"}`}>
             طلبات الأدوات المستلمة ({requests.length})
@@ -195,7 +210,15 @@ export default function SoftwareToolsAdmin() {
                     <td className="p-4 text-slate-400">{tool.stage}</td>
                     <td className="p-4"><span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-[10px]">{tool.badge}</span></td>
                     <td className="p-4 text-center">
-                      <button onClick={() => { setEditingId(tool.id); setFormData({...tool, placeholdersInput: tool.placeholders?.join(", ") || ""}); setActiveTab("add-tool"); }} className="p-1.5 text-blue-400 hover:text-white"><Edit className="h-4 w-4" /></button>
+                      <button onClick={() => { 
+                        setEditingId(tool.id); 
+                        setFormData({
+                          ...tool, 
+                          placeholdersInput: tool.placeholders?.join(", ") || "",
+                          variablesInput: tool.variables ? JSON.stringify(tool.variables) : ""
+                        }); 
+                        setActiveTab("add-tool"); 
+                      }} className="p-1.5 text-blue-400 hover:text-white"><Edit className="h-4 w-4" /></button>
                       <button onClick={() => handleDeleteClick(tool.id)} className="p-1.5 text-red-400 hover:text-white"><Trash2 className="h-4 w-4" /></button>
                     </td>
                   </tr>
@@ -207,7 +230,7 @@ export default function SoftwareToolsAdmin() {
 
         {activeTab === "add-tool" && (
           <form onSubmit={handleSaveTool} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 max-w-3xl mx-auto">
-            <h3 className="text-sm font-bold text-blue-400 mb-2">{editingId ? "تعديل أداة منشورة" : "إدراج ونشر أداة جديدة للجمهور"}</h3>
+            <h3 className="text-sm font-bold text-blue-400 mb-2">{editingId ? "تعديل أداة وتجهيزها للجمهور" : "إدراج ونشر أداة جديدة للجمهور"}</h3>
             <input type="text" required name="title" value={formData.title} onChange={handleInputChange} placeholder="عنوان الأداة" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white" />
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -235,17 +258,33 @@ export default function SoftwareToolsAdmin() {
               </select>
             </div>
 
-            <textarea rows="3" required name="description" value={formData.description} onChange={handleInputChange} placeholder="الوصف الفني للأداة" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white"></textarea>
+            <textarea rows="3" required name="description" value={formData.description} onChange={handleInputChange} placeholder="الوصف الفني للأداة..." className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white"></textarea>
 
+            {/* Config: Prompt Engineering */}
             {formData.category === "prompt-engineering" && (
               <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
-                <h4 className="text-xs font-bold text-cyan-400">إعدادات قالب البرومبت</h4>
-                <textarea rows="3" name="secretPrompt" value={formData.secretPrompt} onChange={handleInputChange} placeholder="قالب البرومبت الذكي..." className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white"></textarea>
-                <input type="text" name="placeholdersInput" value={formData.placeholdersInput} onChange={handleInputChange} placeholder="الحقول المحددة (input_area, input_price)" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" />
+                <h4 className="text-xs font-bold text-cyan-400">إعدادات قالب البرومبت الذكي</h4>
+                <textarea rows="3" name="secretPrompt" value={formData.secretPrompt} onChange={handleInputChange} placeholder="أدخل البرومبت وميز المتغيرات بين أقواس مثل: [input_area], [input_price]..." className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white"></textarea>
+                <input type="text" name="placeholdersInput" value={formData.placeholdersInput} onChange={handleInputChange} placeholder="أسماء المتغيرات مفصولة بفارزة (مثال: input_area, input_price)" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" />
               </div>
             )}
 
-            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-xs"><Save className="h-4 w-4 inline ml-1" /> حفظ ونشر الأداة فورياً</button>
+            {/* Config: Live Web Apps & Calculators Logic */}
+            {(formData.category === "live-web-apps" || formData.category === "quick-calculators") && (
+              <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <h4 className="text-xs font-bold text-cyan-400 flex items-center gap-1.5"><Code className="h-4 w-4"/> إعدادات المعادلة الحسابية والمتغيرات (Live Logic)</h4>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">صيغة المعادلة البرمجية (JS Logic Expression)</label>
+                  <input type="text" name="logic" value={formData.logic} onChange={handleInputChange} placeholder="مثال: (0.85 * fc * b * h + 0.01 * b * h * fy) / 1000" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">تعريف المتغيرات وقيمها الافتراضية (JSON format)</label>
+                  <textarea rows="3" name="variablesInput" value={formData.variablesInput} onChange={handleInputChange} placeholder='[{"name":"b","label":"عرض القطاع (mm)","default":300}]' className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white font-mono"></textarea>
+                </div>
+              </div>
+            )}
+
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-xs transition-all"><Save className="h-4 w-4 inline ml-1" /> حفظ ونشر الأداة فورياً للجمهور</button>
           </form>
         )}
 
@@ -259,7 +298,7 @@ export default function SoftwareToolsAdmin() {
                   <button onClick={() => handleDeleteRequest(req.id)} className="absolute left-4 top-4 text-red-400 hover:text-white"><Trash2 className="h-4 w-4" /></button>
                   <p className="text-xs font-bold text-blue-400">{req.name} ({req.email} | {req.phone})</p>
                   <p className="text-[10px] text-slate-500">{req.createdAt}</p>
-                  <p className="text-xs text-slate-200 bg-slate-950 p-3 rounded-xl border border-slate-800 mt-2">{req.details}</p>
+                  <p className="text-xs text-slate-200 bg-slate-950 p-3 rounded-xl border border-slate-800 mt-2 leading-relaxed">{req.details}</p>
                 </div>
               ))
             )}

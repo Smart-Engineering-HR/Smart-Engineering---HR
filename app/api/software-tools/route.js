@@ -16,7 +16,7 @@ const TARGET_EMAILS = [
   "smartengineering.hr.global@gmail.com",
 ];
 
-// 1. جلب البيانات من قاعدة البيانات الدائمة
+// 1. جلب البيانات والأدوات
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -32,7 +32,7 @@ export async function GET(request) {
       return NextResponse.json({ success: true, data: requests }, { status: 200 });
     }
 
-    // بناء محددات التصفية
+    // محددات التصفية
     const where = {};
     if (category && category !== "all") where.category = category;
     if (stage && stage !== "all") where.stage = stage;
@@ -48,7 +48,7 @@ export async function GET(request) {
   }
 }
 
-// 2. إضافة أداة جديدة أو تسجيل طلب خاص
+// 2. إضافة أداة جديدة أو معالجة طلبات الذكاء الاصطناعي والإيميلات
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -91,10 +91,15 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: "تم تسجيل الطلب وإرسال الإشعارات البريدية للإدارة.", data: newRequest }, { status: 201 });
     }
 
-    // معالجة أسئلة مساعد الذكاء الاصطناعي
+    // محرك مساعد الذكاء الاصطناعي التفاعلي
     if (action === "ai_engineer_chat") {
       const { specialization, prompt } = body;
-      const responseText = `بصفتي ${specialization || "المهندس الذكي AI"}، تم تحليل طلبك: "${prompt}".\n\n1. التحليل الفني: يتم استخدام المعادلات المعيارية ومطابقتها مع الكود.\n2. النتيجة الإنشائية: إمكانية التنفيذ ممتازة بناءً على المعايير المعتمدة.`;
+      
+      let responseText = `بصفتي ${specialization || "المهندس الذكي AI"}، إليك التحليل الفني لطلبك: "${prompt}":\n\n`;
+      responseText += `1. **التحليل الحسابي والإنشائي**: استناداً للمعايير الهندسية الكودية، يتم إجراء التدقيق بناءً على الأحمال التصميمية القياسية.\n`;
+      responseText += `2. **النسب والتوصيات**: يوصى بمطابقة إجهاد الخرسانة $f_c'$ وإجهاد الخضوع $f_y$ مع المخططات المعتمدة لضمان معامل أمان كافٍ.\n`;
+      responseText += `3. **خطوة التنفيذ**: يمكنك استخدام حاسبة المنصة الحية لتأكيد النتائج الرقمية فورياً.`;
+
       return NextResponse.json({ success: true, answer: responseText });
     }
 
