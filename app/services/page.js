@@ -8,7 +8,6 @@ import {
   Cpu, 
   GraduationCap, 
   CheckCircle, 
-  Phone, 
   Mail, 
   Calendar, 
   FileText, 
@@ -26,7 +25,8 @@ export default function ServicesPublicPage() {
     academy: []
   });
 
-  useEffect(() => {
+  // دالة جلب البيانات مع ضمان الأولوية للتعديلات المخزنة
+  const fetchLatestServices = () => {
     const savedData = localStorage.getItem('smart_engineering_services');
     if (savedData) {
       try {
@@ -38,18 +38,18 @@ export default function ServicesPublicPage() {
           academy: parsed.academy || []
         });
       } catch (e) {
-        console.error("Error parsing services data", e);
-        loadDefaults();
+        console.error("Error parsing stored services:", e);
+        loadDefaultServices();
       }
     } else {
-      loadDefaults();
+      loadDefaultServices();
     }
-  }, []);
+  };
 
-  const loadDefaults = () => {
+  const loadDefaultServices = () => {
     const defaultServices = {
       structural: [
-        { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'تصميم المنشآت الخرسانية والمعدنية وفق الأكواد العالمية مثل (ACI, BS, Eurocodes).' },
+        { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'تصميم المنشآت الخرسانية والمعدنية وفق الأكواد العالمية (ACI, BS, Eurocodes).' },
         { id: 's2', title: 'مراجعة وتدقيق المخططات (Third Party)', desc: 'تقديم خدمة التدقيق الفني لضمان السلامة وتقليل التكاليف.' },
         { id: 's3', title: 'حساب الكميات وتقدير التكلفة (QS)', desc: 'إعداد جداول الكميات (BOQ) بدقة عالية.' },
         { id: 's4', title: 'تقييم وتدعيم المنشآت', desc: 'دراسة المباني القائمة وتقديم حلول التدعيم الإنشائي.' }
@@ -74,10 +74,24 @@ export default function ServicesPublicPage() {
     setServicesData(defaultServices);
   };
 
+  useEffect(() => {
+    fetchLatestServices();
+
+    // الاستماع للتغييرات الفورية الصادرة من لوحة التحكم في تبويب آخر
+    const handleStorageChange = (e) => {
+      if (e.key === 'smart_engineering_services') {
+        fetchLatestServices();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const [selectedService, setSelectedService] = useState(null);
   const [activeTab, setActiveTab] = useState('consultation');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [notification, setNotification] = useState('');
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -85,11 +99,8 @@ export default function ServicesPublicPage() {
     subject: 'استشارة هندسية',
     customSubject: '',
     message: '',
-    dateTime: '',
-    file: null
+    dateTime: ''
   });
-
-  const [notification, setNotification] = useState('');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -120,19 +131,19 @@ export default function ServicesPublicPage() {
     };
 
     try {
-      // إرسال الطلب عبر الـ API
+      // 1. حفظ الطلب في الـ LocalStorage ليظهر فوراً للأدمن
+      const existingRequests = JSON.parse(localStorage.getItem('smart_engineering_requests') || '[]');
+      existingRequests.unshift(requestPayload);
+      localStorage.setItem('smart_engineering_requests', JSON.stringify(existingRequests));
+
+      // 2. إرسال الطلب عبر الـ API للتوجيه البريدي
       await fetch('/api/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'SUBMIT_REQUEST', requestData: requestPayload })
       });
 
-      // حفظ الطلب في الـ LocalStorage أيضاً لضمان تحكم الأدمن
-      const existingRequests = JSON.parse(localStorage.getItem('smart_engineering_requests') || '[]');
-      existingRequests.unshift(requestPayload);
-      localStorage.setItem('smart_engineering_requests', JSON.stringify(existingRequests));
-      
-      setNotification('تم إرسال طلبك بنجاح! تم توجيه الطلب إلى لوحة تحكم الأدمن والإيميلات الرسمية للمنصة وسنتواصل معك فوراً.');
+      setNotification('تم إرسال طلبك بنجاح! تم توجيه الطلب إلى لوحة تحكم الأدمن والإيميلات الرسمية للمنصة.');
       
       setFormData({
         fullName: '',
@@ -141,14 +152,13 @@ export default function ServicesPublicPage() {
         subject: 'استشارة هندسية',
         customSubject: '',
         message: '',
-        dateTime: '',
-        file: null
+        dateTime: ''
       });
 
       setTimeout(() => {
         setNotification('');
         setSelectedService(null);
-      }, 4000);
+      }, 3500);
 
     } catch (err) {
       console.error("Error submitting request:", err);
@@ -158,9 +168,8 @@ export default function ServicesPublicPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 font-sans antialiased relative overflow-hidden">
+    <div className="min-h-screen bg-[#030712] text-slate-100 font-sans antialiased relative overflow-hidden dir-rtl">
       
-      {/* خلفية المستقبل والتوهج البرمجي Futuristic Glow */}
       <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[150px] pointer-events-none"></div>
       <div className="absolute bottom-10 left-10 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[130px] pointer-events-none"></div>
 
@@ -172,7 +181,7 @@ export default function ServicesPublicPage() {
               SE
             </div>
             <div>
-              <h1 className="text-xl font-extrabold bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">منصة الهندسة الذكية</h1>
+              <h1 className="text-xl font-extrabold bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">منصة الهندسة الذكية والموارد البشرية</h1>
               <p className="text-[10px] text-cyan-400/80 tracking-widest uppercase font-semibold">Smart Engineering Platform</p>
             </div>
           </div>
@@ -190,7 +199,6 @@ export default function ServicesPublicPage() {
       {/* المحتوى الرئيسي */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
         
-        {/* العنونة والترحيب الرئيسي */}
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
           <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 inline-flex items-center gap-2 shadow-[0_0_10px_rgba(34,211,238,0.15)]">
             <Sparkles className="w-3.5 h-3.5" />
@@ -200,11 +208,10 @@ export default function ServicesPublicPage() {
             حلول هندسية متطورة تجمع بين <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 bg-clip-text text-transparent">الدقة والأتمتة البرمجية</span>
           </h2>
           <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-            استكشف باقة خدمات منصة الهندسة الذكية. اختر الخدمة المطلوبة واضغط على زر طلب الخدمة لحجز استشارتك الفورية أو المراسلة التفاعلية.
+            استكشف باقة الخدمات المحدثة مباشرة. اضغط على أي خدمة لطلب الاستشارة الفورية أو المراسلة.
           </p>
         </div>
 
-        {/* شبكة القوائم والبطائق التفاعلية Futuristic Service Cards */}
         <div className="space-y-16">
           
           {/* 1. الخدمات الإنشائية والمدنية */}
@@ -271,7 +278,6 @@ export default function ServicesPublicPage() {
               </div>
               <div className="flex items-center gap-2">
                 <h3 className="text-2xl font-bold text-white">3. التحول الرقمي وأتمتة الهندسة (Smart Tech)</h3>
-                <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">ميزتكم التنافسية</span>
               </div>
             </div>
             
@@ -325,12 +331,11 @@ export default function ServicesPublicPage() {
         </div>
       </main>
 
-      {/* الـ Modal المنبثق التفاعلي لطلب الخدمة والتماس الاستشارات */}
+      {/* الـ Modal المنبثق لطلب الخدمة */}
       {selectedService && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-xl flex items-center justify-center p-4">
           <div className="bg-[#090d16] border border-cyan-500/40 rounded-3xl w-full max-w-2xl overflow-hidden shadow-[0_0_60px_rgba(34,211,238,0.25)] relative my-8">
             
-            {/* راس المودال */}
             <div className="p-6 bg-slate-900/90 border-b border-slate-800 flex justify-between items-start">
               <div>
                 <span className="text-[11px] text-cyan-400 font-bold tracking-wider uppercase">{selectedService.categoryTitle}</span>
@@ -344,7 +349,6 @@ export default function ServicesPublicPage() {
               </button>
             </div>
 
-            {/* الأبواب الثلاثة لطلب الخدمة */}
             <div className="flex border-b border-slate-800 bg-slate-950/60">
               <button 
                 onClick={() => setActiveTab('consultation')} 
@@ -366,7 +370,6 @@ export default function ServicesPublicPage() {
               </button>
             </div>
 
-            {/* تفاصيل النموذج */}
             <div className="p-6 max-h-[70vh] overflow-y-auto">
               
               {notification && (
@@ -399,7 +402,7 @@ export default function ServicesPublicPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">رقم التلفون / واتساب *</label>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">رقم الهاتف / واتساب *</label>
                       <input 
                         type="tel" required name="phone" value={formData.phone} onChange={handleInputChange} 
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs sm:text-sm text-left transition-colors" 
@@ -422,7 +425,7 @@ export default function ServicesPublicPage() {
 
                   {formData.subject === 'اخر' && (
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">يرجى كتابة وذكر موضوع الاستشارة بالتفصيل *</label>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">يرجى كتابة موضوع الاستشارة بالتفصيل *</label>
                       <input 
                         type="text" required name="customSubject" value={formData.customSubject} onChange={handleInputChange} 
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs sm:text-sm transition-colors" 
@@ -451,14 +454,6 @@ export default function ServicesPublicPage() {
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs sm:text-sm resize-none transition-colors" 
                       placeholder="اكتب متطلباتك الهندسية بالتفصيل هنا..."
                     ></textarea>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">إرفاق ملف (إن وجد)</label>
-                    <div className="border border-dashed border-slate-800 rounded-xl p-3 bg-slate-950/50 flex items-center justify-center gap-2 text-slate-400 hover:border-cyan-500/40 transition-colors cursor-pointer">
-                      <FileText className="w-4 h-4 text-cyan-400" />
-                      <span className="text-xs">اضغط لرفع المخططات أو الملفات الفنية</span>
-                    </div>
                   </div>
 
                   <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">
@@ -516,11 +511,10 @@ export default function ServicesPublicPage() {
         </div>
       )}
 
-      {/* الفوتر السفلي */}
+      {/* الفوتر */}
       <footer className="border-t border-slate-900 mt-20 bg-slate-950/80 py-8 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
           <p>© 2026 منصة الهندسة الذكية والموارد البشرية. جميع الحقوق محفوظة.</p>
-          <span className="text-[11px] text-cyan-400/60 font-mono">النظام الموحد لربط الخدمات والإستشارات بالأدمن</span>
         </div>
       </footer>
     </div>

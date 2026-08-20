@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
-// القائمة الافتراضية للخدمات وفق هيكل منصة الهندسة الذكية
+// القائمة الافتراضية المعتمدة لمنصة الهندسة الذكية والموارد البشرية
 const defaultServices = {
   structural: [
     { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'تصميم المنشآت الخرسانية والمعدنية وفق الأكواد العالمية (ACI, BS, Eurocodes).' },
@@ -26,7 +26,7 @@ const defaultServices = {
   ]
 };
 
-// البرد الإلكترونية الرسمية التي سيتم إرسال الإشعارات إليها
+// البرد الإلكترونية الرسمية المقرة للمنصة
 const OFFICIAL_EMAILS = [
   'Smart.Engineering.Global@proton.me',
   'smart.engineering.global@tuta.io',
@@ -44,9 +44,8 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { action, serviceData, requestData } = body;
+    const { action, requestData } = body;
 
-    // معالجة إرسال طلب استشارة أو مراسلة عبر البريد الإلكتروني
     if (action === 'SUBMIT_REQUEST') {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
@@ -59,17 +58,17 @@ export async function POST(request) {
       const mailSubject = `[طلب خدمة/استشارة جديدة] - ${requestData.subject === 'اخر' ? requestData.customSubject : requestData.subject}`;
       const mailBody = `
 ==============================================
-طلب خدمة جديدة من منصة الهندسة الذكية
+طلب خدمة جديدة من منصة الهندسة الذكية والموارد البشرية
 ==============================================
 نوع الطلب: ${requestData.type}
-قسم الخدمة: ${requestData.serviceCategory}
-اسم الخدمة: ${requestData.serviceName}
+القسم: ${requestData.serviceCategory}
+الخدمة المطلوبة: ${requestData.serviceName}
 
-تفاصيل العميل:
+بيانات التواصل للعميل:
 - الاسم الكامل: ${requestData.fullName}
 - البريد الإلكتروني: ${requestData.email}
-- رقم الهاتف: ${requestData.phone}
-${requestData.dateTime ? `- التاريخ والوقت المطلوب: ${requestData.dateTime}` : ''}
+- رقم الهاتف/واتساب: ${requestData.phone}
+${requestData.dateTime ? `- الموعد المفضل: ${requestData.dateTime}` : ''}
 
 موضوع الطلب: ${requestData.subject === 'اخر' ? requestData.customSubject : requestData.subject}
 تفاصيل الرسالة:
@@ -77,7 +76,6 @@ ${requestData.message}
 ==============================================
       `;
 
-      // إرسال الإيميل لكافة العناوين الرسمية للمنصة
       try {
         await transporter.sendMail({
           from: `"Smart Engineering Platform" <smartengineering.hr.global@gmail.com>`,
@@ -91,13 +89,11 @@ ${requestData.message}
 
       return NextResponse.json({ 
         success: true, 
-        message: 'تم استلام الطلب وتوجيهه إلى لوحة تحكم الإدارة والإيميلات الرسمية للمنصة بنجاح.' 
+        message: 'تم إرسال الطلب بنجاح وتوجيهه إلى لوحة التحكم والإيميلات الرسمية.' 
       }, { status: 200 });
     }
 
-    // معالجة حفظ / أتمتة تعديلات الأدمن
-    return NextResponse.json({ success: true, data: serviceData }, { status: 200 });
-
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

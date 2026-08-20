@@ -39,12 +39,8 @@ export default function AdminServicesDashboard() {
   const [formInputs, setFormInputs] = useState({ title: '', desc: '' });
   const [toastMessage, setToastMessage] = useState('');
 
-  useEffect(() => {
-    const authStatus = localStorage.getItem("services_admin_logged_in");
-    if (authStatus === "true") {
-      setIsLoggedIn(true);
-    }
-
+  const loadAllData = () => {
+    // تحميل الخدمات المخزنة
     const savedServices = localStorage.getItem('smart_engineering_services');
     if (savedServices) {
       try {
@@ -58,8 +54,28 @@ export default function AdminServicesDashboard() {
       } catch (e) {
         console.error("Error reading services", e);
       }
+    } else {
+      // تحميل الافتراضي إذا لم يوجد
+      const defaultServices = {
+        structural: [
+          { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'تصميم المنشآت الخرسانية والمعدنية وفق الأكواد العالمية (ACI, BS, Eurocodes).' },
+          { id: 's2', title: 'مراجعة وتدقيق المخططات (Third Party)', desc: 'تقديم خدمة التدقيق الفني لضمان السلامة وتقليل التكاليف.' }
+        ],
+        architecture: [
+          { id: 'a1', title: 'التصميم المعماري الحديث', desc: 'ابتكار تصاميم معمارية (فلل، مباني تجارية) تركز على استغلال المساحات والإضاءة الطبيعية.' }
+        ],
+        smartTech: [
+          { id: 't1', title: 'تطوير برمجيات الهندسة المخصصة', desc: 'تصميم أدوات برمجية (بـ Python وFlutter) لحل مشاكل هندسية محددة.' }
+        ],
+        academy: [
+          { id: 'c1', title: 'دورات Python for Engineers', desc: 'تدريب المهندسين على البرمجة الهندسية لرفع كفاءة الإنتاج وأتمتة المهام.' }
+        ]
+      };
+      localStorage.setItem('smart_engineering_services', JSON.stringify(defaultServices));
+      setServicesData(defaultServices);
     }
 
+    // تحميل طلبات الخدمات المستلمة من الجمهور
     const savedRequests = localStorage.getItem('smart_engineering_requests');
     if (savedRequests) {
       try {
@@ -68,12 +84,28 @@ export default function AdminServicesDashboard() {
         console.error("Error reading requests", e);
       }
     }
+  };
+
+  useEffect(() => {
+    const authStatus = localStorage.getItem("services_admin_logged_in");
+    if (authStatus === "true") {
+      setIsLoggedIn(true);
+    }
+
+    loadAllData();
+
+    // الاستماع للتغييرات الفورية وإشعار الأدمن إذا وصل طلب جديد
+    const handleStorageChange = () => {
+      loadAllData();
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const saveToStorage = (updatedData) => {
     localStorage.setItem('smart_engineering_services', JSON.stringify(updatedData));
     setServicesData(updatedData);
-    showToast('تم تحديث البيانات ونشر التغييرات فوراً للجمهور العام!');
+    showToast('تم النشر والتحديث فوراً في الصفحة العامة للجمهور!');
   };
 
   const showToast = (msg) => {
@@ -107,7 +139,7 @@ export default function AdminServicesDashboard() {
   };
 
   const handleDeleteService = (category, itemId) => {
-    if (confirm('هل أنت متأكد من رغبتك بحذف هذه الخدمة نهائياً؟')) {
+    if (confirm('هل أنت متأكد من حذف هذه الخدمة؟ ستختفي فوراً من شاشة الجمهور.')) {
       const updatedData = { ...servicesData };
       updatedData[category] = (updatedData[category] || []).filter(item => item.id !== itemId);
       saveToStorage(updatedData);
@@ -122,11 +154,11 @@ export default function AdminServicesDashboard() {
   };
 
   const handleDeleteRequest = (reqId) => {
-    if (confirm('هل ترغب بحذف سجل هذا الطلب المستلم نهائياً؟')) {
+    if (confirm('هل ترغب بحذف سجل هذا الطلب المستلم؟')) {
       const filteredRequests = incomingRequests.filter(req => req.id !== reqId);
       localStorage.setItem('smart_engineering_requests', JSON.stringify(filteredRequests));
       setIncomingRequests(filteredRequests);
-      showToast('تم حذف سجل طلب الخدمة بنجاح.');
+      showToast('تم حذف الطلب بنجاح.');
     }
   };
 
@@ -140,12 +172,12 @@ export default function AdminServicesDashboard() {
       setIsLoggedIn(true);
       setLoginError("");
     } else {
-      setLoginError("❌ بيانات البريد أو كلمة السر غير صحيحة!");
+      setLoginError("❌ البريد الإلكتروني أو كلمة السر غير صحيحة!");
     }
   };
 
   const handleLogout = () => {
-    if (confirm("هل أنت متأكد من تسجيل الخروج؟")) {
+    if (confirm("هل تريد تسجيل الخروج؟")) {
       localStorage.removeItem("services_admin_logged_in");
       setIsLoggedIn(false);
     }
@@ -153,11 +185,11 @@ export default function AdminServicesDashboard() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-right font-sans">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-right font-sans dir-rtl">
         <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-6">
           <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-cyan-400">🔐 تسجيل دخول الإدارة</h2>
-            <p className="text-xs text-slate-400">لوحة تحكم الخدمات والاستشارات بمنصة الهندسة الذكية</p>
+            <h2 className="text-2xl font-bold text-cyan-400">🔐 دخول إدارة الخدمات</h2>
+            <p className="text-xs text-slate-400">منصة الهندسة الذكية والموارد البشرية</p>
           </div>
 
           {loginError && (
@@ -193,7 +225,7 @@ export default function AdminServicesDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 font-sans antialiased">
+    <div className="min-h-screen bg-[#030712] text-slate-100 font-sans antialiased dir-rtl">
       
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-cyan-400 text-slate-950 font-extrabold shadow-[0_0_30px_rgba(34,211,238,0.4)] flex items-center gap-3 border border-cyan-200">
@@ -202,7 +234,7 @@ export default function AdminServicesDashboard() {
         </div>
       )}
 
-      {/* الهيدر الخاص بالأدمن */}
+      {/* الهيدر */}
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -211,9 +243,9 @@ export default function AdminServicesDashboard() {
             </div>
             <div>
               <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                لوحة تحكم المسؤول <span className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded font-mono">ADMIN CONTROL</span>
+                لوحة التحكم بالخدمات والاستشارات
               </h1>
-              <p className="text-xs text-slate-400">إدارة قائمة الخدمات والتحكم بالاستشارات الواردة</p>
+              <p className="text-xs text-slate-400">أي تعديل هنا يتأثر به موقع الجمهور فوراً</p>
             </div>
           </div>
 
@@ -228,7 +260,7 @@ export default function AdminServicesDashboard() {
               onClick={() => setAdminTab('view_requests')}
               className={`px-4 py-2 rounded-xl text-xs font-bold relative transition-all ${adminTab === 'view_requests' ? 'bg-cyan-400 text-slate-950' : 'bg-slate-900 text-slate-400 hover:text-white'}`}
             >
-              <span>الاستشارات المستلمة</span>
+              <span>الطلبات والرسائل المستلمة</span>
               {incomingRequests?.length > 0 && (
                 <span className="absolute -top-1.5 -left-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">
                   {incomingRequests.length}
@@ -253,7 +285,7 @@ export default function AdminServicesDashboard() {
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500"></div>
               <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
                 {editingItem ? <Edit3 className="w-5 h-5 text-amber-400" /> : <Plus className="w-5 h-5 text-cyan-400" />}
-                <span>{editingItem ? 'تعديل وتحديث بيانات الخدمة' : 'إضافة ونشر خدمة جديدة للجمهور'}</span>
+                <span>{editingItem ? 'تعديل الخدمة' : 'إضافة ونشر خدمة جديدة للجمهور'}</span>
               </h3>
 
               <form onSubmit={handleFormSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -274,7 +306,7 @@ export default function AdminServicesDashboard() {
                   <input
                     type="text" required value={formInputs.title} onChange={(e) => setFormInputs(prev => ({ ...prev, title: e.target.value }))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs transition-colors"
-                    placeholder="عنوان الخدمة..."
+                    placeholder="اسم الخدمة..."
                   />
                 </div>
                 <div>
@@ -300,15 +332,15 @@ export default function AdminServicesDashboard() {
                     className={`px-5 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all shadow-md ${editingItem ? 'bg-amber-400 text-slate-950' : 'bg-cyan-400 text-slate-950 hover:bg-cyan-300'}`}
                   >
                     <Save className="w-4 h-4" />
-                    <span>{editingItem ? 'حفظ التعديلات ونشرها' : 'اعتماد ونشر الخدمة فوراً'}</span>
+                    <span>{editingItem ? 'حفظ التعديلات ونشرها' : 'نشر الخدمة للجمهور فوراً'}</span>
                   </button>
                 </div>
               </form>
             </div>
 
-            {/* عرض واستعراض جميع الخدمات مع أزرار التعديل والحذف */}
+            {/* عرض الخدمات المتاحة للتحكم بها */}
             <div className="space-y-8">
-              <h4 className="text-lg font-bold text-white border-b border-slate-800 pb-3">التحكم بالخدمات المنشورة بالموقع حلياً</h4>
+              <h4 className="text-lg font-bold text-white border-b border-slate-800 pb-3">الخدمات الظاهرة حالياً للزوار</h4>
               
               {/* 1. الإنشائية والمدنية */}
               <div className="space-y-3">
@@ -408,20 +440,20 @@ export default function AdminServicesDashboard() {
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Inbox className="w-5 h-5 text-cyan-400" />
-                <span>صندوق الاستشارات والمراسلات المستلمة ({incomingRequests?.length || 0})</span>
+                <span>طلبات الخدمات والاستشارات المستلمة ({incomingRequests?.length || 0})</span>
               </h3>
             </div>
 
             {(!incomingRequests || incomingRequests.length === 0) ? (
               <div className="bg-slate-900/30 border border-slate-800 rounded-3xl p-12 text-center text-slate-500 space-y-3">
                 <AlertCircle className="w-10 h-10 text-slate-600 mx-auto" />
-                <p className="text-xs sm:text-sm">لا توجد أي استشارات أو طلبات واردة حالياً.</p>
+                <p className="text-xs sm:text-sm">لا توجد طلبات خدمات أو استشارات واردة حتى الآن.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-6">
                 {incomingRequests.map((req) => (
                   <div key={req.id} className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between">
-                    <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-cyan-400"></div>
+                    <div className="absolute top-0 right-0 bottom-0 w-1.5 bg-cyan-400"></div>
                     
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4 mb-4">
                       <div className="space-y-1">
@@ -432,7 +464,7 @@ export default function AdminServicesDashboard() {
                           <span className="text-[11px] text-slate-400 font-mono">التاريخ: {req.createdAt}</span>
                         </div>
                         <h4 className="text-sm font-bold text-white pt-1">
-                          الخدمة المطلوبة: <span className="text-cyan-400">{req.serviceName}</span> ({req.serviceCategory})
+                          الخدمة المطلوب تنفيذها: <span className="text-cyan-400">{req.serviceName}</span> ({req.serviceCategory})
                         </h4>
                       </div>
                       
@@ -456,12 +488,12 @@ export default function AdminServicesDashboard() {
                       </div>
                       <div className="flex items-center gap-2 text-slate-300">
                         <span className="text-slate-500 font-bold">☏</span>
-                        <span>رقم الاتصال: <span className="text-white font-mono select-all">{req.phone}</span></span>
+                        <span>الهاتف/الواتساب: <span className="text-white font-mono select-all">{req.phone}</span></span>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">التفاصيل والرسالة:</div>
+                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">تفاصيل رسالة الطلب:</div>
                       <div className="text-xs bg-slate-950 p-4 rounded-2xl border border-slate-900 text-slate-300 leading-relaxed font-sans whitespace-pre-line">
                         <strong>الموضوع: {req.subject === 'اخر' ? req.customSubject : req.subject}</strong>
                         <br /><br />
@@ -472,7 +504,7 @@ export default function AdminServicesDashboard() {
                     {req.dateTime && (
                       <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-amber-400 flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
-                        <span>موعد الاستشارة المطلوب:</span>
+                        <span>الموعد المطلوب للاستشارة:</span>
                         <strong className="underline font-mono">{new Date(req.dateTime).toLocaleString('ar-YE')}</strong>
                       </div>
                     )}
