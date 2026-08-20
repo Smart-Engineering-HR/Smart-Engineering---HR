@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ShieldAlert, PlusCircle, Trash2, Edit, Save, Eye, Code, Sliders } from "lucide-react";
+import { ShieldAlert, PlusCircle, Trash2, Edit, Save, Eye, Code } from "lucide-react";
 
 export default function SoftwareToolsAdmin() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
