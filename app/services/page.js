@@ -10,11 +10,11 @@ import {
   CheckCircle, 
   Mail, 
   Calendar, 
-  FileText, 
   Send, 
   ExternalLink,
   Sparkles,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 
 export default function ServicesPublicPage() {
@@ -24,67 +24,25 @@ export default function ServicesPublicPage() {
     smartTech: [],
     academy: []
   });
+  const [loading, setLoading] = useState(true);
 
-  // دالة جلب البيانات مع ضمان الأولوية للتعديلات المخزنة
-  const fetchLatestServices = () => {
-    const savedData = localStorage.getItem('smart_engineering_services');
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        setServicesData({
-          structural: parsed.structural || [],
-          architecture: parsed.architecture || [],
-          smartTech: parsed.smartTech || [],
-          academy: parsed.academy || []
-        });
-      } catch (e) {
-        console.error("Error parsing stored services:", e);
-        loadDefaultServices();
+  // جلب البيانات الحقيقية المحدثة من الـ API المباشر
+  const fetchServicesFromAPI = async () => {
+    try {
+      const res = await fetch('/api/services', { cache: 'no-store' });
+      const result = await res.json();
+      if (result.success && result.data) {
+        setServicesData(result.data);
       }
-    } else {
-      loadDefaultServices();
+    } catch (e) {
+      console.error("Error fetching services:", e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadDefaultServices = () => {
-    const defaultServices = {
-      structural: [
-        { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'تصميم المنشآت الخرسانية والمعدنية وفق الأكواد العالمية (ACI, BS, Eurocodes).' },
-        { id: 's2', title: 'مراجعة وتدقيق المخططات (Third Party)', desc: 'تقديم خدمة التدقيق الفني لضمان السلامة وتقليل التكاليف.' },
-        { id: 's3', title: 'حساب الكميات وتقدير التكلفة (QS)', desc: 'إعداد جداول الكميات (BOQ) بدقة عالية.' },
-        { id: 's4', title: 'تقييم وتدعيم المنشآت', desc: 'دراسة المباني القائمة وتقديم حلول التدعيم الإنشائي.' }
-      ],
-      architecture: [
-        { id: 'a1', title: 'التصميم المعماري الحديث', desc: 'ابتكار تصاميم معمارية (فلل، مباني تجارية) تركز على استغلال المساحات والإضاءة الطبيعية.' },
-        { id: 'a2', title: 'التصميم الداخلي والديكور (3D Rendering)', desc: 'تقديم تصاميم مذهلة ومحاكاة ثلاثية الأبعاد (3D Rendering).' },
-        { id: 'a3', title: 'تنسيق المواقع (Landscape Design)', desc: 'تصميم المساحات الخارجية والحدائق بشكل جمالي وعملي.' }
-      ],
-      smartTech: [
-        { id: 't1', title: 'تطوير برمجيات الهندسة المخصصة', desc: 'تصميم أدوات برمجية (بـ Python وFlutter) لحل مشاكل هندسية محددة.' },
-        { id: 't2', title: 'أتمتة التصميم الإنشائي', desc: 'تحويل الحسابات اليدوية المتكررة إلى سكربتات برمجية سريعة ودقيقة.' },
-        { id: 't3', title: 'تقليل الهالك (Waste Management)', desc: 'تقديم حلول برمجية مثل مشروعك (Rebar Zero-Waste) لتقليل فاقد الحديد.' },
-        { id: 't4', title: 'نمذجة معلومات البناء (BIM)', desc: 'تحويل المخططات إلى نماذج ثلاثية الأبعاد ذكية وإدارة المشاريع رقمياً.' }
-      ],
-      academy: [
-        { id: 'c1', title: 'دورات Python for Engineers', desc: 'تدريب المهندسين على البرمجة الهندسية لرفع كفاءة الإنتاج وأتمتة المهام.' },
-        { id: 'c2', title: 'برامج التحليل الإنشائي', desc: 'تأهيل المهندسين على أحدث برامج التحليل العالمية لمواكبة متطلبات السوق.' }
-      ]
-    };
-    localStorage.setItem('smart_engineering_services', JSON.stringify(defaultServices));
-    setServicesData(defaultServices);
-  };
-
   useEffect(() => {
-    fetchLatestServices();
-
-    // الاستماع للتغييرات الفورية الصادرة من لوحة التحكم في تبويب آخر
-    const handleStorageChange = (e) => {
-      if (e.key === 'smart_engineering_services') {
-        fetchLatestServices();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    fetchServicesFromAPI();
   }, []);
 
   const [selectedService, setSelectedService] = useState(null);
@@ -131,12 +89,12 @@ export default function ServicesPublicPage() {
     };
 
     try {
-      // 1. حفظ الطلب في الـ LocalStorage ليظهر فوراً للأدمن
+      // حفظ المحلي للنسخ الاحتياطي في متصفح المستخدم
       const existingRequests = JSON.parse(localStorage.getItem('smart_engineering_requests') || '[]');
       existingRequests.unshift(requestPayload);
       localStorage.setItem('smart_engineering_requests', JSON.stringify(existingRequests));
 
-      // 2. إرسال الطلب عبر الـ API للتوجيه البريدي
+      // إرسال الطلب للسيرفر
       await fetch('/api/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,7 +160,7 @@ export default function ServicesPublicPage() {
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
           <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 inline-flex items-center gap-2 shadow-[0_0_10px_rgba(34,211,238,0.15)]">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>قائمة خدماتنا الهندسية الذكية المتكاملة</span>
+            <span>قائمة خدماتنا الهندسية الذكية المعتمدة</span>
           </span>
           <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
             حلول هندسية متطورة تجمع بين <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 bg-clip-text text-transparent">الدقة والأتمتة البرمجية</span>
@@ -212,126 +170,155 @@ export default function ServicesPublicPage() {
           </p>
         </div>
 
-        <div className="space-y-16">
-          
-          {/* 1. الخدمات الإنشائية والمدنية */}
-          <section className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
-              <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-                <Layers className="w-6 h-6" />
-              </div>
-              <h3 className="text-2xl font-bold text-white">1. الخدمات الإنشائية والمدنية</h3>
-            </div>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-cyan-400 space-y-4">
+            <Loader2 className="w-10 h-10 animate-spin" />
+            <p className="text-sm font-semibold">جاري تحميل باقة الخدمات الحقيقية...</p>
+          </div>
+        ) : (
+          <div className="space-y-16">
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {(servicesData?.structural || []).map((item) => (
-                <div key={item.id} className="group relative bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-cyan-400/60 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] flex flex-col justify-between backdrop-blur-md">
-                  <div>
-                    <h4 className="text-lg font-bold text-slate-100 mb-3 group-hover:text-cyan-400 transition-colors duration-200">{item.title}</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-6">{item.desc}</p>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedService({ ...item, categoryTitle: 'الخدمات الإنشائية والمدنية' })}
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-950 hover:bg-cyan-400 hover:border-cyan-400 transition-all duration-300 font-bold text-xs flex items-center justify-between group/btn"
-                  >
-                    <span>طلب الخدمة</span>
-                    <ArrowRight className="w-4 h-4 -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300" />
-                  </button>
+            {/* 1. الخدمات الإنشائية والمدنية */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
+                <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                  <Layers className="w-6 h-6" />
                 </div>
-              ))}
-            </div>
-          </section>
-
-          {/* 2. الهندسة المعمارية والتصميم */}
-          <section className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
-              <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400">
-                <Compass className="w-6 h-6" />
+                <h3 className="text-2xl font-bold text-white">
+                  1. الخدمات الإنشائية والمدنية ({servicesData?.structural?.length || 0})
+                </h3>
               </div>
-              <h3 className="text-2xl font-bold text-white">2. الهندسة المعمارية والتصميم</h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(servicesData?.architecture || []).map((item) => (
-                <div key={item.id} className="group relative bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-400/60 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] flex flex-col justify-between backdrop-blur-md">
-                  <div>
-                    <h4 className="text-lg font-bold text-slate-100 mb-3 group-hover:text-blue-400 transition-colors duration-200">{item.title}</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-6">{item.desc}</p>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedService({ ...item, categoryTitle: 'الهندسة المعمارية والتصميم' })}
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-950 hover:bg-blue-400 hover:border-blue-400 transition-all duration-300 font-bold text-xs flex items-center justify-between group/btn"
-                  >
-                    <span>طلب الخدمة</span>
-                    <ArrowRight className="w-4 h-4 -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300" />
-                  </button>
+              
+              {servicesData?.structural?.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">لا توجد خدمات مضافة في هذا القسم حالياً.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {servicesData?.structural?.map((item) => (
+                    <div key={item.id} className="group relative bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-cyan-400/60 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] flex flex-col justify-between backdrop-blur-md">
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-100 mb-3 group-hover:text-cyan-400 transition-colors duration-200">{item.title}</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-6">{item.desc}</p>
+                      </div>
+                      <button 
+                        onClick={() => setSelectedService({ ...item, categoryTitle: 'الخدمات الإنشائية والمدنية' })}
+                        className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-950 hover:bg-cyan-400 hover:border-cyan-400 transition-all duration-300 font-bold text-xs flex items-center justify-between group/btn"
+                      >
+                        <span>طلب الخدمة</span>
+                        <ArrowRight className="w-4 h-4 -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
+              )}
+            </section>
 
-          {/* 3. التحول الرقمي وأتمتة الهندسة */}
-          <section className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
-              <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
-                <Cpu className="w-6 h-6" />
-              </div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-2xl font-bold text-white">3. التحول الرقمي وأتمتة الهندسة (Smart Tech)</h3>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {(servicesData?.smartTech || []).map((item) => (
-                <div key={item.id} className="group relative bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-purple-400/60 hover:shadow-[0_0_30px_rgba(168,85,247,0.2)] flex flex-col justify-between backdrop-blur-md">
-                  <div>
-                    <h4 className="text-lg font-bold text-slate-100 mb-3 group-hover:text-purple-400 transition-colors duration-200">{item.title}</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-6">{item.desc}</p>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedService({ ...item, categoryTitle: 'التحول الرقمي وأتمتة الهندسة' })}
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-950 hover:bg-purple-400 hover:border-purple-400 transition-all duration-300 font-bold text-xs flex items-center justify-between group/btn"
-                  >
-                    <span>طلب الخدمة</span>
-                    <ArrowRight className="w-4 h-4 -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300" />
-                  </button>
+            {/* 2. الهندسة المعمارية والتصميم */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
+                <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                  <Compass className="w-6 h-6" />
                 </div>
-              ))}
-            </div>
-          </section>
-
-          {/* 4. التدريب والتطوير المهني */}
-          <section className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                <GraduationCap className="w-6 h-6" />
+                <h3 className="text-2xl font-bold text-white">
+                  2. الهندسة المعمارية والتصميم ({servicesData?.architecture?.length || 0})
+                </h3>
               </div>
-              <h3 className="text-2xl font-bold text-white">4. التدريب والتطوير المهني (Academy)</h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {(servicesData?.academy || []).map((item) => (
-                <div key={item.id} className="group relative bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-400/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] flex flex-col justify-between backdrop-blur-md">
-                  <div>
-                    <h4 className="text-lg font-bold text-slate-100 mb-3 group-hover:text-emerald-400 transition-colors duration-200">{item.title}</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-6">{item.desc}</p>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedService({ ...item, categoryTitle: 'التدريب والتطوير المهني' })}
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-950 hover:bg-emerald-400 hover:border-emerald-400 transition-all duration-300 font-bold text-xs flex items-center justify-between group/btn"
-                  >
-                    <span>طلب الخدمة</span>
-                    <ArrowRight className="w-4 h-4 -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300" />
-                  </button>
+              
+              {servicesData?.architecture?.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">لا توجد خدمات مضافة في هذا القسم حالياً.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {servicesData?.architecture?.map((item) => (
+                    <div key={item.id} className="group relative bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-400/60 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] flex flex-col justify-between backdrop-blur-md">
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-100 mb-3 group-hover:text-blue-400 transition-colors duration-200">{item.title}</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-6">{item.desc}</p>
+                      </div>
+                      <button 
+                        onClick={() => setSelectedService({ ...item, categoryTitle: 'الهندسة المعمارية والتصميم' })}
+                        className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-950 hover:bg-blue-400 hover:border-blue-400 transition-all duration-300 font-bold text-xs flex items-center justify-between group/btn"
+                      >
+                        <span>طلب الخدمة</span>
+                        <ArrowRight className="w-4 h-4 -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
+              )}
+            </section>
 
-        </div>
+            {/* 3. التحول الرقمي وأتمتة الهندسة */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
+                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
+                  <Cpu className="w-6 h-6" />
+                </div>
+                <h3 className="text-2xl font-bold text-white">
+                  3. التحول الرقمي وأتمتة الهندسة Smart Tech ({servicesData?.smartTech?.length || 0})
+                </h3>
+              </div>
+              
+              {servicesData?.smartTech?.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">لا توجد خدمات مضافة في هذا القسم حالياً.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {servicesData?.smartTech?.map((item) => (
+                    <div key={item.id} className="group relative bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-purple-400/60 hover:shadow-[0_0_30px_rgba(168,85,247,0.2)] flex flex-col justify-between backdrop-blur-md">
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-100 mb-3 group-hover:text-purple-400 transition-colors duration-200">{item.title}</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-6">{item.desc}</p>
+                      </div>
+                      <button 
+                        onClick={() => setSelectedService({ ...item, categoryTitle: 'التحول الرقمي وأتمتة الهندسة' })}
+                        className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-950 hover:bg-purple-400 hover:border-purple-400 transition-all duration-300 font-bold text-xs flex items-center justify-between group/btn"
+                      >
+                        <span>طلب الخدمة</span>
+                        <ArrowRight className="w-4 h-4 -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* 4. التدريب والتطوير المهني */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                  <GraduationCap className="w-6 h-6" />
+                </div>
+                <h3 className="text-2xl font-bold text-white">
+                  4. التدريب والتطوير المهني Academy ({servicesData?.academy?.length || 0})
+                </h3>
+              </div>
+              
+              {servicesData?.academy?.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">لا توجد خدمات مضافة في هذا القسم حالياً.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {servicesData?.academy?.map((item) => (
+                    <div key={item.id} className="group relative bg-slate-900/40 border border-slate-800 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-400/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] flex flex-col justify-between backdrop-blur-md">
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-100 mb-3 group-hover:text-emerald-400 transition-colors duration-200">{item.title}</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-6">{item.desc}</p>
+                      </div>
+                      <button 
+                        onClick={() => setSelectedService({ ...item, categoryTitle: 'التدريب والتطوير المهني' })}
+                        className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-950 hover:bg-emerald-400 hover:border-emerald-400 transition-all duration-300 font-bold text-xs flex items-center justify-between group/btn"
+                      >
+                        <span>طلب الخدمة</span>
+                        <ArrowRight className="w-4 h-4 -rotate-45 group-hover/btn:rotate-0 transition-transform duration-300" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+          </div>
+        )}
       </main>
 
-      {/* الـ Modal المنبثق لطلب الخدمة */}
+      {/* نافذة طلب الخدمة */}
       {selectedService && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-xl flex items-center justify-center p-4">
           <div className="bg-[#090d16] border border-cyan-500/40 rounded-3xl w-full max-w-2xl overflow-hidden shadow-[0_0_60px_rgba(34,211,238,0.25)] relative my-8">
@@ -477,7 +464,7 @@ export default function ServicesPublicPage() {
               {activeTab === 'contact' && (
                 <div className="space-y-6 py-2">
                   <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                    تصل كافة الاستشارات والطلبات مباشرة إلى لوحة تحكم الأدمن والبرد الإلكترونية المسؤولة للمنصة:
+                    تصل كافة الاستشارات والطلبات مباشرة إلى لوحة تحكم الأدمن والبريد الإلكتروني المعتمد للمنصة:
                   </p>
                   
                   <div className="space-y-2.5">

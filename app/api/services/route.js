@@ -1,32 +1,16 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
-// القائمة الافتراضية المعتمدة لمنصة الهندسة الذكية والموارد البشرية
-const defaultServices = {
+// تخزين ديناميكي موحد للخدمات الحقيقية
+let globalServicesData = {
   structural: [
-    { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'تصميم المنشآت الخرسانية والمعدنية وفق الأكواد العالمية (ACI, BS, Eurocodes).' },
-    { id: 's2', title: 'مراجعة وتدقيق المخططات (Third Party)', desc: 'تقديم خدمة التدقيق الفني لضمان السلامة وتقليل التكاليف.' },
-    { id: 's3', title: 'حساب الكميات وتقدير التكلفة (QS)', desc: 'إعداد جداول الكميات (BOQ) بدقة عالية.' },
-    { id: 's4', title: 'تقييم وتدعيم المنشآت', desc: 'دراسة المباني القائمة وتقديم حلول التدعيم الإنشائي.' }
+    { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'إعداد المخططات الإنشائية الكاملة (أبراج، فيلات، مباني تجارية، خرسانات مسلحة أو منشآت ستيل) وفق الأكواد الدولية والمحلية (ACI, SBC, etc).' }
   ],
-  architecture: [
-    { id: 'a1', title: 'التصميم المعماري الحديث', desc: 'ابتكار تصاميم معمارية (فلل، مباني تجارية) تركز على استغلال المساحات والإضاءة الطبيعية.' },
-    { id: 'a2', title: 'التصميم الداخلي والديكور (3D Rendering)', desc: 'تقديم تصاميم مذهلة ومحاكاة ثلاثية الأبعاد (3D Rendering).' },
-    { id: 'a3', title: 'تنسيق المواقع (Landscape Design)', desc: 'تصميم المساحات الخارجية والحدائق بشكل جمالي وعملي.' }
-  ],
-  smartTech: [
-    { id: 't1', title: 'تطوير برمجيات الهندسة المخصصة', desc: 'تصميم أدوات برمجية (بـ Python وFlutter) لحل مشاكل هندسية محددة.' },
-    { id: 't2', title: 'أتمتة التصميم الإنشائي', desc: 'تحويل الحسابات اليدوية المتكررة إلى سكربتات برمجية سريعة ودقيقة.' },
-    { id: 't3', title: 'تقليل الهالك (Waste Management)', desc: 'تقديم حلول برمجية مثل مشروعك (Rebar Zero-Waste) لتقليل فاقد الحديد.' },
-    { id: 't4', title: 'نمذجة معلومات البناء (BIM)', desc: 'تحويل المخططات إلى نماذج ثلاثية الأبعاد ذكية وإدارة المشاريع رقمياً.' }
-  ],
-  academy: [
-    { id: 'c1', title: 'دورات Python for Engineers', desc: 'تدريب المهندسين على البرمجة الهندسية لرفع كفاءة الإنتاج وأتمتة المهام.' },
-    { id: 'c2', title: 'برامج التحليل الإنشائي', desc: 'تأهيل المهندسين على أحدث برامج التحليل العالمية لمواكبة متطلبات السوق.' }
-  ]
+  architecture: [],
+  smartTech: [],
+  academy: []
 };
 
-// البرد الإلكترونية الرسمية المقرة للمنصة
 const OFFICIAL_EMAILS = [
   'Smart.Engineering.Global@proton.me',
   'smart.engineering.global@tuta.io',
@@ -34,24 +18,41 @@ const OFFICIAL_EMAILS = [
 ];
 
 export async function GET() {
-  try {
-    return NextResponse.json({ success: true, data: defaultServices }, { status: 200 });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
+  return NextResponse.json(
+    { success: true, data: globalServicesData }, 
+    { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, max-age=0'
+      }
+    }
+  );
 }
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { action, requestData } = body;
+    const { action, servicesData, requestData } = body;
 
+    // 1. تحديث الخدمات من لوحة التحكم لتظهر للجمهور فوراً
+    if (action === 'UPDATE_SERVICES') {
+      if (servicesData) {
+        globalServicesData = servicesData;
+      }
+      return NextResponse.json({ 
+        success: true, 
+        message: 'تم تحديث ونشر الخدمات للجمهور بنجاح!',
+        data: globalServicesData 
+      }, { status: 200 });
+    }
+
+    // 2. استقبال واستلام طلبات الزوار وإرسال الإيميلات
     if (action === 'SUBMIT_REQUEST') {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: process.env.EMAIL_USER || 'smartengineering.hr.global@gmail.com',
-          pass: process.env.EMAIL_PASS || 'your_app_password_here'
+          pass: process.env.EMAIL_PASS || ''
         }
       });
 
@@ -77,12 +78,14 @@ ${requestData.message}
       `;
 
       try {
-        await transporter.sendMail({
-          from: `"Smart Engineering Platform" <smartengineering.hr.global@gmail.com>`,
-          to: OFFICIAL_EMAILS.join(','),
-          subject: mailSubject,
-          text: mailBody
-        });
+        if (process.env.EMAIL_PASS) {
+          await transporter.sendMail({
+            from: `"Smart Engineering Platform" <smartengineering.hr.global@gmail.com>`,
+            to: OFFICIAL_EMAILS.join(','),
+            subject: mailSubject,
+            text: mailBody
+          });
+        }
       } catch (emailErr) {
         console.error("Nodemailer Send Error:", emailErr);
       }

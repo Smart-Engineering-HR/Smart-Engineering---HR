@@ -16,7 +16,8 @@ import {
   Mail,
   User,
   LogOut,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
 
 export default function AdminServicesDashboard() {
@@ -38,44 +39,21 @@ export default function AdminServicesDashboard() {
   const [targetCategory, setTargetCategory] = useState('structural');
   const [formInputs, setFormInputs] = useState({ title: '', desc: '' });
   const [toastMessage, setToastMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const loadAllData = () => {
-    // تحميل الخدمات المخزنة
-    const savedServices = localStorage.getItem('smart_engineering_services');
-    if (savedServices) {
-      try {
-        const parsed = JSON.parse(savedServices);
-        setServicesData({
-          structural: parsed.structural || [],
-          architecture: parsed.architecture || [],
-          smartTech: parsed.smartTech || [],
-          academy: parsed.academy || []
-        });
-      } catch (e) {
-        console.error("Error reading services", e);
+  // جلب البيانات من الـ API الحقيقي الموحد
+  const loadAllData = async () => {
+    try {
+      const res = await fetch('/api/services', { cache: 'no-store' });
+      const result = await res.json();
+      if (result.success && result.data) {
+        setServicesData(result.data);
       }
-    } else {
-      // تحميل الافتراضي إذا لم يوجد
-      const defaultServices = {
-        structural: [
-          { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'تصميم المنشآت الخرسانية والمعدنية وفق الأكواد العالمية (ACI, BS, Eurocodes).' },
-          { id: 's2', title: 'مراجعة وتدقيق المخططات (Third Party)', desc: 'تقديم خدمة التدقيق الفني لضمان السلامة وتقليل التكاليف.' }
-        ],
-        architecture: [
-          { id: 'a1', title: 'التصميم المعماري الحديث', desc: 'ابتكار تصاميم معمارية (فلل، مباني تجارية) تركز على استغلال المساحات والإضاءة الطبيعية.' }
-        ],
-        smartTech: [
-          { id: 't1', title: 'تطوير برمجيات الهندسة المخصصة', desc: 'تصميم أدوات برمجية (بـ Python وFlutter) لحل مشاكل هندسية محددة.' }
-        ],
-        academy: [
-          { id: 'c1', title: 'دورات Python for Engineers', desc: 'تدريب المهندسين على البرمجة الهندسية لرفع كفاءة الإنتاج وأتمتة المهام.' }
-        ]
-      };
-      localStorage.setItem('smart_engineering_services', JSON.stringify(defaultServices));
-      setServicesData(defaultServices);
+    } catch (e) {
+      console.error("Error loading services:", e);
     }
 
-    // تحميل طلبات الخدمات المستلمة من الجمهور
+    // جلب الطلبات المستلمة
     const savedRequests = localStorage.getItem('smart_engineering_requests');
     if (savedRequests) {
       try {
@@ -91,21 +69,28 @@ export default function AdminServicesDashboard() {
     if (authStatus === "true") {
       setIsLoggedIn(true);
     }
-
     loadAllData();
-
-    // الاستماع للتغييرات الفورية وإشعار الأدمن إذا وصل طلب جديد
-    const handleStorageChange = () => {
-      loadAllData();
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const saveToStorage = (updatedData) => {
-    localStorage.setItem('smart_engineering_services', JSON.stringify(updatedData));
-    setServicesData(updatedData);
-    showToast('تم النشر والتحديث فوراً في الصفحة العامة للجمهور!');
+  const saveToAPIAndStorage = async (updatedData) => {
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'UPDATE_SERVICES', servicesData: updatedData })
+      });
+      const result = await res.json();
+      if (result.success) {
+        setServicesData(updatedData);
+        showToast('تم النشر بنجاح وتحديث موقع الجمهور المباشر!');
+      }
+    } catch (err) {
+      console.error("Error saving services:", err);
+      showToast('حدث خطأ أثناء حفظ التعديلات.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const showToast = (msg) => {
@@ -113,7 +98,7 @@ export default function AdminServicesDashboard() {
     setTimeout(() => setToastMessage(''), 4000);
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!formInputs.title || !formInputs.desc) return;
 
@@ -134,15 +119,15 @@ export default function AdminServicesDashboard() {
       updatedData[targetCategory].push(newItem);
     }
 
-    saveToStorage(updatedData);
+    await saveToAPIAndStorage(updatedData);
     setFormInputs({ title: '', desc: '' });
   };
 
-  const handleDeleteService = (category, itemId) => {
-    if (confirm('هل أنت متأكد من حذف هذه الخدمة؟ ستختفي فوراً من شاشة الجمهور.')) {
+  const handleDeleteService = async (category, itemId) => {
+    if (confirm('هل أنت متأكد من حذف هذه الخدمة؟ ستختفي فوراً من موقع الجمهور.')) {
       const updatedData = { ...servicesData };
       updatedData[category] = (updatedData[category] || []).filter(item => item.id !== itemId);
-      saveToStorage(updatedData);
+      await saveToAPIAndStorage(updatedData);
     }
   };
 
@@ -245,7 +230,7 @@ export default function AdminServicesDashboard() {
               <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 لوحة التحكم بالخدمات والاستشارات
               </h1>
-              <p className="text-xs text-slate-400">أي تعديل هنا يتأثر به موقع الجمهور فوراً</p>
+              <p className="text-xs text-slate-400">أي تعديل هنا يظهر مباشرة للزوار برابط السيرفر</p>
             </div>
           </div>
 
@@ -285,7 +270,7 @@ export default function AdminServicesDashboard() {
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500"></div>
               <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
                 {editingItem ? <Edit3 className="w-5 h-5 text-amber-400" /> : <Plus className="w-5 h-5 text-cyan-400" />}
-                <span>{editingItem ? 'تعديل الخدمة' : 'إضافة ونشر خدمة جديدة للجمهور'}</span>
+                <span>{editingItem ? 'تعديل الخدمة الحالية' : 'إضافة ونشر خدمة جديدة للجمهور'}</span>
               </h3>
 
               <form onSubmit={handleFormSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -328,10 +313,10 @@ export default function AdminServicesDashboard() {
                     </button>
                   )}
                   <button
-                    type="submit"
+                    type="submit" disabled={isSaving}
                     className={`px-5 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all shadow-md ${editingItem ? 'bg-amber-400 text-slate-950' : 'bg-cyan-400 text-slate-950 hover:bg-cyan-300'}`}
                   >
-                    <Save className="w-4 h-4" />
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     <span>{editingItem ? 'حفظ التعديلات ونشرها' : 'نشر الخدمة للجمهور فوراً'}</span>
                   </button>
                 </div>
@@ -340,7 +325,7 @@ export default function AdminServicesDashboard() {
 
             {/* عرض الخدمات المتاحة للتحكم بها */}
             <div className="space-y-8">
-              <h4 className="text-lg font-bold text-white border-b border-slate-800 pb-3">الخدمات الظاهرة حالياً للزوار</h4>
+              <h4 className="text-lg font-bold text-white border-b border-slate-800 pb-3">الخدمات الظاهرة حالياً لجميع الزوار</h4>
               
               {/* 1. الإنشائية والمدنية */}
               <div className="space-y-3">
