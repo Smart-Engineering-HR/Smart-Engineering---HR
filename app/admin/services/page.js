@@ -160,8 +160,8 @@ export default function AdminServicesDashboard() {
   // دالة معالجة تسجيل الدخول
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    const correctEmail = "admin@smartacademy.com"; // يمكنك تغييره
-    const correctPassword = "AdminPassword2026"; // يمكنك تغييره
+    const correctEmail = "admin@smartaprotonc909ademy.com"; // يمكنك تغييره
+    const correctPassword = "AdminPasswordOm197PasswHG7654^&%2026"; // يمكنك تغييره
 
     if (loginEmail === correctEmail && loginPassword === correctPassword) {
       localStorage.setItem("services_admin_logged_in", "true");
