@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  Cpu, ArrowRight, Search, Copy, Download, HelpCircle, Upload, Sliders, CheckCircle2, RefreshCw, Calculator, Wrench, Play, Send, Zap, FileText, Activity
+  Cpu, ArrowRight, Search, Copy, Download, HelpCircle, Upload, Sliders, CheckCircle2, RefreshCw, Calculator, Wrench, Play, Send, Zap, FileText, Activity, MessageSquare
 } from "lucide-react";
 
 export default function SoftwareToolsPublic() {
@@ -105,8 +105,8 @@ export default function SoftwareToolsPublic() {
   const filteredTools = tools.filter(tool => {
     const matchesTab = activeTab === "all" || tool.category === activeTab;
     const matchesStage = activeStage === "all" || tool.stage === activeStage;
-    const matchesSearch = tool.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          tool.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = tool.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          tool.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesStage && matchesSearch;
   });
 
@@ -167,24 +167,26 @@ export default function SoftwareToolsPublic() {
     }
   };
 
-  // Dynamic Prompt Engineering Generator
+  // Dynamic Prompt Engineering Generator (Fixed potential crash when secretPrompt is undefined)
   const openPromptModal = (tool) => {
     setActivePromptModal(tool);
     const initialVals = {};
+    const secretPromptText = tool.secretPrompt || "";
+    
     const placeholders = tool.placeholders && tool.placeholders.length > 0 
       ? tool.placeholders 
-      : (tool.secretPrompt.match(/\[(.*?)\]/g) || []).map(p => p.replace(/[\[\]]/g, ""));
+      : (secretPromptText.match(/\[(.*?)\]/g) || []).map(p => p.replace(/[\[\]]/g, ""));
 
     placeholders.forEach(p => initialVals[p] = "");
     setPromptValues(initialVals);
-    setGeneratedPrompt(tool.secretPrompt || "");
+    setGeneratedPrompt(secretPromptText);
   };
 
   const handlePromptInputChange = (key, value) => {
     const updated = { ...promptValues, [key]: value };
     setPromptValues(updated);
 
-    let result = activePromptModal.secretPrompt || "";
+    let result = activePromptModal?.secretPrompt || "";
     Object.keys(updated).forEach(k => {
       result = result.replaceAll(`[${k}]`, updated[k] || `[${k}]`);
     });
