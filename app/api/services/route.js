@@ -1,15 +1,52 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
 
-// تخزين ديناميكي موحد للخدمات الحقيقية
-let globalServicesData = {
+// مسار ملف الحفظ المحلي
+const dataFilePath = path.join(process.cwd(), 'data', 'services.json');
+
+// البيانات الافتراضية
+const defaultServicesData = {
   structural: [
-    { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'إعداد المخططات الإنشائية الكاملة (أبراج، فيلات، مباني تجارية، خرسانات مسلحة أو منشآت ستيل) وفق الأكواد الدولية والمحلية (ACI, SBC, etc).' }
+    { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'إعداد المخططات الإنشائية الكاملة وفق الأكواد الدولية والمحلية.' }
   ],
   architecture: [],
   smartTech: [],
   academy: []
 };
+
+// دالة قراءة البيانات من الملف
+function getServicesData() {
+  try {
+    const dirPath = path.dirname(dataFilePath);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    if (!fs.existsSync(dataFilePath)) {
+      fs.writeFileSync(dataFilePath, JSON.stringify(defaultServicesData, null, 2), 'utf-8');
+      return defaultServicesData;
+    }
+    const fileData = fs.readFileSync(dataFilePath, 'utf-8');
+    return JSON.parse(fileData);
+  } catch (error) {
+    console.error("Error reading services file:", error);
+    return defaultServicesData;
+  }
+}
+
+// دالة حفظ البيانات في الملف
+function saveServicesData(data) {
+  try {
+    const dirPath = path.dirname(dataFilePath);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (error) {
+    console.error("Error saving services file:", error);
+  }
+}
 
 const OFFICIAL_EMAILS = [
   'Smart.Engineering.Global@proton.me',
@@ -18,8 +55,9 @@ const OFFICIAL_EMAILS = [
 ];
 
 export async function GET() {
+  const currentData = getServicesData();
   return NextResponse.json(
-    { success: true, data: globalServicesData }, 
+    { success: true, data: currentData }, 
     { 
       status: 200,
       headers: {
@@ -34,19 +72,19 @@ export async function POST(request) {
     const body = await request.json();
     const { action, servicesData, requestData } = body;
 
-    // 1. تحديث الخدمات من لوحة التحكم لتظهر للجمهور فوراً
+    // 1. تحديث الخدمات وحفظها دائمياً
     if (action === 'UPDATE_SERVICES') {
       if (servicesData) {
-        globalServicesData = servicesData;
+        saveServicesData(servicesData);
       }
       return NextResponse.json({ 
         success: true, 
-        message: 'تم تحديث ونشر الخدمات للجمهور بنجاح!',
-        data: globalServicesData 
+        message: 'تم تحديث ونشر الخدمات دائمياً!',
+        data: servicesData 
       }, { status: 200 });
     }
 
-    // 2. استقبال واستلام طلبات الزوار وإرسال الإيميلات
+    // 2. إرسال الطلبات بالإيميل
     if (action === 'SUBMIT_REQUEST') {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
