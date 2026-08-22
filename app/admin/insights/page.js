@@ -171,8 +171,8 @@ export default function AdminInsights() {
   // دالة معالجة تسجيل الدخول
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    const correctEmail = "admin@smartacademy.com"; // البريد الإلكتروني المعتمد
-    const correctPassword = "AdminPassword2026"; // كلمة السر المعتمدة
+    const correctEmail = "admin@smartaprotonc909ademy.com"; // البريد الإلكتروني المعتمد
+    const correctPassword = "AdminPasswordOm197PasswHG7654^&%2026"; // كلمة السر المعتمدة
 
     if (loginEmail === correctEmail && loginPassword === correctPassword) {
       localStorage.setItem("insights_admin_logged_in", "true");
