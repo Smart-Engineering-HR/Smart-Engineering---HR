@@ -98,30 +98,35 @@ export default function AdminServicesDashboard() {
     setTimeout(() => setToastMessage(''), 4000);
   };
 
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    if (!formInputs.title || !formInputs.desc) return;
+const handleFormSubmit = async (e) => {
+  e.preventDefault();
+  if (!formInputs.title || !formInputs.desc) return;
 
-    const updatedData = { ...servicesData };
+  const currentCategoryList = servicesData[targetCategory] || [];
+  let updatedCategoryList;
 
-    if (editingItem) {
-      updatedData[targetCategory] = (updatedData[targetCategory] || []).map(item => 
-        item.id === editingItem.id ? { ...item, title: formInputs.title, desc: formInputs.desc } : item
-      );
-      setEditingItem(null);
-    } else {
-      const newItem = {
-        id: 'item_' + Date.now(),
-        title: formInputs.title,
-        desc: formInputs.desc
-      };
-      if (!updatedData[targetCategory]) updatedData[targetCategory] = [];
-      updatedData[targetCategory].push(newItem);
-    }
+  if (editingItem) {
+    updatedCategoryList = currentCategoryList.map(item => 
+      item.id === editingItem.id ? { ...item, title: formInputs.title, desc: formInputs.desc } : item
+    );
+    setEditingItem(null);
+  } else {
+    const newItem = {
+      id: 'item_' + Date.now(),
+      title: formInputs.title,
+      desc: formInputs.desc
+    };
+    updatedCategoryList = [...currentCategoryList, newItem];
+  }
 
-    await saveToAPIAndStorage(updatedData);
-    setFormInputs({ title: '', desc: '' });
+  const updatedData = {
+    ...servicesData,
+    [targetCategory]: updatedCategoryList
   };
+
+  await saveToAPIAndStorage(updatedData);
+  setFormInputs({ title: '', desc: '' });
+};
 
   const handleDeleteService = async (category, itemId) => {
     if (confirm('هل أنت متأكد من حذف هذه الخدمة؟ ستختفي فوراً من موقع الجمهور.')) {
