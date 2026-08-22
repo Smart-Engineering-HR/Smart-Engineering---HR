@@ -9,26 +9,23 @@ import {
   Save, 
   Undo, 
   FolderPlus, 
-  Cpu, 
-  Layers, 
-  Terminal, 
-  BookOpen, 
   Mail, 
   CheckCircle, 
   RefreshCw,
-  Eye
+  Eye,
+  Lock,
+  ArrowRight
 } from "lucide-react";
 
 export default function AdminInsights() {
-  // متغيرات حماية تسجيل الدخول المتكاملة
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  // مصفوفة البيانات المقالية للتحكم التام
+  
   const [articles, setArticles] = useState([]);
   
-  // متغيرات النموذج (Form State) للإضافة والتعديل
+  // حالة نموذج البيانات للإضافة والتعديل
   const [id, setId] = useState("");
   const [category, setCategory] = useState("FUTURE_ENG");
   const [title, setTitle] = useState("");
@@ -47,52 +44,29 @@ export default function AdminInsights() {
   const [isEditing, setIsEditing] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
-  // البريد الرسمي المعتمد للمنصة لتوثيق وإرسال طلبات الإدارة
   const officialEmails = [
     "Smart.Engineering.Global@proton.me",
     "smart.engineering.global@tuta.io",
     "smartengineering.hr.global@gmail.com"
   ];
 
-  // تحميل وحفظ البيانات مع الـ LocalStorage لمزامنة فورية 100% مع صفحة الجمهور
   useEffect(() => {
-    // فحص هل الأدمن سجل دخوله سابقاً؟
     const authStatus = localStorage.getItem("insights_admin_logged_in");
-    if (authStatus === "true") {
-      setIsLoggedIn(true);
-    }
-    const stored = localStorage.getItem("smart_insights_articles");
-    if (stored) {
-      setArticles(JSON.parse(stored));
-    } else {
-      // إذا لم توجد بيانات مسبقة، يتم تهيئتها فوراً
-      const defaultData = [
-        {
-          id: "1",
-          category: "FUTURE_ENG",
-          title: "الذكاء الاصطناعي في الإنشاءات",
-          shortDesc: "كيف يتم استخدام Machine Learning للتنبؤ بانهيار التربة أو تحسين تكلفة المشاريع.",
-          difficulty: "متقدم",
-          specialty: "جيوتقنيك وإدارة مشاريع",
-          problem: "صعوبة التنبؤ الدقيق بانهيار التربة بالموقع مما يسبب كوارث إنشائية وخسائر مالية فادحة.",
-          science: "تعتمد النظرية على تحليل بيانات الجسات السابقة وتدريب خوارزميات الغابات العشوائية.",
-          smartIdea: "تحويل قيم الاختبارات الحقلية الفورية إلى مصفوفات رقمية وإدخالها لنموذج تنبؤي فوري.",
-          application: "جمع بيانات الجسات، تشغيل ملف البايثون، واستخراج منحنى الهبوط المتوقع.",
-          codeSnippet: "import numpy as np\n# Code text sample",
-          toolLink: "/software/geotech-predictor",
-          hasCalculator: true,
-          calcType: "soil_safety"
-        }
-      ];
-      localStorage.setItem("smart_insights_articles", JSON.stringify(defaultData));
-      setArticles(defaultData);
-    }
+    if (authStatus === "true") setIsLoggedIn(true);
+    fetchAdminArticles();
   }, []);
 
-  const saveToStorage = (updatedList) => {
-    setArticles(updatedList);
-    localStorage.setItem("smart_insights_articles", JSON.stringify(updatedList));
-    showStatus("تم تحديث قاعدة بيانات الأفكار والعلوم ونشرها فوراً للجمهور بنجاح!");
+  const fetchAdminArticles = async () => {
+    try {
+      const res = await fetch("/api/insights");
+      const json = await res.json();
+      if (json.success) {
+        setArticles(json.data);
+      }
+    } catch (e) {
+      const stored = localStorage.getItem("smart_insights_articles");
+      if (stored) setArticles(JSON.parse(stored));
+    }
   };
 
   const showStatus = (msg) => {
@@ -100,33 +74,61 @@ export default function AdminInsights() {
     setTimeout(() => setStatusMessage(""), 4000);
   };
 
-  // إرسال البيانات / إضافة فكرة جديدة أو تعديل فكرة قائمة
-  const handleSubmit = (e) => {
+  // معالجة النشر والتعديل عبر السيرفر والـ API
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !shortDesc || !problem || !science || !smartIdea || !application) {
-      alert("يرجى ملء جميع الحقول الأساسية لضمان الهيكل الصارم للمقال الهندي ومنع الحشو.");
+      alert("يرجى إكمال الحقول الأساسية لضمان الهيكل الصارم للهندسة منعاً للحشو.");
       return;
     }
 
-    if (isEditing) {
-      // وضع التعديل
-      const updated = articles.map(item => item.id === id ? {
-        id, category, title, shortDesc, difficulty, specialty, problem, science, smartIdea, application, codeSnippet, toolLink, hasCalculator, calcType
-      } : item);
-      saveToStorage(updated);
-      setIsEditing(false);
-    } else {
-      // وضع الإضافة الجديدة
-      const newId = Date.now().toString();
-      const newArticle = {
-        id: newId, category, title, shortDesc, difficulty, specialty, problem, science, smartIdea, application, codeSnippet, toolLink, hasCalculator, calcType
-      };
-      saveToStorage([...articles, newArticle]);
+    const payload = {
+      id, category, title, shortDesc, difficulty, specialty, problem, science, smartIdea, application, codeSnippet, toolLink, hasCalculator, calcType
+    };
+
+    try {
+      if (isEditing) {
+        // تحديث عبر API
+        const res = await fetch("/api/insights", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.success) {
+          showStatus("تم تعديل ونشر المادة العلمية حياً بنجاح!");
+        }
+      } else {
+        // إضافة جديدة عبر API
+        const res = await fetch("/api/insights", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.success) {
+          showStatus("تمت إضافة المادة العلمية وإطلاقها للجمهور فوراً!");
+        }
+      }
+      fetchAdminArticles();
+      resetForm();
+    } catch (err) {
+      // Fallback للحفظ المحلي عند انقطاع الاتصال بالسيرفر
+      const localData = [...articles];
+      if (isEditing) {
+        const idx = localData.findIndex(item => item.id === id);
+        if (idx !== -1) localData[idx] = payload;
+      } else {
+        payload.id = Date.now().toString();
+        localData.unshift(payload);
+      }
+      setArticles(localData);
+      localStorage.setItem("smart_insights_articles", JSON.stringify(localData));
+      showStatus("تمت العملية وحفظها في قاعدة البيانات المحلية.");
+      resetForm();
     }
-    resetForm();
   };
 
-  // اختيار مقال للتعديل
   const handleEditSelect = (item) => {
     setIsEditing(true);
     setId(item.id);
@@ -146,11 +148,15 @@ export default function AdminInsights() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // حذف مقال
-  const handleDelete = (targetId) => {
-    if (confirm("هل أنت متأكد من حذف هذه الفكرة/الخدمة نهائياً من العرض العام للجمهور؟")) {
+  const handleDelete = async (targetId) => {
+    if (confirm("هل أنت متأكد من حذف هذه الفكرة/الخدمة نهائياً من العرض العام؟")) {
+      try {
+        await fetch(`/api/insights?id=${targetId}`, { method: "DELETE" });
+      } catch (e) {}
       const filtered = articles.filter(item => item.id !== targetId);
-      saveToStorage(filtered);
+      setArticles(filtered);
+      localStorage.setItem("smart_insights_articles", JSON.stringify(filtered));
+      showStatus("تم الحذف النهائي للخدمة.");
     }
   };
 
@@ -168,74 +174,95 @@ export default function AdminInsights() {
     setToolLink("");
     setHasCalculator(false);
   };
-  // دالة معالجة تسجيل الدخول
+
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    const correctEmail = "admin@smartaprotonc909ademy.com"; // البريد الإلكتروني المعتمد
-    const correctPassword = "AdminPasswordOm197PasswHG7654^&%2026"; // كلمة السر المعتمدة
-
-    if (loginEmail === correctEmail && loginPassword === correctPassword) {
+    if (loginEmail === "admin@smartaprotonc909ademy.com" && loginPassword === "AdminPasswordOm197PasswHG7654^&%2026") {
       localStorage.setItem("insights_admin_logged_in", "true");
       setIsLoggedIn(true);
       setLoginError("");
-      setLoginEmail("");
-      setLoginPassword("");
     } else {
       setLoginError("❌ البريد الإلكتروني أو كلمة السر غير صحيحة!");
     }
   };
 
-  // دالة تسجيل الخروج
-  const handleLogout = () => {
-    if (confirm("هل أنت متأكد من رغبتك في تسجيل الخروج؟")) {
-      localStorage.removeItem("insights_admin_logged_in");
-      setIsLoggedIn(false);
-    }
-  };
-
-  // حاجز الحماية: إذا لم يسجل الدخول، اقطع قراءة باقي الملف واعرض شاشة اللوجن فقط
   if (!isLoggedIn) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#0f172a", direction: "rtl", fontFamily: "sans-serif", padding: "20px" }}>
-        <div style={{ background: "#1e293b", padding: "40px", borderRadius: "16px", border: "1px solid #334155", width: "100%", maxWidth: "420px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)" }}>
-          <h2 style={{ color: "#38bdf8", marginBottom: "10px", textAlign: "center", fontWeight: "bold" }}>🔐 تسجيل دخول الإدارة</h2>
-          <p style={{ color: "#94a3b8", fontSize: "14px", marginBottom: "25px", textAlign: "center" }}>يرجى إدخال البيانات للوصول إلى لوحة التحكم للسيطرة التامة</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans" dir="rtl">
+        <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl w-full max-w-md shadow-2xl">
+          <div className="flex justify-center mb-4">
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+              <Lock className="w-8 h-8 text-emerald-400" />
+            </div>
+          </div>
+          <h2 className="text-xl font-black text-white text-center mb-2">تسجيل دخول السيطرة والتحكم</h2>
+          <p className="text-xs text-slate-400 text-center mb-6">لوحة تحرير وإدارة قائمة أفكار وعلوم منصة الهندسة الذكية</p>
           
-          {loginError && <div style={{ background: "rgba(239, 68, 68, 0.15)", color: "#f87171", border: "1px solid #ef4444", padding: "12px", borderRadius: "8px", marginBottom: "15px", textAlign: "center", fontSize: "14px" }}>{loginError}</div>}
-          
-          <form onSubmit={handleLoginSubmit}>
-            <label style={{ display: "block", color: "#e2e8f0", marginBottom: "8px", fontSize: "14px" }}>البريد الإلكتروني:</label>
-            <input type="email" placeholder="example@domain.com" required value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "15px", borderRadius: "8px", border: "1px solid #334155", background: "#0f172a", color: "#fff", boxSizing: "border-box" }}/>
-            
-            <label style={{ display: "block", color: "#e2e8f0", marginBottom: "8px", fontSize: "14px" }}>كلمة السر:</label>
-            <input type="password" placeholder="••••••••" required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "25px", borderRadius: "8px", border: "1px solid #334155", background: "#0f172a", color: "#fff", boxSizing: "border-box" }}/>
-            
-            <button type="submit" style={{ background: "#38bdf8", color: "#0f172a", padding: "12px", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "bold", cursor: "pointer", width: "100%" }}>دخول آمن 🚀</button>
+          {loginError && (
+            <div className="mb-4 p-3 bg-rose-950/80 border border-rose-500 text-rose-300 text-xs rounded-xl text-center">
+              {loginError}
+            </div>
+          )}
+
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">البريد الإلكتروني للإدارة</label>
+              <input 
+                type="email" 
+                required 
+                placeholder="admin@smartacademy.com"
+                value={loginEmail} 
+                onChange={(e) => setLoginEmail(e.target.value)} 
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">كلمة المرور</label>
+              <input 
+                type="password" 
+                required 
+                placeholder="••••••••"
+                value={loginPassword} 
+                onChange={(e) => setLoginPassword(e.target.value)} 
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <button 
+              type="submit" 
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/10"
+            >
+              دخول آمن للوحة السيطرة
+            </button>
           </form>
         </div>
       </div>
     );
   }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased" dir="rtl">
       
-      {/* البار العلوي للوحة الإدارة */}
+      {/* شريط الإدارة العلوي */}
       <div className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center max-w-7xl">
           <div className="flex items-center gap-3">
-            <div className="bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
-              <FolderPlus className="w-6 h-6 text-emerald-400" />
+            <div className="bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+              <FolderPlus className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-white tracking-wide">لوحة التحكم الفنية والسيطرة | أفكار وعلوم</h1>
-              <p className="text-xs text-slate-400">بوابة تحرير المحتوى الهندسي المتقدم والربط الخوارزمي التفاعلي حياً للجمهور</p>
+              <h1 className="text-lg font-black text-white">لوحة التحكم التامة | قائمة أفكار وعلوم</h1>
+              <p className="text-xs text-slate-400">إضافة، تعديل، وحذف الخدمات والمقالات المعروضة للجمهور</p>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
-            <Link href="/insights" target="_blank" className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+            <Link href="/" className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5">
+              <ArrowRight className="w-3.5 h-3.5" />
+              <span>الرئيسية</span>
+            </Link>
+            <Link href="/insights" target="_blank" className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-md shadow-emerald-500/10">
               <Eye className="w-4 h-4" />
-              <span>معاينة صفحة الجمهور حياً</span>
+              <span>معاينة العرض العام</span>
             </Link>
           </div>
         </div>
@@ -243,28 +270,28 @@ export default function AdminInsights() {
 
       <div className="container mx-auto px-4 py-8 max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* العمود الأيمن: نموذج الإضافة والتعديل التام */}
-        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-800 pb-3">
+        {/* العمود الأيمن: نموذج الإضافة والتعديل */}
+        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+          <h2 className="text-base font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-800 pb-3">
             <Edit3 className="w-5 h-5 text-emerald-400" />
-            <span>{isEditing ? "تعديل المقال أو الفكرة الحالية" : "إضافة ونشر مادة علمية / فكرة ذكية جديدة"}</span>
+            <span>{isEditing ? "تعديل الخدمة/المادة العلمية المحددة" : "إضافة خدمة ومادة علمية جديدة"}</span>
           </h2>
 
           {statusMessage && (
-            <div className="mb-6 p-4 bg-emerald-950 border border-emerald-500 text-emerald-300 text-sm font-semibold rounded-xl flex items-center gap-2 animate-pulse">
-              <CheckCircle className="w-5 h-5" />
+            <div className="mb-6 p-4 bg-emerald-950 border border-emerald-500 text-emerald-300 text-xs font-bold rounded-2xl flex items-center gap-2 animate-pulse">
+              <CheckCircle className="w-4 h-4" />
               <span>{statusMessage}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">القسم الفرعي التابع للقائمة الأساسية</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">القائمة الفرعية التابعة</label>
                 <select 
                   value={category} 
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 >
                   <option value="FUTURE_ENG">هندسة المستقبل</option>
                   <option value="EXECUTION_SECRETS">أسرار التنفيذ والمكتب الفني</option>
@@ -274,139 +301,139 @@ export default function AdminInsights() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">مستوى صعوبة المحتوى</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">مستوى الصعوبة</label>
                 <select 
                   value={difficulty} 
                   onChange={(e) => setDifficulty(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="أساسيات">أساسيات ومفاهيم أولية</option>
-                  <option value="متقدم">متقدم لممارسي التخصص</option>
-                  <option value="خبير">خبير وأبحاث تخصصية دقيقة</option>
+                  <option value="أساسيات">أساسيات ومفاهيم</option>
+                  <option value="متقدم">متقدم للممارسين</option>
+                  <option value="خبير">خبير وأبحاث دقيقة</option>
                 </select>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">عنوان الفكرة / المقال</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">العنوان الرئيسي</label>
                 <input 
                   type="text"
-                  placeholder="مثال: التنبؤ بهبوط المباني باستخدام الشبكات العصبية"
+                  placeholder="مثال: الذكاء الاصطناعي في الإنشاءات"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">التخصص الهندسي الدقيق (الوسم المساعد)</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">التخصص الدقيق</label>
                 <input 
                   type="text"
-                  placeholder="مثال: ميكانيكا تربة، حساب كميات، خرسانة"
+                  placeholder="مثال: جيوتقنيك، تسليح، خرسانة"
                   value={specialty}
                   onChange={(e) => setSpecialty(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">وصف مختصر يظهر للعامة (بطاقة العرض السريع)</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">الوصف المختصر للعرض السريع</label>
               <textarea 
                 rows="2"
-                placeholder="نبذة مركزة تظهر في بطاقة المقال لتشجيع المهندسين على القراءة والدخول..."
+                placeholder="نبذة مركزة تظهر في بطاقة المقال..."
                 value={shortDesc}
                 onChange={(e) => setShortDesc(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
               />
             </div>
 
-            {/* حقول الهيكل المقالي الصارم للتحكم في معطيات العرض الفعلي لمنع الحشو */}
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-4">
-              <span className="text-xs font-black text-emerald-400 block tracking-wider uppercase">حقول الهيكل الهندسي الرباعي الصارم للنشر</span>
+            {/* الهيكل الصارم ذو الأربعة عناصر لمنع الحشو */}
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-3">
+              <span className="text-[11px] font-black text-emerald-400 block tracking-wider uppercase">حقول الهيكل الرباعي الصارم</span>
               
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 mb-1">1. حقل المشكلة الفنية بالموقع أو التصميم</label>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">1. المشكلة الإنشائية/الفنية</label>
                 <textarea 
                   rows="2"
-                  placeholder="اشرح العائق بدقة مثل: صعوبة حصر الأشكال الحلزونية والمعقدة يدوياً."
+                  placeholder="شرح المشكلة بالتفصيل..."
                   value={problem}
                   onChange={(e) => setProblem(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 mb-1">2. حقل العلم والنظرية الرياضية/الهندسية للحل</label>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">2. الأساس العلمي والنظرية</label>
                 <textarea 
                   rows="2"
-                  placeholder="اشرح النظرية مثل: الاعتماد على حساب تكامل الإحداثيات المنحنية ونظرية ميكانيكا الجوامد."
+                  placeholder="شرح النظرية الرياضية أو الهندسية..."
                   value={science}
                   onChange={(e) => setScience(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 mb-1">3. حقل الفكرة الذكية (30 ثانية ملخص الخوارزمية)</label>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">3. الفكرة الذكية والحل الخوارزمي (ملخص 30 ثانية)</label>
                 <textarea 
                   rows="2"
-                  placeholder="كيف تم تحويل العلم لخوارزمية سريعة كودية أو آلية أوتوماتيكية..."
+                  placeholder="كيف تم تحويل العلم لخوارزمية سريعة..."
                   value={smartIdea}
                   onChange={(e) => setSmartIdea(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 mb-1">4. حقل خطوات التطبيق التنفيذية</label>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">4. خطوات التطبيق التنفيذية</label>
                 <textarea 
                   rows="2"
-                  placeholder="الخطوات الإجرائية بالموقع أو المكتب الفني لتنفيذ هذه الفكرة فوراً وبسهولة."
+                  placeholder="الخطوات الإجرائية بالموقع أو المكتب الفني..."
                   value={application}
                   onChange={(e) => setApplication(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">كود برميي توضيحي ملحق بالمقال (Python / G-code / JavaScript)</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">الكود البرمجي التوضيحي المرفق</label>
               <textarea 
-                rows="4"
-                placeholder="اكتب أو الصق الكود البرمجي هنا ليظهر بشكل منسق ومظلل داخل المقال مباشرة..."
+                rows="3"
+                placeholder="ضع كود Python أو G-code أو JavaScript هنا..."
                 value={codeSnippet}
                 onChange={(e) => setCodeSnippet(e.target.value)}
-                className="w-full bg-[#0b0f19] border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#050811] border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-emerald-500"
                 dir="ltr"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">رابط أداة برمجية داخل المنصة (إن وُجدت للربط)</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">رابط أداة برمجية داخل الموقع</label>
                 <input 
                   type="text"
-                  placeholder="مثال: /software/rebar-optimizer"
+                  placeholder="/software/geotech-predictor"
                   value={toolLink}
                   onChange={(e) => setToolLink(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                   dir="ltr"
                 />
               </div>
 
               <div className="flex flex-col justify-end">
-                <div className="flex items-center h-full gap-2 px-1">
+                <div className="flex items-center gap-2 h-full">
                   <input 
                     type="checkbox"
-                    id="hasCalc"
+                    id="hasCalcCheck"
                     checked={hasCalculator}
                     onChange={(e) => setHasCalculator(e.target.checked)}
-                    className="w-4 h-4 bg-slate-950 border-slate-700 text-emerald-500 rounded focus:ring-0 cursor-pointer"
+                    className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-emerald-500 focus:ring-0 cursor-pointer"
                   />
-                  <label htmlFor="hasCalc" className="text-xs font-bold text-slate-300 cursor-pointer select-none">
-                    دمج وتفعيل حاسبة فورية تفاعلية بجانب المقال
+                  <label htmlFor="hasCalcCheck" className="text-xs font-bold text-slate-300 cursor-pointer">
+                    تفعيل الحاسبة التفاعلية المدمجة بالمقال
                   </label>
                 </div>
               </div>
@@ -414,82 +441,77 @@ export default function AdminInsights() {
 
             {hasCalculator && (
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">نوع المعالجة البرمجية للحاسبة</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">نوع معالجة الحاسبة التفاعلية</label>
                 <select 
                   value={calcType}
                   onChange={(e) => setCalcType(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="soil_safety">حساب أمان التربة المعتمد على الـ SPT</option>
-                  <option value="value_eng">حساب العائد والتوفير المالي لهندسة القيمة</option>
+                  <option value="soil_safety">حساب أمان التربة بناء على قراءة SPT</option>
+                  <option value="value_eng">حساب توفير ميزانية هندسة القيمة</option>
                 </select>
               </div>
             )}
 
-            {/* الأزرار التنفيذية */}
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-3">
               <button
                 type="submit"
-                className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black px-6 py-3 rounded-xl transition-all duration-200 text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-6 py-3 rounded-xl transition-all text-xs md:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
               >
-                <Save className="w-5 h-5" />
-                <span>{isEditing ? "تحديث وحفظ التعديلات حياً" : "نشر وإطلاق المادة للجمهور فوراً"}</span>
+                <Save className="w-4 h-4" />
+                <span>{isEditing ? "تحديث وحفظ التعديلات" : "نشر الخدمة/المادة للجمهور"}</span>
               </button>
 
               {isEditing && (
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-5 py-3 rounded-xl transition-all duration-200 text-sm flex items-center gap-2"
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-4 py-3 rounded-xl transition-all text-xs flex items-center gap-2"
                 >
                   <Undo className="w-4 h-4" />
-                  <span>إلغاء التعديل</span>
+                  <span>إلغاء</span>
                 </button>
               )}
             </div>
           </form>
         </div>
 
-        {/* العمود الأيسر: إدارة ومراقبة المواد المنشورة حالياً وحالة السيرفر التابع */}
+        {/* العمود الأيسر: قائمة المواد والخدمات المنشورة مع خيارات الحذف والتعديل */}
         <div className="lg:col-span-5 space-y-6">
           
-          {/* قسم بطاقات السيطرة والعرض السريع */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
-            <h3 className="text-md font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
               <RefreshCw className="w-4 h-4 text-emerald-400" />
-              <span>المواد والمقالات المدرجة للتحكم ({articles.length})</span>
+              <span>الخدمات والأفكار المنشورة للتحكم ({articles.length})</span>
             </h3>
 
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto pl-1">
+            <div className="space-y-3 max-h-[55vh] overflow-y-auto pl-1">
               {articles.map((item) => (
-                <div key={item.id} className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between gap-3 hover:border-slate-700 transition-colors">
+                <div key={item.id} className="bg-slate-950 border border-slate-850 rounded-2xl p-4 flex flex-col justify-between gap-2 hover:border-slate-700 transition-colors">
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">
-                        {item.category === "FUTURE_ENG" ? "هندسة المستقبل" :
-                         item.category === "EXECUTION_SECRETS" ? "أسرار التنفيذ" :
-                         item.category === "PROG_FOR_ENG" ? "البرمجة للمهندسين" : "أوراق مبسطة"}
+                      <span className="text-[10px] bg-slate-900 text-emerald-400 px-2 py-0.5 rounded font-mono border border-slate-800">
+                        {item.category}
                       </span>
-                      <span className="text-[11px] text-slate-500 font-mono">#{item.id}</span>
+                      <span className="text-[10px] text-slate-600 font-mono">#{item.id}</span>
                     </div>
-                    <h4 className="text-sm font-bold text-white line-clamp-1">{item.title}</h4>
-                    <p className="text-xs text-slate-400 line-clamp-2 mt-1 leading-normal">{item.shortDesc}</p>
+                    <h4 className="text-xs font-bold text-white line-clamp-1">{item.title}</h4>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2 border-t border-slate-900">
                     <button
                       onClick={() => handleEditSelect(item)}
-                      className="inline-flex items-center gap-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors border border-blue-500/20"
+                      className="inline-flex items-center gap-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 text-[11px] font-bold px-3 py-1 rounded-lg transition-colors border border-sky-500/20"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      <Edit3 className="w-3 h-3" />
                       <span>تعديل</span>
                     </button>
                     <button
                       onClick={() => handleDelete(item.id)}
-                      className="inline-flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors border border-rose-500/20"
+                      className="inline-flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[11px] font-bold px-3 py-1 rounded-lg transition-colors border border-rose-500/20"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>حذف نهائي</span>
+                      <Trash2 className="w-3 h-3" />
+                      <span>حذف</span>
                     </button>
                   </div>
                 </div>
@@ -497,25 +519,19 @@ export default function AdminInsights() {
             </div>
           </div>
 
-          {/* صندوق التحقق التوثيقي وعناوين البريد الإلكتروني المعتمدة للمنصة */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+          {/* معلومات التحقق البريدي المعتمدة رسمياً في منصة الهندسة الذكية */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3">
+            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
               <Mail className="w-4 h-4 text-emerald-400" />
-              <span>قنوات الاتصال والتحقق الرسمية المربوطة</span>
+              <span>البريد الإلكتروني والإيميلات المعتمدة للمنصة</span>
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              تتم جميع عمليات المزامنة واستقبال الطلبات والاستجابة لردود فعل الجمهور من خلال الايميلات الرسمية للموقع والبريد الإلكتروني المعتمد أدناه في لوحة السيطرة التامة للمنصة:
-            </p>
-            <div className="space-y-1.5 font-mono text-xs text-emerald-400 bg-slate-950 p-3 rounded-xl border border-slate-850">
+            <div className="space-y-2 font-mono text-[11px] text-emerald-400 bg-slate-950 p-3.5 rounded-2xl border border-slate-850">
               {officialEmails.map((email, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <span className="text-slate-600">{idx + 1}.</span>
                   <span>{email}</span>
                 </div>
               ))}
-            </div>
-            <div className="pt-2 text-[11px] text-slate-500 italic">
-              * تم ربط الأكواد ونظام التحكم بنسبة 10000% لتعمل دون أي أخطاء برمجية أو حشو في المحتوى الهيكلي الموجه للمهندسين.
             </div>
           </div>
 

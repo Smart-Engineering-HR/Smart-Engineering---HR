@@ -13,7 +13,12 @@ import {
   Sparkles, 
   AlertCircle, 
   HelpCircle, 
-  Code 
+  Code,
+  ShieldAlert,
+  Zap,
+  CheckCircle,
+  Lightbulb,
+  FileText
 } from "lucide-react";
 
 export default function InsightsPage() {
@@ -22,89 +27,39 @@ export default function InsightsPage() {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [calcInput, setCalcInput] = useState("");
   const [calcResult, setCalcResult] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // تحميل البيانات المبدئية والتحقق من التحديثات بـ LocalStorage لضمان الربط مع الـ Admin
+  // تحميل البيانات من الـ API المعتمد مع وجود fallback محلي
   useEffect(() => {
-    const defaultArticles = [
-      {
-        id: "1",
-        category: "FUTURE_ENG",
-        title: "الذكاء الاصطناعي في الإنشاءات",
-        shortDesc: "كيف يتم استخدام Machine Learning للتنبؤ بانهيار التربة أو تحسين تكلفة المشاريع.",
-        difficulty: "متقدم",
-        specialty: "جيوتقنيك وإدارة مشاريع",
-        problem: "صعوبة التنبؤ الدقيق بانهيار التربة بالموقع مما يسبب كوارث إنشائية وخسائر مالية فادحة.",
-        science: "تعتمد النظرية على تحليل بيانات الجسات السابقة وتدريب خوارزميات الغابات العشوائية (Random Forests) وشبكات العصبونات الاصطناعية على معطيات الضغط، الرطوبة، وزاوية الاحتكاك الداخلي.",
-        smartIdea: "تحويل قيم الاختبارات الحقلية الفورية (SPT) إلى مصفوفات رقمية وإدخالها لنموذج تنبؤي فوري يعطي نسبة أمان التربة خلال 30 ثانية.",
-        application: "خطوات التنفيذ: 1. جمع بيانات الجسات، 2. تشغيل ملف البايثون، 3. استخراج منحنى الهبوط المتوقع.",
-        codeSnippet: "import numpy as np\nfrom sklearn.ensemble import RandomForestClassifier\n\n# بيانات عينة: [الرطوبة، الضغط، العمق]\nX = np.array([[12, 150, 5], [22, 90, 8], [15, 200, 3]])\ny = np.array([1, 0, 1]) # 1: آمن, 0: خطر انهيار\n\nclf = RandomForestClassifier()\nclf.fit(X, y)\nprint('التنبؤ للتربة الحالية:', clf.predict([[18, 110, 6]]))",
-        toolLink: "/software/geotech-predictor",
-        hasCalculator: true,
-        calcType: "soil_safety"
-      },
-      {
-        id: "2",
-        category: "FUTURE_ENG",
-        title: "الطباعة ثلاثية الأبعاد للمنازل",
-        shortDesc: "أحدث الأبحاث في بناء المنازل بالخرسانة المطبوعة لتقليل الهدر والوقت.",
-        difficulty: "خبير",
-        specialty: "مواد وإنشاءات",
-        problem: "ارتفاع تكلفة القوالب الخشبية التقليدية واستهلاكها لزمن طويل جداً في المنشآت ذات الأشكال المعقدة.",
-        science: "استخدام ريولوجيا الخرسانة (Concrete Rheology) لابتكار خلطات ذات سيولة عالية أثناء الضخ، وتصلد سريع جداً فور الخروج من فوهة الطابعة لتحمل الطبقات التالية.",
-        smartIdea: "برمجة روبوت إنشائي بذراع سداسية المحاور يقرأ ملفات الـ G-code مباشرة من التصميم المعماري ويصب الخرسانة بدقة مليمترية.",
-        application: "تحميل التصميم بصيغة STL، تشغيل نظام الضخ التلقائي، ومراقبة جفاف الطبقات دورياً.",
-        codeSnippet: "G1 X100 Y50 Z0.4 F3000 ; تحريك الذراع وضخ الطبقة الأولى\nG1 X150 Y50 Z0.8 F3000 ; صب الطبقة الثانية بارتفاع مضاعف",
-        toolLink: "/software/3d-print-slicer",
-        hasCalculator: false
-      },
-      {
-        id: "3",
-        category: "FUTURE_ENG",
-        title: "التوأم الرقمي (Digital Twin)",
-        shortDesc: "شرح كيفية ربط حساسات الموقع بنموذج الـ BIM لمراقبة المبنى لحظياً.",
-        difficulty: "خبير",
-        specialty: "تكنولوجيا البناء",
-        problem: "عدم القدرة على معرفة الإجهادات الحقيقية التي تتعرض لها العناصر الإنشائية الحساسة بعد التشغيل.",
-        science: "إنشاء اتصال إنترنت الأشياء (IoT) يربط المستشعرات الفيزيائية بنموذج معلومات المبنى الرقمي لمعالجة البيانات عبر السحابة.",
-        smartIdea: "تطوير لوحة تحكم ذكية تلون أعضاء نموذج الـ BIM باللون الأحمر فوراً عند تخطي الإجهاد المسموح.",
-        application: "تركيب مستشعرات انفعال (Strain Gauges)، ربط الـ API بالنموذج، وتفعيل التنبيهات الذكية.",
-        codeSnippet: "import requests\n\ndef check_building_stress(sensor_id):\n    response = requests.get(f'https://api.smart-eng/sensors/{sensor_id}')\n    data = response.json()\n    if data['stress'] > 14.5: # 14.5 MPa الحد الأقصى\n        return 'تحذير: إجهاد مرتفع!'\n    return 'الحالة مستقرة'",
-        toolLink: "/software/bim-twin",
-        hasCalculator: false
-      },
-      {
-        id: "4",
-        category: "EXECUTION_SECRETS",
-        title: "هندسة القيمة في العناصر الإنشائية",
-        shortDesc: "أفكار وحلول ذكية لتقليل التكاليف الإجمالية للمشروع دون المساس بالجودة والسلامة.",
-        difficulty: "أساسيات",
-        specialty: "مكتب فني وتكاليف",
-        problem: "زيادة كميات حديد التسليح والخرسانة نتيجة التصاميم التقليدية غير المحسنة اقتصادياً.",
-        science: "تطبيق مبادئ النمذجة الرياضية لتقليل دالة التكلفة مع الحفاظ على قيود الأمان لـ ACI أو الكود المحلي.",
-        smartIdea: "تعديل أبعاد القواعد وتغيير توزيع التسليح بالاعتماد على ذروة مخطط عزم الانحناء بدلاً من التوزيع الموحد.",
-        application: "إدخال العزوم القصوى، تشغيل الحسبة المثالية، وتعديل المخططات التنفيذية بناء عليها.",
-        codeSnippet: "# حساب توفير تقريبي في حديد القواعد\ndef value_engineering(as_original, as_optimized):\n    saving = ((as_original - as_optimized) / as_original) * 100\n    return f'نسبة التوفير في الحديد: {saving:.2f}%'\n\nprint(value_engineering(1200, 950))",
-        toolLink: "/software/rebar-optimizer",
-        hasCalculator: true,
-        calcType: "value_eng"
-      }
-    ];
-
-    const stored = localStorage.getItem("smart_insights_articles");
-    if (stored) {
-      setArticles(JSON.parse(stored));
-    } else {
-      localStorage.setItem("smart_insights_articles", JSON.stringify(defaultArticles));
-      setArticles(defaultArticles);
-    }
+    fetchArticles();
   }, []);
 
+  const fetchArticles = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/insights");
+      const json = await res.json();
+      if (json.success && json.data.length > 0) {
+        setArticles(json.data);
+      } else {
+        // الاستعانة بالمخزن المحلي في حال عدم وجود اتصال سيرفر
+        const stored = localStorage.getItem("smart_insights_articles");
+        if (stored) setArticles(JSON.parse(stored));
+      }
+    } catch (e) {
+      const stored = localStorage.getItem("smart_insights_articles");
+      if (stored) setArticles(JSON.parse(stored));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const categories = [
-    { id: "ALL", name: "كل العلوم والأفكار", icon: <Sparkles className="w-5 h-5" /> },
-    { id: "FUTURE_ENG", name: "هندسة المستقبل", icon: <Cpu className="w-5 h-5" /> },
-    { id: "EXECUTION_SECRETS", name: "أسرار التنفيذ والمكتب الفني", icon: <Layers className="w-5 h-5" /> },
-    { id: "PROG_FOR_ENG", name: "البرمجة للمهندسين", icon: <Terminal className="w-5 h-5" /> },
-    { id: "SIMPLIFIED_PAPERS", name: "أوراق بحثية مبسطة", icon: <BookOpen className="w-5 h-5" /> },
+    { id: "ALL", name: "كل العلوم والأفكار", icon: <Sparkles className="w-4 h-4" /> },
+    { id: "FUTURE_ENG", name: "هندسة المستقبل", icon: <Cpu className="w-4 h-4" /> },
+    { id: "EXECUTION_SECRETS", name: "أسرار التنفيذ والمكتب الفني", icon: <Layers className="w-4 h-4" /> },
+    { id: "PROG_FOR_ENG", name: "البرمجة للمهندسين", icon: <Terminal className="w-4 h-4" /> },
+    { id: "SIMPLIFIED_PAPERS", name: "أوراق بحثية مبسطة", icon: <BookOpen className="w-4 h-4" /> },
   ];
 
   const filteredArticles = activeCategory === "ALL" 
@@ -114,62 +69,63 @@ export default function InsightsPage() {
   const handleRunCalculator = (type) => {
     const val = parseFloat(calcInput);
     if (isNaN(val)) {
-      setCalcResult("يرجى إدخال رقم صحيح.");
+      setCalcResult("يرجى إدخال قيمة رقمية صحيحة للتجربة.");
       return;
     }
     if (type === "soil_safety") {
-      // محاكاة حاسبة أمان التربة بناء على قراءة اختبار SPT
-      if (val < 10) setCalcResult("التربة ضعيفة جداً! خطر انهيار مرتفع (عامل الأمان < 1.1)");
-      else if (val >= 10 && val < 30) setCalcResult("تربة متوسطة الاستقرار. عامل الأمان التقريبي: 1.5");
-      else setCalcResult("تربة ممتازة ومستقرة تماماً. عامل الأمان يتعدى 2.5");
+      if (val < 10) setCalcResult("⚠️ قراءة SPT ضعيفة جداً! خطر انهيار مرتفع (عامل الأمان < 1.1)");
+      else if (val >= 10 && val < 30) setCalcResult("✅ تربة متوسطة الاستقرار. عامل الأمان المقدر: 1.55");
+      else setCalcResult("🚀 تربة ممتازة ومستقرة تماماً. عامل الأمان يتعدى 2.70");
     } else if (type === "value_eng") {
-      // محاكاة حساب التوفير المالي
       const optimizedCost = val * 0.82; 
-      setCalcResult(`التكلفة الذكية المقترحة: ${optimizedCost.toFixed(2)} $ (تم توفير 18%)`);
+      setCalcResult(`💰 التكلفة الذكية المحسنة: ${optimizedCost.toFixed(2)} $ (تم توفير 18% من الميزانية)`);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans antialiased selection:bg-emerald-500 selection:text-white" dir="rtl">
+    <div className="min-h-screen bg-[#070b14] text-slate-100 font-sans antialiased selection:bg-emerald-500 selection:text-white" dir="rtl">
       
-      {/* الخلفية الاحترافية المعبرة */}
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-900/40 via-slate-900 to-[#0f172a] pointer-events-none" />
-      <div className="absolute inset-0 z-0 opacity-[0.03] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+      {/* خلفية جمالية تعبيرية جذابة واحترافية */}
+      <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#070b14] to-[#04060c] pointer-events-none" />
+      <div className="fixed inset-0 z-0 opacity-10 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
 
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
         
-        {/* هيدر الصفحة والعودة للرئيسية */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-6 mb-8 gap-4">
+        {/* هيدر الصفحة الرئيسي + زر العودة الصارم والمطلوب إلى الرئيسية */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800/80 pb-6 mb-8 gap-4 backdrop-blur-md bg-slate-900/30 p-6 rounded-3xl border border-slate-800/50 shadow-2xl">
           <div>
-            <div className="flex items-center gap-2 text-emerald-400 font-medium tracking-wider text-sm mb-1">
-              <Sparkles className="w-4 h-4 animate-pulse" />
-              <span>منصة الهندسة الذكية</span>
+            <div className="flex items-center gap-2 text-emerald-400 font-bold tracking-wider text-xs mb-2">
+              <Zap className="w-4 h-4 animate-bounce text-emerald-400" />
+              <span>منصة الهندسة الذكية والموارد البشرية</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-white bg-clip-text bg-gradient-to-l from-white via-slate-200 to-slate-400">
-              قائمة أفكار وعلوم هندسية
+            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight bg-clip-text bg-gradient-to-l from-white via-slate-200 to-emerald-400">
+              قائمة أفكار وعلوم
             </h1>
-            <p className="text-slate-400 mt-2 text-sm md:text-base max-w-2xl">
-              مواكبة الثورة الرقمية، التقنيات الناشئة، والحلول البرمجية الذكية لتطوير قطاع التشييد والمكتب الفني بأسلوب علمي تفاعلي.
+            <p className="text-slate-400 mt-2 text-sm md:text-base max-w-2xl leading-relaxed">
+              بوابة المعرفة الهندسة التفاعلية: الثورة الرقمية، أسرار التنفيذ، البرمجة الإنشائية، وتلخيص الأبحاث العالمية بصياغة تنفيذية مباشرة.
             </p>
           </div>
           
-          {/* زر العودة الإلزامي إلى الرئيسية */}
-          <Link href="/" className="inline-flex items-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-emerald-600 hover:to-emerald-500 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-300 shadow-lg group border border-slate-700 hover:border-emerald-400 self-stretch md:self-auto text-center justify-center">
+          {/* زر العودة الصارم لإلزامية التواجد إلى الصفحة الرئيسية للمنصة */}
+          <Link 
+            href="/" 
+            className="inline-flex items-center gap-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black px-6 py-3.5 rounded-2xl transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:scale-105 group self-stretch md:self-auto justify-center text-sm"
+          >
             <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
-            <span>العودة للرئيسية بالمنصة</span>
+            <span>العودة إلى الرئيسية في منصة الهندسة الذكية</span>
           </Link>
         </header>
 
-        {/* التبويبات والتصنيفات الذكية */}
-        <nav className="flex flex-wrap gap-2 mb-10 border-b border-slate-800/60 pb-4">
+        {/* التبويبات والتصنيفات الفرعية الأربعة الأساسية */}
+        <nav className="flex flex-wrap gap-2.5 mb-8">
           {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => { setActiveCategory(cat.id); setSelectedArticle(null); }}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
+              className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs md:text-sm font-bold transition-all duration-300 border ${
                 activeCategory === cat.id
-                  ? "bg-emerald-500 text-slate-900 font-bold shadow-md shadow-emerald-500/20 scale-105"
-                  : "bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 hover:text-white"
+                  ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow-lg shadow-emerald-500/20 scale-105"
+                  : "bg-slate-900/80 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white hover:border-slate-700"
               }`}
             >
               {cat.icon}
@@ -178,120 +134,125 @@ export default function InsightsPage() {
           ))}
         </nav>
 
-        {/* لوحة العرض الرئيسية: طراز المجلات العلمية */}
+        {/* عرض المحتوى الرئيسي بطراز المجلات العلمية الحديثة */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* العمود الأيمن: قائمة البطاقات والمقالات المتاحة */}
-          <div className="lg:col-span-5 space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-            <h2 className="text-lg font-bold text-slate-300 flex items-center gap-2 mb-2">
-              <Layers className="w-4 h-4 text-emerald-400" />
-              <span>المواضيع والأبحاث المتاحة ({filteredArticles.length})</span>
+          {/* القائمة اليمنى: بطاقات الأفكار والمواد المنشورة */}
+          <div className="lg:col-span-5 space-y-4 max-h-[80vh] overflow-y-auto pr-1">
+            <h2 className="text-sm font-bold text-slate-400 flex items-center justify-between mb-3 px-1">
+              <span className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-emerald-400" />
+                <span>المشاركات والمواضيع العلمية ({filteredArticles.length})</span>
+              </span>
+              <span className="text-[11px] bg-slate-900 text-slate-500 px-2.5 py-1 rounded-full border border-slate-800">تحديث فوري</span>
             </h2>
 
-            {filteredArticles.length === 0 ? (
-              <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-8 text-center text-slate-400">
-                لا توجد مقالات منشورة في هذا القسم حالياً. يمكنك إضافتها من لوحة التحكم.
+            {loading ? (
+              <div className="bg-slate-900/50 p-8 rounded-2xl border border-slate-800 text-center text-slate-400 animate-pulse">
+                جاري تحميل الأفكار والعلوم الهندسية...
+              </div>
+            ) : filteredArticles.length === 0 ? (
+              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-400">
+                لا توجد مواضيع منشورة حالياً في هذا التصنيف.
               </div>
             ) : (
               filteredArticles.map((article) => (
                 <div
                   key={article.id}
                   onClick={() => { setSelectedArticle(article); setCalcResult(null); setCalcInput(""); }}
-                  className={`p-5 rounded-xl border transition-all duration-300 cursor-pointer ${
+                  className={`p-5 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden ${
                     selectedArticle?.id === article.id
-                      ? "bg-slate-800 border-emerald-500 shadow-xl shadow-emerald-950/20 bg-gradient-to-l from-slate-800 to-slate-800/50"
-                      : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40"
+                      ? "bg-slate-900 border-emerald-500 shadow-xl shadow-emerald-950/40 ring-1 ring-emerald-500/50"
+                      : "bg-slate-900/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/90"
                   }`}
                 >
-                  <div className="flex justify-between items-start gap-2 mb-2">
-                    <span className="text-xs px-2.5 py-1 rounded-md font-semibold bg-slate-800 text-emerald-400 border border-slate-700">
-                      {article.specialty || "هندسة عامة"}
+                  <div className="flex justify-between items-center gap-2 mb-2">
+                    <span className="text-[11px] font-bold px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      {article.specialty || "تخصص هندسي"}
                     </span>
-                    <span className={`text-xs px-2.5 py-1 rounded-md font-medium ${
-                      article.difficulty === "خبير" ? "bg-rose-950 text-rose-300" :
-                      article.difficulty === "متقدم" ? "bg-amber-950 text-amber-300" : "bg-blue-950 text-blue-300"
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                      article.difficulty === "خبير" ? "bg-rose-950 text-rose-300 border border-rose-800/50" :
+                      article.difficulty === "متقدم" ? "bg-amber-950 text-amber-300 border border-amber-800/50" : "bg-blue-950 text-blue-300 border border-blue-800/50"
                     }`}>
-                      {article.difficulty || "أساسيات"}
+                      {article.difficulty || "متقدم"}
                     </span>
                   </div>
-                  <h3 className="text-md font-bold text-white mb-2">{article.title}</h3>
+                  <h3 className="text-base font-bold text-white mb-2 line-clamp-1">{article.title}</h3>
                   <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{article.shortDesc}</p>
                   
-                  <div className="mt-4 flex justify-between items-center text-xs text-emerald-400 font-medium">
-                    <span>قراءة سريعة وهيكل تفاعلي ←</span>
-                    <span className="text-slate-500 text-[11px]">معرف المقال: #{article.id}</span>
+                  <div className="mt-4 flex justify-between items-center text-xs font-semibold text-emerald-400">
+                    <span>عرض قراءة مجلة إنفوجرافيك ←</span>
+                    <span className="text-[10px] text-slate-600 font-mono">#{article.id}</span>
                   </div>
                 </div>
               ))
             )}
           </div>
 
-          {/* العمود الأيسر: عرض تفاصيل المقال المختار بنظام الهيكل العلمي الرباعي الصارم والوسوم التفاعلية */}
+          {/* القائمة اليسرى: تفاصيل المقال بالهيكل العلمي الرباعي الصارم والإنفوجرافيك والتفاعلية */}
           <div className="lg:col-span-7">
             {selectedArticle ? (
-              <article className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden backdrop-blur-sm animate-fadeIn">
+              <article className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl animate-fadeIn">
                 
-                {/* وسم إنفوجرافيك تلخيصي سريع (30 ثانية) */}
-                <div className="bg-gradient-to-r from-emerald-950 to-slate-900 border-l-4 border-emerald-500 rounded-xl p-4 mb-6">
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm mb-1">
-                    <Sparkles className="w-4 h-4" />
-                    <span>ملخص الفكرة الذكية (في 30 ثانية)</span>
+                {/* 1. إنفوجرافيك تلخيص سريع (30 ثانية) */}
+                <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-900 border-r-4 border-emerald-400 rounded-2xl p-5 mb-6 border border-slate-800">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs mb-2 uppercase tracking-wider">
+                    <Lightbulb className="w-4 h-4 text-amber-400 animate-pulse" />
+                    <span>إنفوجرافيك: تلخيص الفكرة في (30 ثانية)</span>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed font-mono">
+                  <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-sans">
                     {selectedArticle.smartIdea}
                   </p>
                 </div>
 
-                <h2 className="text-xl md:text-2xl font-extrabold text-white mb-4 flex items-center gap-3">
-                  <span className="text-emerald-400">■</span>
+                <h2 className="text-xl md:text-3xl font-black text-white mb-6 leading-tight">
                   {selectedArticle.title}
                 </h2>
 
-                {/* الهيكل الرباعي الصارم لمنع الحشو */}
-                <div className="space-y-6 mt-6">
+                {/* 2. الهيكل الهندسي الصارم ذو الأربعة عناصر (منع الحشو) */}
+                <div className="space-y-6">
                   
-                  {/* 1. المشكلة */}
-                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
-                    <h3 className="text-sm font-bold text-rose-400 flex items-center gap-2 mb-2">
+                  {/* أ. المشكلة */}
+                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/90">
+                    <h3 className="text-xs md:text-sm font-bold text-rose-400 flex items-center gap-2 mb-2">
                       <AlertCircle className="w-4 h-4" />
-                      <span>1. المشكلة الهندسية المطروحة</span>
+                      <span>1. المشكلة (Problem)</span>
                     </h3>
-                    <p className="text-sm text-slate-300 leading-relaxed">{selectedArticle.problem}</p>
+                    <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedArticle.problem}</p>
                   </div>
 
-                  {/* 2. العلم */}
-                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
-                    <h3 className="text-sm font-bold text-blue-400 flex items-center gap-2 mb-2">
+                  {/* ب. العلم والنظرية */}
+                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/90">
+                    <h3 className="text-xs md:text-sm font-bold text-sky-400 flex items-center gap-2 mb-2">
                       <BookOpen className="w-4 h-4" />
-                      <span>2. الأساس العلمي والنظرية الرياضية</span>
+                      <span>2. العلم والنظرية (Science & Theory)</span>
                     </h3>
-                    <p className="text-sm text-slate-300 leading-relaxed">{selectedArticle.science}</p>
+                    <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedArticle.science}</p>
                   </div>
 
-                  {/* 3. الفكرة الذكية */}
-                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
-                    <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-2 mb-2">
+                  {/* ج. الفكرة الذكية والخوارزمية */}
+                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/90">
+                    <h3 className="text-xs md:text-sm font-bold text-emerald-400 flex items-center gap-2 mb-2">
                       <Cpu className="w-4 h-4" />
-                      <span>3. الخوارزمية والفكرة الذكية</span>
+                      <span>3. الفكرة الذكية والحل الخوارزمي (Smart Idea)</span>
                     </h3>
-                    <p className="text-sm text-slate-300 leading-relaxed">{selectedArticle.smartIdea}</p>
+                    <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedArticle.smartIdea}</p>
                   </div>
 
-                  {/* 4. التطبيق */}
-                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
-                    <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2 mb-2">
+                  {/* د. التطبيق والكود */}
+                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/90">
+                    <h3 className="text-xs md:text-sm font-bold text-amber-400 flex items-center gap-2 mb-2">
                       <Code className="w-4 h-4" />
-                      <span>4. خطوات التنفيذ البرمجي والموقعي</span>
+                      <span>4. التطبيق التنفيذي والكود البرمجي (Application & Code)</span>
                     </h3>
-                    <p className="text-sm text-slate-300 leading-relaxed mb-3">{selectedArticle.application}</p>
+                    <p className="text-xs md:text-sm text-slate-300 leading-relaxed mb-4">{selectedArticle.application}</p>
                     
-                    {/* كود برميي منسق بالكامل */}
                     {selectedArticle.codeSnippet && (
-                      <div className="relative mt-2">
-                        <div className="absolute top-2 left-2 text-[10px] uppercase font-bold text-slate-500 px-2 py-0.5 rounded bg-slate-900">
-                          Python / Script
+                      <div className="relative mt-3">
+                        <div className="absolute top-3 left-3 text-[10px] font-mono font-bold text-slate-400 px-2 py-1 rounded bg-slate-900 border border-slate-800">
+                          Code Execution
                         </div>
-                        <pre className="bg-[#0b0f19] text-emerald-300 p-4 rounded-lg overflow-x-auto text-xs font-mono border border-slate-800 leading-normal">
+                        <pre className="bg-[#050811] text-cyan-300 p-4 rounded-xl overflow-x-auto text-xs font-mono border border-slate-800/80 leading-relaxed" dir="ltr">
                           {selectedArticle.codeSnippet}
                         </pre>
                       </div>
@@ -300,63 +261,75 @@ export default function InsightsPage() {
 
                 </div>
 
-                {/* جزء تفاعلي: حاسبة ذكية مدمجة بالمقال للاختبار الفوري للمعدلات */}
+                {/* 3. التفاعلية: الحاسبة المدمجة بجانب المقال */}
                 {selectedArticle.hasCalculator && (
-                  <div className="mt-8 p-5 bg-slate-950 border border-slate-800 rounded-xl">
-                    <h3 className="text-xs font-bold text-slate-300 flex items-center gap-2 mb-3 uppercase tracking-wider">
+                  <div className="mt-8 p-6 bg-slate-950 border border-slate-800 rounded-2xl relative">
+                    <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2 mb-3 uppercase tracking-wider">
                       <Calculator className="w-4 h-4 text-emerald-400" />
-                      <span>تجربة تفاعلية حية: حاسبة المعادلة الفورية للمقال</span>
+                      <span>تجربة تفاعلية حية: حاسبة المعادلة الخاصة بالمقال</span>
                     </h3>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <input 
                         type="number"
-                        placeholder={selectedArticle.calcType === "soil_safety" ? "أدخل قيمة قراءة اختبار SPT كمثال" : "أدخل التكلفة الأصلية بالدولار"}
+                        placeholder={selectedArticle.calcType === "soil_safety" ? "أدخل قيمة اختبار SPT (مثال: 15)" : "أدخل التكلفة التقديرية (مثال: 5000)"}
                         value={calcInput}
                         onChange={(e) => setCalcInput(e.target.value)}
-                        className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 flex-1"
+                        className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs md:text-sm text-white focus:outline-none focus:border-emerald-500 flex-1"
                       />
                       <button 
                         onClick={() => handleRunCalculator(selectedArticle.calcType)}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm transition-colors"
+                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs md:text-sm transition-all shadow-md shadow-emerald-500/10"
                       >
-                        معالجة فورية
+                        حساب فوري
                       </button>
                     </div>
                     {calcResult && (
-                      <div className="mt-3 p-3 rounded bg-slate-900 border border-emerald-900/60 text-xs font-mono text-emerald-400">
-                        {calcResult}
+                      <div className="mt-4 p-3.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-xs font-mono text-emerald-300 flex items-center gap-2 animate-fadeIn">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>{calcResult}</span>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* الرابط البرمجي بالأداة في قسم البرمجيات بالمنصة */}
+                {/* 4. الربط البرمجي بقسم البرمجيات بالمنصة */}
                 {selectedArticle.toolLink && (
-                  <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center flex-wrap gap-2">
-                    <span className="text-xs text-slate-400">هل تريد الانتقال للتطبيق الشامل والكامل في الموقع؟</span>
-                    <Link href={selectedArticle.toolLink} className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
-                      <span>فتح الأداة البرمجية التابعة</span>
-                      <ExternalLink className="w-3 h-3" />
+                  <div className="mt-8 pt-5 border-t border-slate-800/80 flex justify-between items-center flex-wrap gap-3">
+                    <span className="text-xs text-slate-400">تطبيق هذه الفكرة متوفر كأداة برمجية داخل المنصة:</span>
+                    <Link 
+                      href={selectedArticle.toolLink} 
+                      className="inline-flex items-center gap-2 text-xs font-black text-emerald-400 hover:text-emerald-300 transition-colors bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20"
+                    >
+                      <span>الانتقال للأداة البرمجية</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </Link>
                   </div>
                 )}
 
               </article>
             ) : (
-              <div className="h-full min-h-[350px] flex flex-col justify-center items-center p-8 bg-slate-900/40 border border-slate-800 border-dashed rounded-2xl text-slate-400 text-center">
-                <HelpCircle className="w-12 h-12 text-slate-600 mb-3 animate-bounce" />
-                <p className="font-medium text-slate-300">لم يتم اختيار أي فكرة أو مقال علمي حتى الآن</p>
-                <p className="text-xs text-slate-500 mt-1 max-w-sm">اختر أحد الأبحاث أو الأفكار التقنية من القائمة اليمنى لقراءتها بأسلوب المجلة العلمية المتقدمة والتفاعل مع بياناتها المعالجة حياً.</p>
+              <div className="h-full min-h-[400px] flex flex-col justify-center items-center p-8 bg-slate-900/40 border border-slate-800 border-dashed rounded-3xl text-slate-400 text-center">
+                <HelpCircle className="w-12 h-12 text-slate-600 mb-4 animate-bounce" />
+                <p className="font-bold text-slate-200 text-base">يرجى اختيار أحد المواضيع الإنشائية</p>
+                <p className="text-xs text-slate-500 mt-2 max-w-md leading-relaxed">
+                  اختر أي فكرة أو ورقة بحثية من القائمة الجانبية لقراءتها بأسلوب المجلة الحديثة والتفاعل مع حاسباتها المدمجة وأكوادها التنفيذية.
+                </p>
               </div>
             )}
           </div>
 
         </div>
 
-        {/* ذيل الصفحة يحتوي على ايميلات المنصة للتواصل */}
-        <footer className="mt-16 pt-6 border-t border-slate-800 text-center text-xs text-slate-500 space-y-2">
-          <p>جميع الحقوق محفوظة لمنصة الهندسة الذكية العالمية © 2026</p>
-          <p className="text-slate-600">للتواصل والدعم الفني الأكاديمي والمؤسسي: Smart.Engineering.Global@proton.me | smart.engineering.global@tuta.io | smartengineering.hr.global@gmail.com</p>
+        {/* ترويسة ذيل الصفحة والإيميلات المعتمدة رسمياً */}
+        <footer className="mt-16 pt-8 border-t border-slate-800/80 text-center text-xs text-slate-500 space-y-3">
+          <p className="font-bold text-slate-400">جميع الحقوق محفوظة لمنصة الهندسة الذكية والموارد البشرية © 2026</p>
+          <div className="flex justify-center flex-wrap gap-4 text-emerald-400/80 font-mono text-[11px]">
+            <span>Smart.Engineering.Global@proton.me</span>
+            <span>•</span>
+            <span>smart.engineering.global@tuta.io</span>
+            <span>•</span>
+            <span>smartengineering.hr.global@gmail.com</span>
+          </div>
         </footer>
 
       </div>
