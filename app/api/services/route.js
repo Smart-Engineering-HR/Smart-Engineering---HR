@@ -3,10 +3,8 @@ import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 
-// مسار ملف الحفظ المحلي
 const dataFilePath = path.join(process.cwd(), 'data', 'services.json');
 
-// البيانات الافتراضية
 const defaultServicesData = {
   structural: [
     { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'إعداد المخططات الإنشائية الكاملة وفق الأكواد الدولية والمحلية.' }
@@ -16,8 +14,15 @@ const defaultServicesData = {
   academy: []
 };
 
-// دالة قراءة البيانات من الملف
+// حفظ البيانات في ذاكرة السيرفر الحية لضمان عدم اختفائها في Vercel/Serverless
+if (!global._servicesDataCache) {
+  global._servicesDataCache = null;
+}
+
 function getServicesData() {
+  if (global._servicesDataCache) {
+    return global._servicesDataCache;
+  }
   try {
     const dirPath = path.dirname(dataFilePath);
     if (!fs.existsSync(dirPath)) {
@@ -25,18 +30,21 @@ function getServicesData() {
     }
     if (!fs.existsSync(dataFilePath)) {
       fs.writeFileSync(dataFilePath, JSON.stringify(defaultServicesData, null, 2), 'utf-8');
+      global._servicesDataCache = defaultServicesData;
       return defaultServicesData;
     }
     const fileData = fs.readFileSync(dataFilePath, 'utf-8');
-    return JSON.parse(fileData);
+    const parsed = JSON.parse(fileData);
+    global._servicesDataCache = parsed;
+    return parsed;
   } catch (error) {
     console.error("Error reading services file:", error);
     return defaultServicesData;
   }
 }
 
-// دالة حفظ البيانات في الملف
 function saveServicesData(data) {
+  global._servicesDataCache = data; // تحديث الذاكرة الحية فوراً
   try {
     const dirPath = path.dirname(dataFilePath);
     if (!fs.existsSync(dirPath)) {
@@ -60,9 +68,7 @@ export async function GET() {
     { success: true, data: currentData }, 
     { 
       status: 200,
-      headers: {
-        'Cache-Control': 'no-store, max-age=0'
-      }
+      headers: { 'Cache-Control': 'no-store, max-age=0' }
     }
   );
 }
@@ -72,19 +78,17 @@ export async function POST(request) {
     const body = await request.json();
     const { action, servicesData, requestData } = body;
 
-    // 1. تحديث الخدمات وحفظها دائمياً
     if (action === 'UPDATE_SERVICES') {
       if (servicesData) {
         saveServicesData(servicesData);
       }
       return NextResponse.json({ 
         success: true, 
-        message: 'تم تحديث ونشر الخدمات دائمياً!',
+        message: 'تم تحديث ونشر الخدمات بنجاح!',
         data: servicesData 
       }, { status: 200 });
     }
 
-    // 2. إرسال الطلبات بالإيميل
     if (action === 'SUBMIT_REQUEST') {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
