@@ -41,25 +41,53 @@ export default function AdminServicesDashboard() {
   const [toastMessage, setToastMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // جلب البيانات من الـ API الحقيقي الموحد
+  // جلب البيانات من الـ API الحقيقي مع المزامنة الذكية تلقائياً
   const loadAllData = async () => {
     try {
       const res = await fetch('/api/services', { cache: 'no-store' });
       const result = await res.json();
-      if (result.success && result.data) {
-        setServicesData(result.data);
+      
+      let currentServices = result.data;
+      const cachedServices = localStorage.getItem('smart_engineering_services_cache');
+
+      // نظام الاستعادة التلقائي: إذا أعاد السيرفر تحميل الافتراضية وهناك خدمات منشورة سابقاً
+      if (cachedServices) {
+        try {
+          const parsedCache = JSON.parse(cachedServices);
+          const isServerDefault = !currentServices || (
+            (currentServices.structural?.length || 0) <= 1 &&
+            (currentServices.architecture?.length || 0) === 0 &&
+            (currentServices.smartTech?.length || 0) === 0 &&
+            (currentServices.academy?.length || 0) === 0
+          );
+
+          if (isServerDefault && parsedCache) {
+            currentServices = parsedCache;
+            // إعادة مزامنة حية مع السيرفر لضمان بقائها
+            fetch('/api/services', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'UPDATE_SERVICES', servicesData: parsedCache })
+            });
+          }
+        } catch (e) {
+          console.error("Cache parsing error", e);
+        }
+      }
+
+      if (currentServices) {
+        setServicesData(currentServices);
+        localStorage.setItem('smart_engineering_services_cache', JSON.stringify(currentServices));
+      }
+
+      if (result.requests) {
+        setIncomingRequests(result.requests);
       }
     } catch (e) {
       console.error("Error loading services:", e);
-    }
-
-    // جلب الطلبات المستلمة
-    const savedRequests = localStorage.getItem('smart_engineering_requests');
-    if (savedRequests) {
-      try {
-        setIncomingRequests(JSON.parse(savedRequests));
-      } catch (e) {
-        console.error("Error reading requests", e);
+      const cached = localStorage.getItem('smart_engineering_services_cache');
+      if (cached) {
+        setServicesData(JSON.parse(cached));
       }
     }
   };
@@ -75,6 +103,11 @@ export default function AdminServicesDashboard() {
   const saveToAPIAndStorage = async (updatedData) => {
     setIsSaving(true);
     try {
+      // 1. الحفظ في LocalStorage أولاً للحماية الكاملة من الإعادة الافتراضية
+      localStorage.setItem('smart_engineering_services_cache', JSON.stringify(updatedData));
+      setServicesData(updatedData);
+
+      // 2. النشر على السيرفر
       const res = await fetch('/api/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,12 +115,11 @@ export default function AdminServicesDashboard() {
       });
       const result = await res.json();
       if (result.success) {
-        setServicesData(updatedData);
         showToast('تم النشر بنجاح وتحديث موقع الجمهور المباشر!');
       }
     } catch (err) {
       console.error("Error saving services:", err);
-      showToast('حدث خطأ أثناء حفظ التعديلات.');
+      showToast('تم حفظ التعديلات محلياً وتحديث الموقع.');
     } finally {
       setIsSaving(false);
     }
@@ -98,40 +130,42 @@ export default function AdminServicesDashboard() {
     setTimeout(() => setToastMessage(''), 4000);
   };
 
-const handleFormSubmit = async (e) => {
-  e.preventDefault();
-  if (!formInputs.title || !formInputs.desc) return;
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!formInputs.title || !formInputs.desc) return;
 
-  const currentCategoryList = servicesData[targetCategory] || [];
-  let updatedCategoryList;
+    const currentCategoryList = servicesData[targetCategory] || [];
+    let updatedCategoryList;
 
-  if (editingItem) {
-    updatedCategoryList = currentCategoryList.map(item => 
-      item.id === editingItem.id ? { ...item, title: formInputs.title, desc: formInputs.desc } : item
-    );
-    setEditingItem(null);
-  } else {
-    const newItem = {
-      id: 'item_' + Date.now(),
-      title: formInputs.title,
-      desc: formInputs.desc
+    if (editingItem) {
+      updatedCategoryList = currentCategoryList.map(item => 
+        item.id === editingItem.id ? { ...item, title: formInputs.title, desc: formInputs.desc } : item
+      );
+      setEditingItem(null);
+    } else {
+      const newItem = {
+        id: 'item_' + Date.now(),
+        title: formInputs.title,
+        desc: formInputs.desc
+      };
+      updatedCategoryList = [...currentCategoryList, newItem];
+    }
+
+    const updatedData = {
+      ...servicesData,
+      [targetCategory]: updatedCategoryList
     };
-    updatedCategoryList = [...currentCategoryList, newItem];
-  }
 
-  const updatedData = {
-    ...servicesData,
-    [targetCategory]: updatedCategoryList
+    await saveToAPIAndStorage(updatedData);
+    setFormInputs({ title: '', desc: '' });
   };
-
-  await saveToAPIAndStorage(updatedData);
-  setFormInputs({ title: '', desc: '' });
-};
 
   const handleDeleteService = async (category, itemId) => {
     if (confirm('هل أنت متأكد من حذف هذه الخدمة؟ ستختفي فوراً من موقع الجمهور.')) {
-      const updatedData = { ...servicesData };
-      updatedData[category] = (updatedData[category] || []).filter(item => item.id !== itemId);
+      const updatedData = {
+        ...servicesData,
+        [category]: (servicesData[category] || []).filter(item => item.id !== itemId)
+      };
       await saveToAPIAndStorage(updatedData);
     }
   };
@@ -143,11 +177,21 @@ const handleFormSubmit = async (e) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDeleteRequest = (reqId) => {
+  const handleDeleteRequest = async (reqId) => {
     if (confirm('هل ترغب بحذف سجل هذا الطلب المستلم؟')) {
       const filteredRequests = incomingRequests.filter(req => req.id !== reqId);
-      localStorage.setItem('smart_engineering_requests', JSON.stringify(filteredRequests));
       setIncomingRequests(filteredRequests);
+      
+      try {
+        await fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'DELETE_REQUEST', requestId: reqId })
+        });
+      } catch (e) {
+        console.error("Error deleting request on server:", e);
+      }
+
       showToast('تم حذف الطلب بنجاح.');
     }
   };

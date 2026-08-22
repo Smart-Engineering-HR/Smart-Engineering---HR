@@ -3,7 +3,10 @@ import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 
-const dataFilePath = path.join(process.cwd(), 'data', 'services.json');
+// استخدام مسار /tmp المتاح للكتابة في بيئات Vercel / Serverless
+const tmpDataFilePath = path.join('/tmp', 'services.json');
+const tmpRequestsFilePath = path.join('/tmp', 'requests.json');
+const localDataFilePath = path.join(process.cwd(), 'data', 'services.json');
 
 const defaultServicesData = {
   structural: [
@@ -14,45 +17,92 @@ const defaultServicesData = {
   academy: []
 };
 
-// حفظ البيانات في ذاكرة السيرفر الحية لضمان عدم اختفائها في Vercel/Serverless
+// الذاكرة المؤقتة العالمية لضمان سرعة الاستجابة
 if (!global._servicesDataCache) {
   global._servicesDataCache = null;
 }
+if (!global._requestsDataCache) {
+  global._requestsDataCache = [];
+}
 
 function getServicesData() {
-  if (global._servicesDataCache) {
+  if (global._servicesDataCache !== null) {
     return global._servicesDataCache;
   }
+
+  // 1. المحاولة الأولى: قراءة البيانات من /tmp
   try {
-    const dirPath = path.dirname(dataFilePath);
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
+    if (fs.existsSync(tmpDataFilePath)) {
+      const fileData = fs.readFileSync(tmpDataFilePath, 'utf-8');
+      const parsed = JSON.parse(fileData);
+      global._servicesDataCache = parsed;
+      return parsed;
     }
-    if (!fs.existsSync(dataFilePath)) {
-      fs.writeFileSync(dataFilePath, JSON.stringify(defaultServicesData, null, 2), 'utf-8');
-      global._servicesDataCache = defaultServicesData;
-      return defaultServicesData;
-    }
-    const fileData = fs.readFileSync(dataFilePath, 'utf-8');
-    const parsed = JSON.parse(fileData);
-    global._servicesDataCache = parsed;
-    return parsed;
-  } catch (error) {
-    console.error("Error reading services file:", error);
-    return defaultServicesData;
+  } catch (e) {
+    console.error("Error reading tmp services file:", e);
   }
+
+  // 2. المحاولة الثانية: قراءة البيانات من ملف المشروع إن وجد
+  try {
+    if (fs.existsSync(localDataFilePath)) {
+      const fileData = fs.readFileSync(localDataFilePath, 'utf-8');
+      const parsed = JSON.parse(fileData);
+      global._servicesDataCache = parsed;
+      return parsed;
+    }
+  } catch (e) {
+    console.error("Error reading local services file:", e);
+  }
+
+  global._servicesDataCache = defaultServicesData;
+  return defaultServicesData;
 }
 
 function saveServicesData(data) {
-  global._servicesDataCache = data; // تحديث الذاكرة الحية فوراً
+  global._servicesDataCache = data;
+  
+  // حفظ في /tmp السريع
   try {
-    const dirPath = path.dirname(dataFilePath);
+    fs.writeFileSync(tmpDataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    console.error("Error writing to tmp services file:", e);
+  }
+
+  // حفظ في مسار المشروع إن سمحت بيئة الاستضافة
+  try {
+    const dirPath = path.dirname(localDataFilePath);
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true });
     }
-    fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (error) {
-    console.error("Error saving services file:", error);
+    fs.writeFileSync(localDataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    // تتجاهل بيئة Vercel إذا كان المسار محمي من الكتابة
+  }
+}
+
+function getRequestsData() {
+  if (global._requestsDataCache && global._requestsDataCache.length > 0) {
+    return global._requestsDataCache;
+  }
+  try {
+    if (fs.existsSync(tmpRequestsFilePath)) {
+      const fileData = fs.readFileSync(tmpRequestsFilePath, 'utf-8');
+      const parsed = JSON.parse(fileData);
+      global._requestsDataCache = parsed;
+      return parsed;
+    }
+  } catch (e) {
+    console.error("Error reading requests file:", e);
+  }
+  return global._requestsDataCache || [];
+}
+
+function saveRequestsData(requests) {
+  global._requestsDataCache = requests;
+  try {
+    fs.writeFileSync(tmpRequestsFilePath, JSON.stringify(requests, null, 2), 'utf-8');
+  } catch (e) {
+    console.error("Error writing requests file:", e);
   }
 }
 
@@ -63,9 +113,10 @@ const OFFICIAL_EMAILS = [
 ];
 
 export async function GET() {
-  const currentData = getServicesData();
+  const currentServices = getServicesData();
+  const currentRequests = getRequestsData();
   return NextResponse.json(
-    { success: true, data: currentData }, 
+    { success: true, data: currentServices, requests: currentRequests }, 
     { 
       status: 200,
       headers: { 'Cache-Control': 'no-store, max-age=0' }
@@ -76,7 +127,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { action, servicesData, requestData } = body;
+    const { action, servicesData, requestData, requestId } = body;
 
     if (action === 'UPDATE_SERVICES') {
       if (servicesData) {
@@ -90,6 +141,10 @@ export async function POST(request) {
     }
 
     if (action === 'SUBMIT_REQUEST') {
+      const currentRequests = getRequestsData();
+      const updatedRequests = [requestData, ...currentRequests];
+      saveRequestsData(updatedRequests);
+
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -136,6 +191,13 @@ ${requestData.message}
         success: true, 
         message: 'تم إرسال الطلب بنجاح وتوجيهه إلى لوحة التحكم والإيميلات الرسمية.' 
       }, { status: 200 });
+    }
+
+    if (action === 'DELETE_REQUEST') {
+      const currentRequests = getRequestsData();
+      const filteredRequests = currentRequests.filter(req => req.id !== requestId);
+      saveRequestsData(filteredRequests);
+      return NextResponse.json({ success: true, requests: filteredRequests }, { status: 200 });
     }
 
     return NextResponse.json({ success: true }, { status: 200 });

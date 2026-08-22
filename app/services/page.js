@@ -26,16 +26,37 @@ export default function ServicesPublicPage() {
   });
   const [loading, setLoading] = useState(true);
 
-  // جلب البيانات الحقيقية المحدثة من الـ API المباشر
+  // جلب البيانات الحقيقية المحدثة من الـ API المباشر مع استعادة التخزين الاحتياطي
   const fetchServicesFromAPI = async () => {
     try {
       const res = await fetch('/api/services', { cache: 'no-store' });
       const result = await res.json();
-      if (result.success && result.data) {
-        setServicesData(result.data);
+      
+      let fetchedData = result.data;
+      const cached = localStorage.getItem('smart_engineering_services_cache');
+
+      // إذا كانت بيانات السيرفر تحتوي على خدمات، نعرضها ونحدث الكاش
+      if (fetchedData && (
+        (fetchedData.structural?.length || 0) > 1 || 
+        (fetchedData.architecture?.length || 0) > 0 || 
+        (fetchedData.smartTech?.length || 0) > 0 || 
+        (fetchedData.academy?.length || 0) > 0
+      )) {
+        setServicesData(fetchedData);
+        localStorage.setItem('smart_engineering_services_cache', JSON.stringify(fetchedData));
+      } else if (cached) {
+        // في حال تم مسح السيرفر، نعرض آخر كاش تم نشره فوراً
+        const parsedCached = JSON.parse(cached);
+        setServicesData(parsedCached);
+      } else if (fetchedData) {
+        setServicesData(fetchedData);
       }
     } catch (e) {
       console.error("Error fetching services:", e);
+      const cached = localStorage.getItem('smart_engineering_services_cache');
+      if (cached) {
+        setServicesData(JSON.parse(cached));
+      }
     } finally {
       setLoading(false);
     }
@@ -89,12 +110,7 @@ export default function ServicesPublicPage() {
     };
 
     try {
-      // حفظ المحلي للنسخ الاحتياطي في متصفح المستخدم
-      const existingRequests = JSON.parse(localStorage.getItem('smart_engineering_requests') || '[]');
-      existingRequests.unshift(requestPayload);
-      localStorage.setItem('smart_engineering_requests', JSON.stringify(existingRequests));
-
-      // إرسال الطلب للسيرفر
+      // إرسال الطلب للسيرفر الموحد
       await fetch('/api/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,6 +136,7 @@ export default function ServicesPublicPage() {
 
     } catch (err) {
       console.error("Error submitting request:", err);
+      setNotification('حدث خطأ أثناء الإرسال، يرجى المحاولة لاحقاً.');
     } finally {
       setIsSubmitting(false);
     }
