@@ -42,55 +42,51 @@ export default function AdminServicesDashboard() {
   const [isSaving, setIsSaving] = useState(false);
 
   // جلب البيانات من الـ API الحقيقي مع المزامنة الذكية تلقائياً
-  const loadAllData = async () => {
-    try {
-      const res = await fetch('/api/services', { cache: 'no-store' });
-      const result = await res.json();
-      
-      let currentServices = result.data;
-      const cachedServices = localStorage.getItem('smart_engineering_services_cache');
+ const loadAllData = async () => {
+  try {
+    const res = await fetch('/api/services', { cache: 'no-store' });
+    const result = await res.json();
+    
+    // 1. التعامل مع الخدمات
+    if (result.data) {
+      setServicesData(result.data);
+      localStorage.setItem('smart_engineering_services_cache', JSON.stringify(result.data));
+    }
 
-      // نظام الاستعادة التلقائي: إذا أعاد السيرفر تحميل الافتراضية وهناك خدمات منشورة سابقاً
-      if (cachedServices) {
-        try {
-          const parsedCache = JSON.parse(cachedServices);
-          const isServerDefault = !currentServices || (
-            (currentServices.structural?.length || 0) <= 1 &&
-            (currentServices.architecture?.length || 0) === 0 &&
-            (currentServices.smartTech?.length || 0) === 0 &&
-            (currentServices.academy?.length || 0) === 0
-          );
-
-          if (isServerDefault && parsedCache) {
-            currentServices = parsedCache;
-            // إعادة مزامنة حية مع السيرفر لضمان بقائها
+    // 2. التعامل مع الطلبات والرسائل المباشرة بحماية استعادة تلقائية
+    if (result.requests && Array.isArray(result.requests)) {
+      if (result.requests.length > 0) {
+        setIncomingRequests(result.requests);
+        localStorage.setItem('admin_requests_backup', JSON.stringify(result.requests));
+      } else {
+        // إذا رجعت السحابة مصفوفة فارغة نتيجة استعادة السيرفر، نفحص الكاش المحلي للأدمن
+        const localBackup = localStorage.getItem('admin_requests_backup');
+        if (localBackup) {
+          const parsedBackup = JSON.parse(localBackup);
+          if (Array.isArray(parsedBackup) && parsedBackup.length > 0) {
+            setIncomingRequests(parsedBackup);
+            // إعادة رفع النسخة الاحتياطية للسيرفر تلقائياً
             fetch('/api/services', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'UPDATE_SERVICES', servicesData: parsedCache })
+              body: JSON.stringify({ action: 'SYNC_BACKUP_REQUESTS', backupRequests: parsedBackup })
             });
+          } else {
+            setIncomingRequests([]);
           }
-        } catch (e) {
-          console.error("Cache parsing error", e);
+        } else {
+          setIncomingRequests([]);
         }
       }
-
-      if (currentServices) {
-        setServicesData(currentServices);
-        localStorage.setItem('smart_engineering_services_cache', JSON.stringify(currentServices));
-      }
-
-      if (result.requests) {
-        setIncomingRequests(result.requests);
-      }
-    } catch (e) {
-      console.error("Error loading services:", e);
-      const cached = localStorage.getItem('smart_engineering_services_cache');
-      if (cached) {
-        setServicesData(JSON.parse(cached));
-      }
     }
-  };
+  } catch (e) {
+    console.error("Error loading data:", e);
+    const localBackup = localStorage.getItem('admin_requests_backup');
+    if (localBackup) {
+      setIncomingRequests(JSON.parse(localBackup));
+    }
+  }
+};
 
   useEffect(() => {
     const authStatus = localStorage.getItem("services_admin_logged_in");
