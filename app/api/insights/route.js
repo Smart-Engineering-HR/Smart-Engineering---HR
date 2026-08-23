@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-// قاعدة بيانات مؤقتة متكاملة مسبقاً بالتصنيفات المطلوبة في الهيكل الصارم
 let insightsDatabase = [
   {
     id: "1",
@@ -92,7 +91,7 @@ let insightsDatabase = [
     problem: "حدوث انهيارات مفاجئة بسبب إغفال ظاهرة الرنين الإنشائي أو الانبعاج غير الخطي.",
     science: "تحليل النماذج الديناميكية واستجابة العناصر للأحمال الترددية وتغير الخواص عبر الزمن.",
     smartIdea: "معايرة مصفوفات الجساءة برمجياً لتشغيل محاكاة انهيار افتراضية قبل البدء في التنفيذ الفعلي.",
-    application: "مراجعة عوامل الأمان الديناميكية واستبدال المفاصل الحرجة بتفاصيل إنشائية مرنة.",
+    application: "مراجع عوامل الأمان الديناميكية واستبدال المفاصل الحرجة بتفاصيل إنشائية مرنة.",
     codeSnippet: "def check_buckling_load(P_actual, P_critical):\n    if P_actual >= P_critical:\n        return 'CRITICAL FAILURE: Structural Buckling Detected'\n    return 'SAFE'",
     toolLink: "/software/failure-analyzer",
     hasCalculator: false,
@@ -124,7 +123,7 @@ let insightsDatabase = [
     problem: "تشكل الشقوق الدقيقة في العناصر الخرسانية المسلحة مما يسبب تصدأ حديد التسليح مبكراً.",
     science: "إضافة بكتيريا خرسانية محفزة (Bacillus pseudofirmus) تنتج كربونات الكلسيوم عند ملامسة الماء والآكسجين.",
     smartIdea: "دمج كبسولات الكلس البكتيرية في خلطة الموقع ليتم تفعيلها ذاتياً عند فتح أي شق مجهري.",
-    application: "إضافة النسبة المحددة للخلطة، مراقبة الانكماش، واختبار الكتامة المائية دورياً.",
+    application: "إضافة النسبة المحددة للخلطة، مراقبة الانكماش، وااختبار الكتامة المائية دورياً.",
     codeSnippet: "# Research Data Metric\ncrack_width_sealed_max = 0.8 # mm\nseal_efficiency = 0.94 # 94% self-healing rate",
     toolLink: "/software/bio-concrete-calc",
     hasCalculator: false,
@@ -132,12 +131,10 @@ let insightsDatabase = [
   }
 ];
 
-// 1. GET: جلب الأفكار والعلوم
 export async function GET() {
   return NextResponse.json({ success: true, data: insightsDatabase });
 }
 
-// 2. POST: إضافة مادة علمية جديدة
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -164,7 +161,6 @@ export async function POST(req) {
   }
 }
 
-// 3. PUT: تعديل مادة موجودة
 export async function PUT(req) {
   try {
     const body = await req.json();
@@ -179,7 +175,6 @@ export async function PUT(req) {
   }
 }
 
-// 4. DELETE: حذف مادة علمية
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);

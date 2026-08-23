@@ -11,10 +11,10 @@ import {
   FolderPlus, 
   Mail, 
   CheckCircle, 
-  RefreshCw,
-  Eye,
-  Lock,
-  ArrowRight
+  RefreshCw, 
+  Eye, 
+  Lock, 
+  ArrowRight 
 } from "lucide-react";
 
 export default function AdminInsights() {
@@ -25,7 +25,7 @@ export default function AdminInsights() {
   
   const [articles, setArticles] = useState([]);
   
-  // حالة نموذج البيانات للإضافة والتعديل
+  // حقول نموذج التحكم والإضافة والتعديل
   const [id, setId] = useState("");
   const [category, setCategory] = useState("FUTURE_ENG");
   const [title, setTitle] = useState("");
@@ -74,11 +74,10 @@ export default function AdminInsights() {
     setTimeout(() => setStatusMessage(""), 4000);
   };
 
-  // معالجة النشر والتعديل عبر السيرفر والـ API
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !shortDesc || !problem || !science || !smartIdea || !application) {
-      alert("يرجى إكمال الحقول الأساسية لضمان الهيكل الصارم للهندسة منعاً للحشو.");
+      alert("يرجى إكمال الحقول الأساسية لتطبيق الهيكل الصارم دون حشو.");
       return;
     }
 
@@ -88,32 +87,25 @@ export default function AdminInsights() {
 
     try {
       if (isEditing) {
-        // تحديث عبر API
         const res = await fetch("/api/insights", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
         const json = await res.json();
-        if (json.success) {
-          showStatus("تم تعديل ونشر المادة العلمية حياً بنجاح!");
-        }
+        if (json.success) showStatus("تم تعديل ونشر المادة العلمية بنجاح!");
       } else {
-        // إضافة جديدة عبر API
         const res = await fetch("/api/insights", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
         const json = await res.json();
-        if (json.success) {
-          showStatus("تمت إضافة المادة العلمية وإطلاقها للجمهور فوراً!");
-        }
+        if (json.success) showStatus("تمت إضافة المادة العلمية ونشرها للجمهور فوراً!");
       }
       fetchAdminArticles();
       resetForm();
     } catch (err) {
-      // Fallback للحفظ المحلي عند انقطاع الاتصال بالسيرفر
       const localData = [...articles];
       if (isEditing) {
         const idx = localData.findIndex(item => item.id === id);
@@ -124,7 +116,7 @@ export default function AdminInsights() {
       }
       setArticles(localData);
       localStorage.setItem("smart_insights_articles", JSON.stringify(localData));
-      showStatus("تمت العملية وحفظها في قاعدة البيانات المحلية.");
+      showStatus("تمت العملية وحفظ البيانات بنجاح.");
       resetForm();
     }
   };
@@ -149,14 +141,14 @@ export default function AdminInsights() {
   };
 
   const handleDelete = async (targetId) => {
-    if (confirm("هل أنت متأكد من حذف هذه الفكرة/الخدمة نهائياً من العرض العام؟")) {
+    if (confirm("هل أنت متأكد من حذف هذه المادة/الفكرة نهائياً من العرض؟")) {
       try {
         await fetch(`/api/insights?id=${targetId}`, { method: "DELETE" });
       } catch (e) {}
       const filtered = articles.filter(item => item.id !== targetId);
       setArticles(filtered);
       localStorage.setItem("smart_insights_articles", JSON.stringify(filtered));
-      showStatus("تم الحذف النهائي للخدمة.");
+      showStatus("تم حذف المادة بنجاح.");
     }
   };
 
@@ -177,12 +169,12 @@ export default function AdminInsights() {
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    if (loginEmail === "admin@smartaprotonc909ademy.com" && loginPassword === "AdminPasswordOm197PasswHG7654^&%2026") {
+    if (loginEmail === "admin@smartacademy.com" && loginPassword === "AdminPasswordOm197PasswHG7654^&%2026") {
       localStorage.setItem("insights_admin_logged_in", "true");
       setIsLoggedIn(true);
       setLoginError("");
     } else {
-      setLoginError("❌ البريد الإلكتروني أو كلمة السر غير صحيحة!");
+      setLoginError("❌ بيانات الدخول غير صحيحة!");
     }
   };
 
@@ -195,8 +187,8 @@ export default function AdminInsights() {
               <Lock className="w-8 h-8 text-emerald-400" />
             </div>
           </div>
-          <h2 className="text-xl font-black text-white text-center mb-2">تسجيل دخول السيطرة والتحكم</h2>
-          <p className="text-xs text-slate-400 text-center mb-6">لوحة تحرير وإدارة قائمة أفكار وعلوم منصة الهندسة الذكية</p>
+          <h2 className="text-xl font-black text-white text-center mb-2">تسجيل دخول لوحة التحكم</h2>
+          <p className="text-xs text-slate-400 text-center mb-6">إدارة ونشر أفكار وعلوم منصة الهندسة الذكية</p>
           
           {loginError && (
             <div className="mb-4 p-3 bg-rose-950/80 border border-rose-500 text-rose-300 text-xs rounded-xl text-center">
@@ -251,7 +243,7 @@ export default function AdminInsights() {
             </div>
             <div>
               <h1 className="text-lg font-black text-white">لوحة التحكم التامة | قائمة أفكار وعلوم</h1>
-              <p className="text-xs text-slate-400">إضافة، تعديل، وحذف الخدمات والمقالات المعروضة للجمهور</p>
+              <p className="text-xs text-slate-400">الإضافة والإعادة والتعديل والحذف لكافة الأقسام الفرعية</p>
             </div>
           </div>
           
@@ -270,7 +262,7 @@ export default function AdminInsights() {
 
       <div className="container mx-auto px-4 py-8 max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* العمود الأيمن: نموذج الإضافة والتعديل */}
+        {/* نموذج الإضافة والتعديل */}
         <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
           <h2 className="text-base font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-800 pb-3">
             <Edit3 className="w-5 h-5 text-emerald-400" />
@@ -301,15 +293,15 @@ export default function AdminInsights() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">مستوى الصعوبة</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">مستوى الصعوبة والوسم</label>
                 <select 
                   value={difficulty} 
                   onChange={(e) => setDifficulty(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="أساسيات">أساسيات ومفاهيم</option>
-                  <option value="متقدم">متقدم للممارسين</option>
-                  <option value="خبير">خبير وأبحاث دقيقة</option>
+                  <option value="أساسيات">أساسيات</option>
+                  <option value="متقدم">متقدم</option>
+                  <option value="خبير">خبير</option>
                 </select>
               </div>
             </div>
@@ -319,7 +311,7 @@ export default function AdminInsights() {
                 <label className="block text-xs font-bold text-slate-300 mb-1">العنوان الرئيسي</label>
                 <input 
                   type="text"
-                  placeholder="مثال: الذكاء الاصطناعي في الإنشاءات"
+                  placeholder="عنوان الفكرة أو المادة..."
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
@@ -327,10 +319,10 @@ export default function AdminInsights() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">التخصص الدقيق</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">التخصص الهندسي</label>
                 <input 
                   type="text"
-                  placeholder="مثال: جيوتقنيك، تسليح، خرسانة"
+                  placeholder="مثال: جيوتقنيك، إنشائي، مكتب فني"
                   value={specialty}
                   onChange={(e) => setSpecialty(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
@@ -339,19 +331,19 @@ export default function AdminInsights() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">الوصف المختصر للعرض السريع</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">الوصف المختصر</label>
               <textarea 
                 rows="2"
-                placeholder="نبذة مركزة تظهر في بطاقة المقال..."
+                placeholder="نبذة سريعة تظهر في البطاقات..."
                 value={shortDesc}
                 onChange={(e) => setShortDesc(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
               />
             </div>
 
-            {/* الهيكل الصارم ذو الأربعة عناصر لمنع الحشو */}
+            {/* عناصر الهيكل العلمي الرباعي الصارم */}
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-3">
-              <span className="text-[11px] font-black text-emerald-400 block tracking-wider uppercase">حقول الهيكل الرباعي الصارم</span>
+              <span className="text-[11px] font-black text-emerald-400 block tracking-wider uppercase">حقول الهيكل العلمي الرباعي (منع الحشو)</span>
               
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1">1. المشكلة الإنشائية/الفنية</label>
@@ -379,7 +371,7 @@ export default function AdminInsights() {
                 <label className="block text-[10px] font-bold text-slate-400 mb-1">3. الفكرة الذكية والحل الخوارزمي (ملخص 30 ثانية)</label>
                 <textarea 
                   rows="2"
-                  placeholder="كيف تم تحويل العلم لخوارزمية سريعة..."
+                  placeholder="كيف تم تحويل النظرية إلى خوارزمية وحل ذكي..."
                   value={smartIdea}
                   onChange={(e) => setSmartIdea(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
@@ -390,7 +382,7 @@ export default function AdminInsights() {
                 <label className="block text-[10px] font-bold text-slate-400 mb-1">4. خطوات التطبيق التنفيذية</label>
                 <textarea 
                   rows="2"
-                  placeholder="الخطوات الإجرائية بالموقع أو المكتب الفني..."
+                  placeholder="الخطوات الإجرائية بالموقع أو المكتب..."
                   value={application}
                   onChange={(e) => setApplication(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
@@ -402,7 +394,7 @@ export default function AdminInsights() {
               <label className="block text-xs font-bold text-slate-300 mb-1">الكود البرمجي التوضيحي المرفق</label>
               <textarea 
                 rows="3"
-                placeholder="ضع كود Python أو G-code أو JavaScript هنا..."
+                placeholder="أدخل كود Python أو JS أو G-code..."
                 value={codeSnippet}
                 onChange={(e) => setCodeSnippet(e.target.value)}
                 className="w-full bg-[#050811] border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-emerald-500"
@@ -415,7 +407,7 @@ export default function AdminInsights() {
                 <label className="block text-xs font-bold text-slate-300 mb-1">رابط أداة برمجية داخل الموقع</label>
                 <input 
                   type="text"
-                  placeholder="/software/geotech-predictor"
+                  placeholder="/software/tool-name"
                   value={toolLink}
                   onChange={(e) => setToolLink(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
@@ -433,7 +425,7 @@ export default function AdminInsights() {
                     className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-emerald-500 focus:ring-0 cursor-pointer"
                   />
                   <label htmlFor="hasCalcCheck" className="text-xs font-bold text-slate-300 cursor-pointer">
-                    تفعيل الحاسبة التفاعلية المدمجة بالمقال
+                    تفعيل الحاسبة التفاعلية المدمجة
                   </label>
                 </div>
               </div>
@@ -441,7 +433,7 @@ export default function AdminInsights() {
 
             {hasCalculator && (
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">نوع معالجة الحاسبة التفاعلية</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">نوع المعالجة للحاسبة</label>
                 <select 
                   value={calcType}
                   onChange={(e) => setCalcType(e.target.value)}
@@ -476,16 +468,16 @@ export default function AdminInsights() {
           </form>
         </div>
 
-        {/* العمود الأيسر: قائمة المواد والخدمات المنشورة مع خيارات الحذف والتعديل */}
+        {/* قائمة المواد المسجلة مع خيارات التحكم والتحقق البريدي */}
         <div className="lg:col-span-5 space-y-6">
           
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
             <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
               <RefreshCw className="w-4 h-4 text-emerald-400" />
-              <span>الخدمات والأفكار المنشورة للتحكم ({articles.length})</span>
+              <span>الخدمات المنشورة للتحكم ({articles.length})</span>
             </h3>
 
-            <div className="space-y-3 max-h-[55vh] overflow-y-auto pl-1">
+            <div className="space-y-3 max-h-[55vh] overflow-y-auto pl-1 custom-scrollbar">
               {articles.map((item) => (
                 <div key={item.id} className="bg-slate-950 border border-slate-850 rounded-2xl p-4 flex flex-col justify-between gap-2 hover:border-slate-700 transition-colors">
                   <div>
@@ -519,11 +511,11 @@ export default function AdminInsights() {
             </div>
           </div>
 
-          {/* معلومات التحقق البريدي المعتمدة رسمياً في منصة الهندسة الذكية */}
+          {/* معلومات البريد الإلكتروني المعتمدة رسمياً */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
               <Mail className="w-4 h-4 text-emerald-400" />
-              <span>البريد الإلكتروني والإيميلات المعتمدة للمنصة</span>
+              <span>الإيميلات الرسمية المعتمدة للمنصة</span>
             </h3>
             <div className="space-y-2 font-mono text-[11px] text-emerald-400 bg-slate-950 p-3.5 rounded-2xl border border-slate-850">
               {officialEmails.map((email, idx) => (

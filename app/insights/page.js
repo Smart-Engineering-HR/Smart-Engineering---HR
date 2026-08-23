@@ -13,12 +13,11 @@ import {
   Sparkles, 
   AlertCircle, 
   HelpCircle, 
-  Code,
-  ShieldAlert,
-  Zap,
-  CheckCircle,
-  Lightbulb,
-  FileText
+  Code, 
+  Zap, 
+  CheckCircle, 
+  Lightbulb, 
+  FileText 
 } from "lucide-react";
 
 export default function InsightsPage() {
@@ -29,7 +28,6 @@ export default function InsightsPage() {
   const [calcResult, setCalcResult] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // تحميل البيانات من الـ API المعتمد مع وجود fallback محلي
   useEffect(() => {
     fetchArticles();
   }, []);
@@ -41,15 +39,23 @@ export default function InsightsPage() {
       const json = await res.json();
       if (json.success && json.data.length > 0) {
         setArticles(json.data);
+        setSelectedArticle(json.data[0]);
       } else {
-        // الاستعانة بالمخزن المحلي في حال عدم وجود اتصال سيرفر
         const stored = localStorage.getItem("smart_insights_articles");
-        if (stored) setArticles(JSON.parse(stored));
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setArticles(parsed);
+          setSelectedArticle(parsed[0]);
+        }
       }
     } catch (e) {
       const stored = localStorage.getItem("smart_insights_articles");
-      if (stored) setArticles(JSON.parse(stored));
-    } finally {
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setArticles(parsed);
+        setSelectedArticle(parsed[0]);
+      }
+    } fontFinally: {
       setLoading(false);
     }
   };
@@ -83,16 +89,16 @@ export default function InsightsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 font-sans antialiased selection:bg-emerald-500 selection:text-white" dir="rtl">
+    <div className="min-h-screen bg-[#070b14] text-slate-100 font-sans antialiased selection:bg-emerald-500 selection:text-white relative overflow-hidden" dir="rtl">
       
-      {/* خلفية جمالية تعبيرية جذابة واحترافية */}
+      {/* خلفية جمالية هندسية معبرة وجذابة */}
       <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#070b14] to-[#04060c] pointer-events-none" />
-      <div className="fixed inset-0 z-0 opacity-10 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
+      <div className="fixed inset-0 z-0 opacity-15 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:28px_28px] pointer-events-none" />
 
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
         
-        {/* هيدر الصفحة الرئيسي + زر العودة الصارم والمطلوب إلى الرئيسية */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800/80 pb-6 mb-8 gap-4 backdrop-blur-md bg-slate-900/30 p-6 rounded-3xl border border-slate-800/50 shadow-2xl">
+        {/* هيدر الصفحة الرئيسي + زر العودة الصارم إلى الصفحة الرئيسية */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800/80 pb-6 mb-8 gap-4 backdrop-blur-xl bg-slate-900/40 p-6 rounded-3xl border border-slate-800/60 shadow-2xl">
           <div>
             <div className="flex items-center gap-2 text-emerald-400 font-bold tracking-wider text-xs mb-2">
               <Zap className="w-4 h-4 animate-bounce text-emerald-400" />
@@ -102,26 +108,26 @@ export default function InsightsPage() {
               قائمة أفكار وعلوم
             </h1>
             <p className="text-slate-400 mt-2 text-sm md:text-base max-w-2xl leading-relaxed">
-              بوابة المعرفة الهندسة التفاعلية: الثورة الرقمية، أسرار التنفيذ، البرمجة الإنشائية، وتلخيص الأبحاث العالمية بصياغة تنفيذية مباشرة.
+              مجلة هندسية تفاعلية حديثة: هندسة المستقبل، أسرار التنفيذ، البرمجة الإنشائية، وتلخيص الأبحاث العالمية في نقاط تنفيذية فورية.
             </p>
           </div>
           
-          {/* زر العودة الصارم لإلزامية التواجد إلى الصفحة الرئيسية للمنصة */}
+          {/* زر العودة للرئيسية */}
           <Link 
             href="/" 
-            className="inline-flex items-center gap-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black px-6 py-3.5 rounded-2xl transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:scale-105 group self-stretch md:self-auto justify-center text-sm"
+            className="inline-flex items-center gap-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black px-6 py-3.5 rounded-2xl transition-all duration-300 shadow-xl shadow-emerald-500/20 hover:scale-105 group self-stretch md:self-auto justify-center text-sm shrink-0"
           >
             <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
             <span>العودة إلى الرئيسية في منصة الهندسة الذكية</span>
           </Link>
         </header>
 
-        {/* التبويبات والتصنيفات الفرعية الأربعة الأساسية */}
+        {/* التبويبات والتصنيفات الفرعية الأربعة */}
         <nav className="flex flex-wrap gap-2.5 mb-8">
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => { setActiveCategory(cat.id); setSelectedArticle(null); }}
+              onClick={() => { setActiveCategory(cat.id); }}
               className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs md:text-sm font-bold transition-all duration-300 border ${
                 activeCategory === cat.id
                   ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow-lg shadow-emerald-500/20 scale-105"
@@ -137,23 +143,23 @@ export default function InsightsPage() {
         {/* عرض المحتوى الرئيسي بطراز المجلات العلمية الحديثة */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* القائمة اليمنى: بطاقات الأفكار والمواد المنشورة */}
-          <div className="lg:col-span-5 space-y-4 max-h-[80vh] overflow-y-auto pr-1">
+          {/* القائمة اليمنى: بطاقات الأفكار والعلوم */}
+          <div className="lg:col-span-5 space-y-4 max-h-[80vh] overflow-y-auto pr-1 custom-scrollbar">
             <h2 className="text-sm font-bold text-slate-400 flex items-center justify-between mb-3 px-1">
               <span className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-emerald-400" />
-                <span>المشاركات والمواضيع العلمية ({filteredArticles.length})</span>
+                <span>الأفكار والمواد العلمية ({filteredArticles.length})</span>
               </span>
-              <span className="text-[11px] bg-slate-900 text-slate-500 px-2.5 py-1 rounded-full border border-slate-800">تحديث فوري</span>
+              <span className="text-[11px] bg-slate-900 text-slate-500 px-2.5 py-1 rounded-full border border-slate-800 font-mono">تحديث مباشر</span>
             </h2>
 
             {loading ? (
               <div className="bg-slate-900/50 p-8 rounded-2xl border border-slate-800 text-center text-slate-400 animate-pulse">
-                جاري تحميل الأفكار والعلوم الهندسية...
+                جاري جلب العلوم والأفكار الهندسية...
               </div>
             ) : filteredArticles.length === 0 ? (
               <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-400">
-                لا توجد مواضيع منشورة حالياً في هذا التصنيف.
+                لا توجد مواضيع منشورة حالياً في هذا التصنيف الفرعي.
               </div>
             ) : (
               filteredArticles.map((article) => (
@@ -181,7 +187,7 @@ export default function InsightsPage() {
                   <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{article.shortDesc}</p>
                   
                   <div className="mt-4 flex justify-between items-center text-xs font-semibold text-emerald-400">
-                    <span>عرض قراءة مجلة إنفوجرافيك ←</span>
+                    <span>قراءة تفاصيل الإنفوجرافيك ←</span>
                     <span className="text-[10px] text-slate-600 font-mono">#{article.id}</span>
                   </div>
                 </div>
@@ -189,18 +195,18 @@ export default function InsightsPage() {
             )}
           </div>
 
-          {/* القائمة اليسرى: تفاصيل المقال بالهيكل العلمي الرباعي الصارم والإنفوجرافيك والتفاعلية */}
+          {/* القائمة اليسرى: الهيكل العلمي الرباعي الصارم + إنفوجرافيك 30 ثانية + الحاسبة التفاعلية */}
           <div className="lg:col-span-7">
             {selectedArticle ? (
               <article className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl animate-fadeIn">
                 
-                {/* 1. إنفوجرافيك تلخيص سريع (30 ثانية) */}
-                <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-900 border-r-4 border-emerald-400 rounded-2xl p-5 mb-6 border border-slate-800">
+                {/* 1. إنفوجرافيك ملخص السريع (30 ثانية) */}
+                <div className="bg-gradient-to-r from-emerald-950/90 via-slate-900 to-slate-900 border-r-4 border-emerald-400 rounded-2xl p-5 mb-6 border border-slate-800/80 shadow-lg">
                   <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs mb-2 uppercase tracking-wider">
                     <Lightbulb className="w-4 h-4 text-amber-400 animate-pulse" />
                     <span>إنفوجرافيك: تلخيص الفكرة في (30 ثانية)</span>
                   </div>
-                  <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-sans">
+                  <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-sans font-medium">
                     {selectedArticle.smartIdea}
                   </p>
                 </div>
@@ -209,11 +215,11 @@ export default function InsightsPage() {
                   {selectedArticle.title}
                 </h2>
 
-                {/* 2. الهيكل الهندسي الصارم ذو الأربعة عناصر (منع الحشو) */}
-                <div className="space-y-6">
+                {/* 2. تسلسل هيكل المقال العلمي الصارم بدون حشو */}
+                <div className="space-y-5">
                   
-                  {/* أ. المشكلة */}
-                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/90">
+                  {/* 1. المشكلة */}
+                  <div className="bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
                     <h3 className="text-xs md:text-sm font-bold text-rose-400 flex items-center gap-2 mb-2">
                       <AlertCircle className="w-4 h-4" />
                       <span>1. المشكلة (Problem)</span>
@@ -221,8 +227,8 @@ export default function InsightsPage() {
                     <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedArticle.problem}</p>
                   </div>
 
-                  {/* ب. العلم والنظرية */}
-                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/90">
+                  {/* 2. العلم */}
+                  <div className="bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
                     <h3 className="text-xs md:text-sm font-bold text-sky-400 flex items-center gap-2 mb-2">
                       <BookOpen className="w-4 h-4" />
                       <span>2. العلم والنظرية (Science & Theory)</span>
@@ -230,8 +236,8 @@ export default function InsightsPage() {
                     <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedArticle.science}</p>
                   </div>
 
-                  {/* ج. الفكرة الذكية والخوارزمية */}
-                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/90">
+                  {/* 3. الفكرة الذكية */}
+                  <div className="bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
                     <h3 className="text-xs md:text-sm font-bold text-emerald-400 flex items-center gap-2 mb-2">
                       <Cpu className="w-4 h-4" />
                       <span>3. الفكرة الذكية والحل الخوارزمي (Smart Idea)</span>
@@ -239,11 +245,11 @@ export default function InsightsPage() {
                     <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedArticle.smartIdea}</p>
                   </div>
 
-                  {/* د. التطبيق والكود */}
-                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/90">
+                  {/* 4. التطبيق والكود */}
+                  <div className="bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
                     <h3 className="text-xs md:text-sm font-bold text-amber-400 flex items-center gap-2 mb-2">
                       <Code className="w-4 h-4" />
-                      <span>4. التطبيق التنفيذي والكود البرمجي (Application & Code)</span>
+                      <span>4. الخطوات التنفيذية والكود (Application & Code)</span>
                     </h3>
                     <p className="text-xs md:text-sm text-slate-300 leading-relaxed mb-4">{selectedArticle.application}</p>
                     
@@ -261,9 +267,9 @@ export default function InsightsPage() {
 
                 </div>
 
-                {/* 3. التفاعلية: الحاسبة المدمجة بجانب المقال */}
+                {/* 3. الحاسبة التفاعلية المدمجة بجانب النص */}
                 {selectedArticle.hasCalculator && (
-                  <div className="mt-8 p-6 bg-slate-950 border border-slate-800 rounded-2xl relative">
+                  <div className="mt-8 p-6 bg-slate-950 border border-slate-800 rounded-2xl relative shadow-inner">
                     <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2 mb-3 uppercase tracking-wider">
                       <Calculator className="w-4 h-4 text-emerald-400" />
                       <span>تجربة تفاعلية حية: حاسبة المعادلة الخاصة بالمقال</span>
@@ -271,14 +277,14 @@ export default function InsightsPage() {
                     <div className="flex flex-col sm:flex-row gap-3">
                       <input 
                         type="number"
-                        placeholder={selectedArticle.calcType === "soil_safety" ? "أدخل قيمة اختبار SPT (مثال: 15)" : "أدخل التكلفة التقديرية (مثال: 5000)"}
+                        placeholder={selectedArticle.calcType === "soil_safety" ? "أدخل قيمة اختبار SPT (مثال: 18)" : "أدخل التكلفة التقديرية (مثال: 10000)"}
                         value={calcInput}
                         onChange={(e) => setCalcInput(e.target.value)}
-                        className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs md:text-sm text-white focus:outline-none focus:border-emerald-500 flex-1"
+                        className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs md:text-sm text-white focus:outline-none focus:border-emerald-500 flex-1 font-mono"
                       />
                       <button 
                         onClick={() => handleRunCalculator(selectedArticle.calcType)}
-                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs md:text-sm transition-all shadow-md shadow-emerald-500/10"
+                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs md:text-sm transition-all shadow-md shadow-emerald-500/10 shrink-0"
                       >
                         حساب فوري
                       </button>
@@ -292,10 +298,10 @@ export default function InsightsPage() {
                   </div>
                 )}
 
-                {/* 4. الربط البرمجي بقسم البرمجيات بالمنصة */}
+                {/* 4. الربط البرمجي بقسم البرمجيات في المنصة */}
                 {selectedArticle.toolLink && (
                   <div className="mt-8 pt-5 border-t border-slate-800/80 flex justify-between items-center flex-wrap gap-3">
-                    <span className="text-xs text-slate-400">تطبيق هذه الفكرة متوفر كأداة برمجية داخل المنصة:</span>
+                    <span className="text-xs text-slate-400">تطبيق هذه الفكرة متوفر كأداة برمجية جاهزة داخل المنصة:</span>
                     <Link 
                       href={selectedArticle.toolLink} 
                       className="inline-flex items-center gap-2 text-xs font-black text-emerald-400 hover:text-emerald-300 transition-colors bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20"
@@ -310,9 +316,9 @@ export default function InsightsPage() {
             ) : (
               <div className="h-full min-h-[400px] flex flex-col justify-center items-center p-8 bg-slate-900/40 border border-slate-800 border-dashed rounded-3xl text-slate-400 text-center">
                 <HelpCircle className="w-12 h-12 text-slate-600 mb-4 animate-bounce" />
-                <p className="font-bold text-slate-200 text-base">يرجى اختيار أحد المواضيع الإنشائية</p>
+                <p className="font-bold text-slate-200 text-base">اختر إحدى المواد من القائمة</p>
                 <p className="text-xs text-slate-500 mt-2 max-w-md leading-relaxed">
-                  اختر أي فكرة أو ورقة بحثية من القائمة الجانبية لقراءتها بأسلوب المجلة الحديثة والتفاعل مع حاسباتها المدمجة وأكوادها التنفيذية.
+                  استعرض أفكار هندسة المستقبل، أسرار المكتب الفني، أتمتة التصميم بالبايثون، والأوراق البحثية المبسطة.
                 </p>
               </div>
             )}
@@ -320,7 +326,7 @@ export default function InsightsPage() {
 
         </div>
 
-        {/* ترويسة ذيل الصفحة والإيميلات المعتمدة رسمياً */}
+        {/* ذيل الصفحة والإيميلات الرسمية المعتمدة */}
         <footer className="mt-16 pt-8 border-t border-slate-800/80 text-center text-xs text-slate-500 space-y-3">
           <p className="font-bold text-slate-400">جميع الحقوق محفوظة لمنصة الهندسة الذكية والموارد البشرية © 2026</p>
           <div className="flex justify-center flex-wrap gap-4 text-emerald-400/80 font-mono text-[11px]">
