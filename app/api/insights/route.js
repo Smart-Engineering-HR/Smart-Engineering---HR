@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const initialData = [
   {
     id: "1",
@@ -131,12 +134,16 @@ const initialData = [
   }
 ];
 
-if (!global.insightsDatabase) {
-  global.insightsDatabase = initialData;
+if (!globalThis.insightsDatabase) {
+  globalThis.insightsDatabase = [...initialData];
 }
 
 export async function GET() {
-  return NextResponse.json({ success: true, data: global.insightsDatabase });
+  return NextResponse.json({ success: true, data: globalThis.insightsDatabase }, {
+    headers: {
+      'Cache-Control': 'no-store, max-age=0, must-revalidate'
+    }
+  });
 }
 
 export async function POST(req) {
@@ -158,8 +165,13 @@ export async function POST(req) {
       hasCalculator: body.hasCalculator || false,
       calcType: body.calcType || "soil_safety"
     };
-    global.insightsDatabase.unshift(newArticle);
-    return NextResponse.json({ success: true, message: "تمت الإضافة بنجاح", data: newArticle, fullData: global.insightsDatabase });
+
+    if (!globalThis.insightsDatabase) {
+      globalThis.insightsDatabase = [...initialData];
+    }
+
+    globalThis.insightsDatabase.unshift(newArticle);
+    return NextResponse.json({ success: true, message: "تمت الإضافة بنجاح", data: newArticle, fullData: globalThis.insightsDatabase });
   } catch (err) {
     return NextResponse.json({ success: false, error: "فشل في إضافة المادة" }, { status: 500 });
   }
@@ -168,10 +180,13 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const index = global.insightsDatabase.findIndex(item => item.id === body.id);
+    if (!globalThis.insightsDatabase) {
+      globalThis.insightsDatabase = [...initialData];
+    }
+    const index = globalThis.insightsDatabase.findIndex(item => item.id === body.id);
     if (index !== -1) {
-      global.insightsDatabase[index] = { ...global.insightsDatabase[index], ...body };
-      return NextResponse.json({ success: true, message: "تم التعديل بنجاح", data: global.insightsDatabase[index], fullData: global.insightsDatabase });
+      globalThis.insightsDatabase[index] = { ...globalThis.insightsDatabase[index], ...body };
+      return NextResponse.json({ success: true, message: "تم التعديل بنجاح", data: globalThis.insightsDatabase[index], fullData: globalThis.insightsDatabase });
     }
     return NextResponse.json({ success: false, error: "العنصر غير موجود" }, { status: 404 });
   } catch (err) {
@@ -184,8 +199,11 @@ export async function DELETE(req) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (id) {
-      global.insightsDatabase = global.insightsDatabase.filter(item => item.id !== id);
-      return NextResponse.json({ success: true, message: "تم الحذف بنجاح", fullData: global.insightsDatabase });
+      if (!globalThis.insightsDatabase) {
+        globalThis.insightsDatabase = [...initialData];
+      }
+      globalThis.insightsDatabase = globalThis.insightsDatabase.filter(item => item.id !== id);
+      return NextResponse.json({ success: true, message: "تم الحذف بنجاح", fullData: globalThis.insightsDatabase });
     }
     return NextResponse.json({ success: false, error: "لم يتم تقديم معرف الحذف" }, { status: 400 });
   } catch (err) {

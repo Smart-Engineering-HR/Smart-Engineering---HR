@@ -35,36 +35,29 @@ export default function InsightsPage() {
   const fetchArticles = async () => {
     try {
       setLoading(true);
-      let finalArticles = [];
-      const stored = typeof window !== "undefined" ? localStorage.getItem("smart_insights_articles") : null;
-      let localData = stored ? JSON.parse(stored) : [];
-
-      const res = await fetch("/api/insights");
+      const res = await fetch("/api/insights", { cache: "no-store" });
       const json = await res.json();
       
       if (json.success && Array.isArray(json.data)) {
-        const apiMap = new Map(json.data.map(item => [item.id, item]));
-        localData.forEach(item => {
-          if (!apiMap.has(item.id)) {
-            apiMap.set(item.id, item);
-          }
-        });
-        finalArticles = Array.from(apiMap.values());
-      } else if (localData.length > 0) {
-        finalArticles = localData;
-      }
-
-      if (finalArticles.length > 0) {
-        setArticles(finalArticles);
-        setSelectedArticle(prev => prev ? (finalArticles.find(a => a.id === prev.id) || finalArticles[0]) : finalArticles[0]);
-        localStorage.setItem("smart_insights_articles", JSON.stringify(finalArticles));
+        setArticles(json.data);
+        if (json.data.length > 0) {
+          setSelectedArticle(prev => prev ? (json.data.find(a => a.id === prev.id) || json.data[0]) : json.data[0]);
+        }
+        localStorage.setItem("smart_insights_articles", JSON.stringify(json.data));
+      } else {
+        const stored = localStorage.getItem("smart_insights_articles");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setArticles(parsed);
+          if (parsed.length > 0) setSelectedArticle(prev => prev ? (parsed.find(a => a.id === prev.id) || parsed[0]) : parsed[0]);
+        }
       }
     } catch (e) {
       const stored = localStorage.getItem("smart_insights_articles");
       if (stored) {
         const parsed = JSON.parse(stored);
         setArticles(parsed);
-        setSelectedArticle(prev => prev ? (parsed.find(a => a.id === prev.id) || parsed[0]) : parsed[0]);
+        if (parsed.length > 0) setSelectedArticle(prev => prev ? (parsed.find(a => a.id === prev.id) || parsed[0]) : parsed[0]);
       }
     } finally {
       setLoading(false);

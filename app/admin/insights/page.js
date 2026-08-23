@@ -57,24 +57,15 @@ export default function AdminInsights() {
 
   const fetchAdminArticles = async () => {
     try {
-      const stored = typeof window !== "undefined" ? localStorage.getItem("smart_insights_articles") : null;
-      let localData = stored ? JSON.parse(stored) : [];
-
-      const res = await fetch("/api/insights");
+      const res = await fetch("/api/insights", { cache: "no-store" });
       const json = await res.json();
       
       if (json.success && Array.isArray(json.data)) {
-        const apiMap = new Map(json.data.map(item => [item.id, item]));
-        localData.forEach(item => {
-          if (!apiMap.has(item.id)) {
-            apiMap.set(item.id, item);
-          }
-        });
-        const merged = Array.from(apiMap.values());
-        setArticles(merged);
-        localStorage.setItem("smart_insights_articles", JSON.stringify(merged));
-      } else if (localData.length > 0) {
-        setArticles(localData);
+        setArticles(json.data);
+        localStorage.setItem("smart_insights_articles", JSON.stringify(json.data));
+      } else {
+        const stored = localStorage.getItem("smart_insights_articles");
+        if (stored) setArticles(JSON.parse(stored));
       }
     } catch (e) {
       const stored = localStorage.getItem("smart_insights_articles");
@@ -90,7 +81,7 @@ export default function AdminInsights() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !shortDesc || !problem || !science || !smartIdea || !application) {
-      alert("يرجى إكمال الحقول الأساسية لتطبيق الهيكل الصارم دون حشو.");
+      alert("يرجى إكمال الحقول الأساسية لضمان الهيكل العلمي الموحد.");
       return;
     }
 
@@ -108,18 +99,22 @@ export default function AdminInsights() {
       });
       const json = await res.json();
 
-      let updatedList = [...articles];
-      if (isEditing) {
-        const idx = updatedList.findIndex(item => item.id === payload.id);
-        if (idx !== -1) updatedList[idx] = payload;
+      if (json.success && json.fullData) {
+        setArticles(json.fullData);
+        localStorage.setItem("smart_insights_articles", JSON.stringify(json.fullData));
       } else {
-        updatedList.unshift(payload);
+        let updatedList = [...articles];
+        if (isEditing) {
+          const idx = updatedList.findIndex(item => item.id === payload.id);
+          if (idx !== -1) updatedList[idx] = payload;
+        } else {
+          updatedList.unshift(payload);
+        }
+        setArticles(updatedList);
+        localStorage.setItem("smart_insights_articles", JSON.stringify(updatedList));
       }
 
-      setArticles(updatedList);
-      localStorage.setItem("smart_insights_articles", JSON.stringify(updatedList));
-
-      showStatus(isEditing ? "تم تعديل ونشر المادة العلمية بنجاح وحفظها كلياً!" : "تمت إضافة المادة العلمية ونشرها للجمهور فوراً!");
+      showStatus(isEditing ? "تم تعديل المادة بنجاح ونشرها للجمهور!" : "تمت إضافة المادة ونشرها للجمهور فوراً!");
       resetForm();
     } catch (err) {
       let updatedList = [...articles];
@@ -131,7 +126,7 @@ export default function AdminInsights() {
       }
       setArticles(updatedList);
       localStorage.setItem("smart_insights_articles", JSON.stringify(updatedList));
-      showStatus("تمت العملية وحفظ البيانات محلياً بنجاح.");
+      showStatus("تمت العملية وحفظ البيانات بنجاح.");
       resetForm();
     }
   };
@@ -156,13 +151,23 @@ export default function AdminInsights() {
   };
 
   const handleDelete = async (targetId) => {
-    if (confirm("هل أنت متأكد من حذف هذه المادة/الفكرة نهائياً من العرض؟")) {
+    if (confirm("هل أنت متأكد من حذف هذه المادة/الفكرة نهائياً؟")) {
       try {
-        await fetch(`/api/insights?id=${targetId}`, { method: "DELETE" });
-      } catch (e) {}
-      const filtered = articles.filter(item => item.id !== targetId);
-      setArticles(filtered);
-      localStorage.setItem("smart_insights_articles", JSON.stringify(filtered));
+        const res = await fetch(`/api/insights?id=${targetId}`, { method: "DELETE" });
+        const json = await res.json();
+        if (json.success && json.fullData) {
+          setArticles(json.fullData);
+          localStorage.setItem("smart_insights_articles", JSON.stringify(json.fullData));
+        } else {
+          const filtered = articles.filter(item => item.id !== targetId);
+          setArticles(filtered);
+          localStorage.setItem("smart_insights_articles", JSON.stringify(filtered));
+        }
+      } catch (e) {
+        const filtered = articles.filter(item => item.id !== targetId);
+        setArticles(filtered);
+        localStorage.setItem("smart_insights_articles", JSON.stringify(filtered));
+      }
       showStatus("تم حذف المادة بنجاح.");
     }
   };
@@ -279,7 +284,7 @@ export default function AdminInsights() {
         <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
           <h2 className="text-base font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-800 pb-3">
             <Edit3 className="w-5 h-5 text-emerald-400" />
-            <span>{isEditing ? "تعديل الخدمة/المادة العلمية المحددة" : "إضافة خدمة ومادة علمية جديدة"}</span>
+            <span>{isEditing ? "تعديل المادة العلمية المحددة" : "إضافة مادة علمية وفكرة جديدة"}</span>
           </h2>
 
           {statusMessage && (
@@ -355,7 +360,7 @@ export default function AdminInsights() {
             </div>
 
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-3">
-              <span className="text-[11px] font-black text-emerald-400 block tracking-wider uppercase">حقول الهيكل العلمي الرباعي (منع الحشو)</span>
+              <span className="text-[11px] font-black text-emerald-400 block tracking-wider uppercase">حقول الهيكل العلمي الرباعي</span>
               
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1">1. المشكلة الإنشائية/الفنية</label>
@@ -463,7 +468,7 @@ export default function AdminInsights() {
                 className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-6 py-3 rounded-xl transition-all text-xs md:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
               >
                 <Save className="w-4 h-4" />
-                <span>{isEditing ? "تحديث وحفظ التعديلات" : "نشر الخدمة/المادة للجمهور"}</span>
+                <span>{isEditing ? "تحديث وحفظ التعديلات" : "نشر المادة للجمهور"}</span>
               </button>
 
               {isEditing && (
@@ -484,7 +489,7 @@ export default function AdminInsights() {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
             <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
               <RefreshCw className="w-4 h-4 text-emerald-400" />
-              <span>الخدمات المنشورة للتحكم ({articles.length})</span>
+              <span>المواد المنشورة حالياً ({articles.length})</span>
             </h3>
 
             <div className="space-y-3 max-h-[55vh] overflow-y-auto pl-1 custom-scrollbar">
