@@ -21,7 +21,11 @@ const OFFICIAL_EMAILS = [
   'smartengineering.hr.global@gmail.com'
 ];
 
-// دالة تنفيذ الأوامر القياسية في Upstash Redis لمنع تلف الـ JSON
+// الذاكرة المؤقتة للحاوية الحالية
+if (!global._servicesDataCache) global._servicesDataCache = null;
+if (!global._requestsDataCache) global._requestsDataCache = null;
+
+// تنفيذ أوامر Upstash Redis السحابية
 async function redisCommand(commandArray) {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -46,21 +50,28 @@ async function redisCommand(commandArray) {
   }
 }
 
-// جلب الخدمات من السحابة مع التحقق الصارم
+// جلب الخدمات من السحابة والذاكرة بآمان
 async function getServicesData() {
   const rawResult = await redisCommand(['GET', 'app_services_data']);
   if (rawResult) {
     try {
       const parsed = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult;
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (parsed && typeof parsed === 'object') {
+        global._servicesDataCache = parsed;
+        return parsed;
+      }
     } catch (e) {
       console.error('Error parsing cloud services data:', e);
     }
   }
 
+  if (global._servicesDataCache) return global._servicesDataCache;
+
   try {
     if (fs.existsSync(tmpDataFilePath)) {
-      return JSON.parse(fs.readFileSync(tmpDataFilePath, 'utf-8'));
+      const parsed = JSON.parse(fs.readFileSync(tmpDataFilePath, 'utf-8'));
+      global._servicesDataCache = parsed;
+      return parsed;
     }
   } catch (e) {
     console.error('Error reading tmp services:', e);
@@ -69,8 +80,9 @@ async function getServicesData() {
   return defaultServicesData;
 }
 
-// حفظ الخدمات سحابياً
+// حفظ الخدمات سحابياً ومحلياً
 async function saveServicesData(data) {
+  global._servicesDataCache = data;
   await redisCommand(['SET', 'app_services_data', JSON.stringify(data)]);
   try {
     fs.writeFileSync(tmpDataFilePath, JSON.stringify(data, null, 2), 'utf-8');
@@ -79,22 +91,32 @@ async function saveServicesData(data) {
   }
 }
 
-// جلب طلبات العملاء والرسائل بأمان تام
+// جلب طلبات العملاء بآمان تام
 async function getRequestsData() {
   const rawResult = await redisCommand(['GET', 'app_requests_data']);
   if (rawResult) {
     try {
       const parsed = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult;
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        global._requestsDataCache = parsed;
+        return parsed;
+      }
     } catch (e) {
       console.error('Error parsing cloud requests:', e);
     }
   }
 
+  if (global._requestsDataCache && Array.isArray(global._requestsDataCache)) {
+    return global._requestsDataCache;
+  }
+
   try {
     if (fs.existsSync(tmpRequestsFilePath)) {
       const parsed = JSON.parse(fs.readFileSync(tmpRequestsFilePath, 'utf-8'));
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        global._requestsDataCache = parsed;
+        return parsed;
+      }
     }
   } catch (e) {
     console.error('Error reading tmp requests:', e);
@@ -106,6 +128,7 @@ async function getRequestsData() {
 // حفظ طلبات العملاء بشكل مؤكد
 async function saveRequestsData(requests) {
   if (!Array.isArray(requests)) return;
+  global._requestsDataCache = requests;
   await redisCommand(['SET', 'app_requests_data', JSON.stringify(requests)]);
   try {
     fs.writeFileSync(tmpRequestsFilePath, JSON.stringify(requests, null, 2), 'utf-8');
@@ -135,11 +158,11 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { action, servicesData, requestData, requestId, backupRequests } = body;
+    const { action, servicesData, requestData, requestId, backupRequests, backupServices } = body;
 
     if (action === 'UPDATE_SERVICES') {
       if (servicesData) await saveServicesData(servicesData);
-      return NextResponse.json({ success: true, message: 'تم تحديث الخدمات بنجاح!', data: servicesData }, { status: 200 });
+      return NextResponse.json({ success: true, message: 'تم تحديث ونشر الخدمات بنجاح!', data: servicesData }, { status: 200 });
     }
 
     if (action === 'SUBMIT_REQUEST') {
@@ -185,7 +208,7 @@ ${requestData.message}
         }).catch(err => console.error("Nodemailer Async Error:", err));
       }
 
-      return NextResponse.json({ success: true, message: 'تم حفظ ووضع الطلب في اللوحة وإرساله بنجاح.' }, { status: 200 });
+      return NextResponse.json({ success: true, message: 'تم إرسال وحفظ الطلب بنجاح.' }, { status: 200 });
     }
 
     if (action === 'DELETE_REQUEST') {
@@ -195,10 +218,15 @@ ${requestData.message}
       return NextResponse.json({ success: true, requests: filteredRequests }, { status: 200 });
     }
 
-    // مزامنة لاستعادة طلبات النسخ الاحتياطي للأدمن إن وُجدت
+    // استعادة ومزامنة نسخ احتياطية
     if (action === 'SYNC_BACKUP_REQUESTS' && Array.isArray(backupRequests)) {
       await saveRequestsData(backupRequests);
       return NextResponse.json({ success: true, requests: backupRequests }, { status: 200 });
+    }
+
+    if (action === 'SYNC_BACKUP_SERVICES' && backupServices) {
+      await saveServicesData(backupServices);
+      return NextResponse.json({ success: true, data: backupServices }, { status: 200 });
     }
 
     return NextResponse.json({ success: true }, { status: 200 });

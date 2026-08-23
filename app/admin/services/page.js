@@ -20,6 +20,15 @@ import {
   Loader2
 } from 'lucide-react';
 
+const defaultServicesData = {
+  structural: [
+    { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'إعداد المخططات الإنشائية الكاملة وفق الأكواد الدولية والمحلية.' }
+  ],
+  architecture: [],
+  smartTech: [],
+  academy: []
+};
+
 export default function AdminServicesDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
@@ -41,31 +50,38 @@ export default function AdminServicesDashboard() {
   const [toastMessage, setToastMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // جلب البيانات من الـ API الحقيقي مع المزامنة الذكية تلقائياً
- const loadAllData = async () => {
-  try {
-    const res = await fetch('/api/services', { cache: 'no-store' });
-    const result = await res.json();
-    
-    // 1. التعامل مع الخدمات
-    if (result.data) {
-      setServicesData(result.data);
-      localStorage.setItem('smart_engineering_services_cache', JSON.stringify(result.data));
-    }
+  // تحميل المضمون مع استعادة المزامنة والحماية التلقائية
+  const loadAllData = async () => {
+    try {
+      const res = await fetch('/api/services', { cache: 'no-store' });
+      const result = await res.json();
+      
+      // 1. التعامل مع الخدمات مع المزامنة العكسية التلقائية
+      if (result.data) {
+        const cachedServices = localStorage.getItem('smart_engineering_services_cache');
+        const isDefault = JSON.stringify(result.data) === JSON.stringify(defaultServicesData);
+        
+        if (isDefault && cachedServices) {
+          const parsedCache = JSON.parse(cachedServices);
+          setServicesData(parsedCache);
+          fetch('/api/services', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'SYNC_BACKUP_SERVICES', backupServices: parsedCache })
+          });
+        } else {
+          setServicesData(result.data);
+          localStorage.setItem('smart_engineering_services_cache', JSON.stringify(result.data));
+        }
+      }
 
-    // 2. التعامل مع الطلبات والرسائل المباشرة بحماية استعادة تلقائية
-    if (result.requests && Array.isArray(result.requests)) {
-      if (result.requests.length > 0) {
-        setIncomingRequests(result.requests);
-        localStorage.setItem('admin_requests_backup', JSON.stringify(result.requests));
-      } else {
-        // إذا رجعت السحابة مصفوفة فارغة نتيجة استعادة السيرفر، نفحص الكاش المحلي للأدمن
+      // 2. التعامل مع الطلبات والرسائل
+      if (result.requests && Array.isArray(result.requests)) {
         const localBackup = localStorage.getItem('admin_requests_backup');
-        if (localBackup) {
+        if (result.requests.length === 0 && localBackup) {
           const parsedBackup = JSON.parse(localBackup);
           if (Array.isArray(parsedBackup) && parsedBackup.length > 0) {
             setIncomingRequests(parsedBackup);
-            // إعادة رفع النسخة الاحتياطية للسيرفر تلقائياً
             fetch('/api/services', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -75,18 +91,18 @@ export default function AdminServicesDashboard() {
             setIncomingRequests([]);
           }
         } else {
-          setIncomingRequests([]);
+          setIncomingRequests(result.requests);
+          localStorage.setItem('admin_requests_backup', JSON.stringify(result.requests));
         }
       }
+    } catch (e) {
+      console.error("Error loading data:", e);
+      const localBackup = localStorage.getItem('admin_requests_backup');
+      if (localBackup) setIncomingRequests(JSON.parse(localBackup));
+      const cachedServices = localStorage.getItem('smart_engineering_services_cache');
+      if (cachedServices) setServicesData(JSON.parse(cachedServices));
     }
-  } catch (e) {
-    console.error("Error loading data:", e);
-    const localBackup = localStorage.getItem('admin_requests_backup');
-    if (localBackup) {
-      setIncomingRequests(JSON.parse(localBackup));
-    }
-  }
-};
+  };
 
   useEffect(() => {
     const authStatus = localStorage.getItem("services_admin_logged_in");
@@ -99,11 +115,9 @@ export default function AdminServicesDashboard() {
   const saveToAPIAndStorage = async (updatedData) => {
     setIsSaving(true);
     try {
-      // 1. الحفظ في LocalStorage أولاً للحماية الكاملة من الإعادة الافتراضية
       localStorage.setItem('smart_engineering_services_cache', JSON.stringify(updatedData));
       setServicesData(updatedData);
 
-      // 2. النشر على السيرفر
       const res = await fetch('/api/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,10 +187,12 @@ export default function AdminServicesDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // حذف الطلب مع تحديث الـ localStorage لمنع إعادة استدعائه
   const handleDeleteRequest = async (reqId) => {
     if (confirm('هل ترغب بحذف سجل هذا الطلب المستلم؟')) {
       const filteredRequests = incomingRequests.filter(req => req.id !== reqId);
       setIncomingRequests(filteredRequests);
+      localStorage.setItem('admin_requests_backup', JSON.stringify(filteredRequests));
       
       try {
         await fetch('/api/services', {
@@ -264,7 +280,6 @@ export default function AdminServicesDashboard() {
         </div>
       )}
 
-      {/* الهيدر */}
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -304,13 +319,10 @@ export default function AdminServicesDashboard() {
         </div>
       </header>
 
-      {/* المحتوى الرئيسي */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
         {adminTab === 'manage_services' && (
           <div className="space-y-10">
-            
-            {/* نموذج الإضافة والتعديل */}
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500"></div>
               <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
@@ -368,7 +380,6 @@ export default function AdminServicesDashboard() {
               </form>
             </div>
 
-            {/* عرض الخدمات المتاحة للتحكم بها */}
             <div className="space-y-8">
               <h4 className="text-lg font-bold text-white border-b border-slate-800 pb-3">الخدمات الظاهرة حالياً لجميع الزوار</h4>
               
@@ -438,7 +449,7 @@ export default function AdminServicesDashboard() {
                 </div>
               </div>
 
-              {/* 4. التدريب والتحليل */}
+              {/* 4. Academy */}
               <div className="space-y-3 pt-4">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <GraduationCap className="w-5 h-5" />
@@ -464,7 +475,6 @@ export default function AdminServicesDashboard() {
           </div>
         )}
 
-        {/* عرض صندوق الاستشارات والرسائل المستلمة */}
         {adminTab === 'view_requests' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">

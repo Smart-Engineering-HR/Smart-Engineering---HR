@@ -26,7 +26,7 @@ export default function ServicesPublicPage() {
   });
   const [loading, setLoading] = useState(true);
 
-  // جلب البيانات الحقيقية المحدثة من الـ API المباشر مع استعادة التخزين الاحتياطي
+  // جلب البيانات مع إزالة الشرط الخاطئ > 1
   const fetchServicesFromAPI = async () => {
     try {
       const res = await fetch('/api/services', { cache: 'no-store' });
@@ -35,21 +35,11 @@ export default function ServicesPublicPage() {
       let fetchedData = result.data;
       const cached = localStorage.getItem('smart_engineering_services_cache');
 
-      // إذا كانت بيانات السيرفر تحتوي على خدمات، نعرضها ونحدث الكاش
-      if (fetchedData && (
-        (fetchedData.structural?.length || 0) > 1 || 
-        (fetchedData.architecture?.length || 0) > 0 || 
-        (fetchedData.smartTech?.length || 0) > 0 || 
-        (fetchedData.academy?.length || 0) > 0
-      )) {
+      if (fetchedData && typeof fetchedData === 'object' && ('structural' in fetchedData)) {
         setServicesData(fetchedData);
         localStorage.setItem('smart_engineering_services_cache', JSON.stringify(fetchedData));
       } else if (cached) {
-        // في حال تم مسح السيرفر، نعرض آخر كاش تم نشره فوراً
-        const parsedCached = JSON.parse(cached);
-        setServicesData(parsedCached);
-      } else if (fetchedData) {
-        setServicesData(fetchedData);
+        setServicesData(JSON.parse(cached));
       }
     } catch (e) {
       console.error("Error fetching services:", e);
@@ -110,7 +100,6 @@ export default function ServicesPublicPage() {
     };
 
     try {
-      // إرسال الطلب للسيرفر الموحد
       await fetch('/api/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,11 +133,9 @@ export default function ServicesPublicPage() {
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-100 font-sans antialiased relative overflow-hidden dir-rtl">
-      
       <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[150px] pointer-events-none"></div>
       <div className="absolute bottom-10 left-10 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[130px] pointer-events-none"></div>
 
-      {/* الهيدر العلوي */}
       <header className="border-b border-cyan-500/20 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -171,9 +158,7 @@ export default function ServicesPublicPage() {
         </div>
       </header>
 
-      {/* المحتوى الرئيسي */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
-        
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
           <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 inline-flex items-center gap-2 shadow-[0_0_10px_rgba(34,211,238,0.15)]">
             <Sparkles className="w-3.5 h-3.5" />
@@ -195,7 +180,7 @@ export default function ServicesPublicPage() {
         ) : (
           <div className="space-y-16">
             
-            {/* 1. الخدمات الإنشائية والمدنية */}
+            {/* 1. الإنشائية والمدنية */}
             <section className="space-y-6">
               <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
                 <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
@@ -229,7 +214,7 @@ export default function ServicesPublicPage() {
               )}
             </section>
 
-            {/* 2. الهندسة المعمارية والتصميم */}
+            {/* 2. المعمارية والتصميم */}
             <section className="space-y-6">
               <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
                 <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400">
@@ -263,7 +248,7 @@ export default function ServicesPublicPage() {
               )}
             </section>
 
-            {/* 3. التحول الرقمي وأتمتة الهندسة */}
+            {/* 3. Smart Tech */}
             <section className="space-y-6">
               <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
                 <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
@@ -297,7 +282,7 @@ export default function ServicesPublicPage() {
               )}
             </section>
 
-            {/* 4. التدريب والتطوير المهني */}
+            {/* 4. Academy */}
             <section className="space-y-6">
               <div className="flex items-center gap-3 border-b border-slate-800/80 pb-4">
                 <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
@@ -375,7 +360,6 @@ export default function ServicesPublicPage() {
             </div>
 
             <div className="p-6 max-h-[70vh] overflow-y-auto">
-              
               {notification && (
                 <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-3 text-xs sm:text-sm">
                   <CheckCircle className="w-5 h-5 shrink-0" />
@@ -515,7 +499,6 @@ export default function ServicesPublicPage() {
         </div>
       )}
 
-      {/* الفوتر */}
       <footer className="border-t border-slate-900 mt-20 bg-slate-950/80 py-8 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
           <p>© 2026 منصة الهندسة الذكية والموارد البشرية. جميع الحقوق محفوظة.</p>
