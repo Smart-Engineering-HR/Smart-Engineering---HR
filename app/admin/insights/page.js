@@ -25,7 +25,6 @@ export default function AdminInsights() {
   
   const [articles, setArticles] = useState([]);
   
-  // حقول نموذج التحكم والإضافة والتعديل
   const [id, setId] = useState("");
   const [category, setCategory] = useState("FUTURE_ENG");
   const [title, setTitle] = useState("");
@@ -58,10 +57,24 @@ export default function AdminInsights() {
 
   const fetchAdminArticles = async () => {
     try {
+      const stored = typeof window !== "undefined" ? localStorage.getItem("smart_insights_articles") : null;
+      let localData = stored ? JSON.parse(stored) : [];
+
       const res = await fetch("/api/insights");
       const json = await res.json();
-      if (json.success) {
-        setArticles(json.data);
+      
+      if (json.success && Array.isArray(json.data)) {
+        const apiMap = new Map(json.data.map(item => [item.id, item]));
+        localData.forEach(item => {
+          if (!apiMap.has(item.id)) {
+            apiMap.set(item.id, item);
+          }
+        });
+        const merged = Array.from(apiMap.values());
+        setArticles(merged);
+        localStorage.setItem("smart_insights_articles", JSON.stringify(merged));
+      } else if (localData.length > 0) {
+        setArticles(localData);
       }
     } catch (e) {
       const stored = localStorage.getItem("smart_insights_articles");
@@ -82,41 +95,43 @@ export default function AdminInsights() {
     }
 
     const payload = {
-      id, category, title, shortDesc, difficulty, specialty, problem, science, smartIdea, application, codeSnippet, toolLink, hasCalculator, calcType
+      id: isEditing ? id : Date.now().toString(),
+      category, title, shortDesc, difficulty, specialty, problem, science, smartIdea, application, codeSnippet, toolLink, hasCalculator, calcType
     };
 
     try {
+      const method = isEditing ? "PUT" : "POST";
+      const res = await fetch("/api/insights", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+
+      let updatedList = [...articles];
       if (isEditing) {
-        const res = await fetch("/api/insights", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const json = await res.json();
-        if (json.success) showStatus("تم تعديل ونشر المادة العلمية بنجاح!");
+        const idx = updatedList.findIndex(item => item.id === payload.id);
+        if (idx !== -1) updatedList[idx] = payload;
       } else {
-        const res = await fetch("/api/insights", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const json = await res.json();
-        if (json.success) showStatus("تمت إضافة المادة العلمية ونشرها للجمهور فوراً!");
+        updatedList.unshift(payload);
       }
-      fetchAdminArticles();
+
+      setArticles(updatedList);
+      localStorage.setItem("smart_insights_articles", JSON.stringify(updatedList));
+
+      showStatus(isEditing ? "تم تعديل ونشر المادة العلمية بنجاح وحفظها كلياً!" : "تمت إضافة المادة العلمية ونشرها للجمهور فوراً!");
       resetForm();
     } catch (err) {
-      const localData = [...articles];
+      let updatedList = [...articles];
       if (isEditing) {
-        const idx = localData.findIndex(item => item.id === id);
-        if (idx !== -1) localData[idx] = payload;
+        const idx = updatedList.findIndex(item => item.id === payload.id);
+        if (idx !== -1) updatedList[idx] = payload;
       } else {
-        payload.id = Date.now().toString();
-        localData.unshift(payload);
+        updatedList.unshift(payload);
       }
-      setArticles(localData);
-      localStorage.setItem("smart_insights_articles", JSON.stringify(localData));
-      showStatus("تمت العملية وحفظ البيانات بنجاح.");
+      setArticles(updatedList);
+      localStorage.setItem("smart_insights_articles", JSON.stringify(updatedList));
+      showStatus("تمت العملية وحفظ البيانات محلياً بنجاح.");
       resetForm();
     }
   };
@@ -234,7 +249,6 @@ export default function AdminInsights() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased" dir="rtl">
       
-      {/* شريط الإدارة العلوي */}
       <div className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center max-w-7xl">
           <div className="flex items-center gap-3">
@@ -262,7 +276,6 @@ export default function AdminInsights() {
 
       <div className="container mx-auto px-4 py-8 max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* نموذج الإضافة والتعديل */}
         <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
           <h2 className="text-base font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-800 pb-3">
             <Edit3 className="w-5 h-5 text-emerald-400" />
@@ -341,7 +354,6 @@ export default function AdminInsights() {
               />
             </div>
 
-            {/* عناصر الهيكل العلمي الرباعي الصارم */}
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-3">
               <span className="text-[11px] font-black text-emerald-400 block tracking-wider uppercase">حقول الهيكل العلمي الرباعي (منع الحشو)</span>
               
@@ -468,9 +480,7 @@ export default function AdminInsights() {
           </form>
         </div>
 
-        {/* قائمة المواد المسجلة مع خيارات التحكم والتحقق البريدي */}
         <div className="lg:col-span-5 space-y-6">
-          
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
             <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
               <RefreshCw className="w-4 h-4 text-emerald-400" />
@@ -511,7 +521,6 @@ export default function AdminInsights() {
             </div>
           </div>
 
-          {/* معلومات البريد الإلكتروني المعتمدة رسمياً */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
               <Mail className="w-4 h-4 text-emerald-400" />
@@ -526,7 +535,6 @@ export default function AdminInsights() {
               ))}
             </div>
           </div>
-
         </div>
 
       </div>
