@@ -55,74 +55,62 @@ export default function AdminServicesDashboard() {
   const [toastMessage, setToastMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // تحميل المضمون مع استعادة المزامنة والحماية التلقائية
+  // دالة التحميل المحصنة ضد المسح التلقائي
   const loadAllData = async () => {
     try {
       const res = await fetch('/api/services', { cache: 'no-store' });
       const result = await res.json();
       
-      // 1. التعامل مع الخدمات مع المزامنة العكسية التلقائية
-      if (result.data) {
-        const cachedServices = localStorage.getItem('smart_engineering_services_cache');
-        let parsedCache = null;
-        if (cachedServices) {
-          try {
-            parsedCache = JSON.parse(cachedServices);
-          } catch (e) {
-            parsedCache = null;
-          }
-        }
-
-        const isFetchedDefault = isDefaultServices(result.data);
-        const isCacheCustom = parsedCache && !isDefaultServices(parsedCache) && typeof parsedCache === 'object' && ('structural' in parsedCache);
-
-        if (isFetchedDefault && isCacheCustom) {
-          setServicesData(parsedCache);
-          fetch('/api/services', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'SYNC_BACKUP_SERVICES', backupServices: parsedCache })
-          }).catch(err => console.error("Sync error:", err));
-        } else {
-          setServicesData(result.data);
-          localStorage.setItem('smart_engineering_services_cache', JSON.stringify(result.data));
-        }
+      // 1. معالجة الخدمات
+      const localServices = localStorage.getItem('smart_engineering_services_cache');
+      let parsedLocalServices = null;
+      if (localServices) {
+        try { parsedLocalServices = JSON.parse(localServices); } catch(e){}
       }
 
-      // 2. التعامل مع الطلبات والرسائل
-      if (result.requests && Array.isArray(result.requests)) {
-        const localBackup = localStorage.getItem('admin_requests_backup');
-        if (result.requests.length === 0 && localBackup) {
-          try {
-            const parsedBackup = JSON.parse(localBackup);
-            if (Array.isArray(parsedBackup) && parsedBackup.length > 0) {
-              setIncomingRequests(parsedBackup);
-              fetch('/api/services', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'SYNC_BACKUP_REQUESTS', backupRequests: parsedBackup })
-              }).catch(err => console.error("Sync error:", err));
-            } else {
-              setIncomingRequests([]);
-            }
-          } catch (e) {
-            setIncomingRequests([]);
-          }
-        } else {
-          setIncomingRequests(result.requests);
-          localStorage.setItem('admin_requests_backup', JSON.stringify(result.requests));
-        }
+      if (result.data && !isDefaultServices(result.data)) {
+        setServicesData(result.data);
+        localStorage.setItem('smart_engineering_services_cache', JSON.stringify(result.data));
+      } else if (parsedLocalServices && !isDefaultServices(parsedLocalServices)) {
+        setServicesData(parsedLocalServices);
+        fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'SYNC_BACKUP_SERVICES', backupServices: parsedLocalServices })
+        }).catch(() => {});
+      } else if (result.data) {
+        setServicesData(result.data);
       }
+
+      // 2. معالجة الطلبات بدون مسح الـ LocalStorage عند تفريغ السيرفر
+      const localRequests = localStorage.getItem('admin_requests_backup');
+      let parsedLocalRequests = [];
+      if (localRequests) {
+        try { parsedLocalRequests = JSON.parse(localRequests); } catch(e){}
+      }
+
+      const serverRequests = Array.isArray(result.requests) ? result.requests : [];
+      
+      // دمج الطلبات من السيرفر والمتصفح لعدم ضياع أي طلب
+      const requestsMap = new Map();
+      [...serverRequests, ...parsedLocalRequests].forEach(req => {
+        if (req && req.id) requestsMap.set(req.id, req);
+      });
+      
+      const mergedRequests = Array.from(requestsMap.values());
+      setIncomingRequests(mergedRequests);
+      localStorage.setItem('admin_requests_backup', JSON.stringify(mergedRequests));
+
+      if (mergedRequests.length > serverRequests.length) {
+        fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'SYNC_BACKUP_REQUESTS', backupRequests: mergedRequests })
+        }).catch(() => {});
+      }
+
     } catch (e) {
       console.error("Error loading data:", e);
-      const localBackup = localStorage.getItem('admin_requests_backup');
-      if (localBackup) {
-        try { setIncomingRequests(JSON.parse(localBackup)); } catch (err) {}
-      }
-      const cachedServices = localStorage.getItem('smart_engineering_services_cache');
-      if (cachedServices) {
-        try { setServicesData(JSON.parse(cachedServices)); } catch (err) {}
-      }
     }
   };
 
@@ -140,19 +128,15 @@ export default function AdminServicesDashboard() {
       localStorage.setItem('smart_engineering_services_cache', JSON.stringify(updatedData));
       setServicesData(updatedData);
 
-      const res = await fetch('/api/services', {
+      await fetch('/api/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'UPDATE_SERVICES', servicesData: updatedData })
       });
-      const result = await res.json();
-      if (result.success) {
-        showToast('تم النشر بنجاح وتحديث موقع الجمهور المباشر!');
-      }
+      showToast('تم حفظ ونشر الخدمات بنجاح!');
     } catch (err) {
-      console.error("Error saving services:", err);
-      showToast('تم حفظ التعديلات محلياً وتحديث الموقع.');
-    } finally {
+      showToast('تم التعديل وحفظ النسخة المحتفظ بها.');
+    } fontFinally: {
       setIsSaving(false);
     }
   };
@@ -193,7 +177,7 @@ export default function AdminServicesDashboard() {
   };
 
   const handleDeleteService = async (category, itemId) => {
-    if (confirm('هل أنت متأكد من حذف هذه الخدمة؟ ستختفي فوراً من موقع الجمهور.')) {
+    if (confirm('هل أنت متأكد من حذف هذه الخدمة؟')) {
       const updatedData = {
         ...servicesData,
         [category]: (servicesData[category] || []).filter(item => item.id !== itemId)
@@ -209,9 +193,8 @@ export default function AdminServicesDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // حذف الطلب مع تحديث الـ localStorage لمنع إعادة استدعائه
   const handleDeleteRequest = async (reqId) => {
-    if (confirm('هل ترغب بحذف سجل هذا الطلب المستلم؟')) {
+    if (confirm('هل ترغب بحذف سجل هذا الطلب؟')) {
       const filteredRequests = incomingRequests.filter(req => req.id !== reqId);
       setIncomingRequests(filteredRequests);
       localStorage.setItem('admin_requests_backup', JSON.stringify(filteredRequests));
@@ -222,25 +205,20 @@ export default function AdminServicesDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'DELETE_REQUEST', requestId: reqId })
         });
-      } catch (e) {
-        console.error("Error deleting request on server:", e);
-      }
+      } catch (e) {}
 
-      showToast('تم حذف الطلب بنجاح.');
+      showToast('تم حذف الطلب.');
     }
   };
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    const correctEmail = "admin@smartengineering.com";
-    const correctPassword = "AdminPassword2026";
-
-    if (loginEmail === correctEmail && loginPassword === correctPassword) {
+    if (loginEmail === "admin@smartengineering.com" && loginPassword === "AdminPassword2026") {
       localStorage.setItem("services_admin_logged_in", "true");
       setIsLoggedIn(true);
       setLoginError("");
     } else {
-      setLoginError("❌ البريد الإلكتروني أو كلمة السر غير صحيحة!");
+      setLoginError("❌ بيانات الدخول غير صحيحة!");
     }
   };
 
@@ -312,7 +290,7 @@ export default function AdminServicesDashboard() {
               <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 لوحة التحكم بالخدمات والاستشارات
               </h1>
-              <p className="text-xs text-slate-400">أي تعديل هنا يظهر مباشرة للزوار برابط السيرفر</p>
+              <p className="text-xs text-slate-400">إدارة الخدمات المستمرة واستقبال طلبات الزوار</p>
             </div>
           </div>
 
@@ -327,7 +305,7 @@ export default function AdminServicesDashboard() {
               onClick={() => setAdminTab('view_requests')}
               className={`px-4 py-2 rounded-xl text-xs font-bold relative transition-all ${adminTab === 'view_requests' ? 'bg-cyan-400 text-slate-950' : 'bg-slate-900 text-slate-400 hover:text-white'}`}
             >
-              <span>الطلبات والرسائل المستلمة</span>
+              <span>الطلبات المستلمة</span>
               {incomingRequests?.length > 0 && (
                 <span className="absolute -top-1.5 -left-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">
                   {incomingRequests.length}
@@ -349,12 +327,12 @@ export default function AdminServicesDashboard() {
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500"></div>
               <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
                 {editingItem ? <Edit3 className="w-5 h-5 text-amber-400" /> : <Plus className="w-5 h-5 text-cyan-400" />}
-                <span>{editingItem ? 'تعديل الخدمة الحالية' : 'إضافة ونشر خدمة جديدة للجمهور'}</span>
+                <span>{editingItem ? 'تعديل الخدمة' : 'إضافة ونشر خدمة جديدة'}</span>
               </h3>
 
               <form onSubmit={handleFormSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-2">اختر القسم الهندسي المستهدف *</label>
+                  <label className="block text-xs font-semibold text-slate-400 mb-2">اختر القسم الهندسي *</label>
                   <select
                     value={targetCategory} onChange={(e) => setTargetCategory(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs transition-colors"
@@ -374,11 +352,11 @@ export default function AdminServicesDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-2">الوصف والشرح المختصر *</label>
+                  <label className="block text-xs font-semibold text-slate-400 mb-2">الوصف والشرح *</label>
                   <input
                     type="text" required value={formInputs.desc} onChange={(e) => setFormInputs(prev => ({ ...prev, desc: e.target.value }))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs transition-colors"
-                    placeholder="وصف وفائدة الخدمة..."
+                    placeholder="وصف فائدة الخدمة..."
                   />
                 </div>
                 
@@ -396,20 +374,19 @@ export default function AdminServicesDashboard() {
                     className={`px-5 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all shadow-md ${editingItem ? 'bg-amber-400 text-slate-950' : 'bg-cyan-400 text-slate-950 hover:bg-cyan-300'}`}
                   >
                     {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    <span>{editingItem ? 'حفظ التعديلات ونشرها' : 'نشر الخدمة للجمهور فوراً'}</span>
+                    <span>{editingItem ? 'حفظ التعديلات' : 'نشر الخدمة للجمهور'}</span>
                   </button>
                 </div>
               </form>
             </div>
 
             <div className="space-y-8">
-              <h4 className="text-lg font-bold text-white border-b border-slate-800 pb-3">الخدمات الظاهرة حالياً لجميع الزوار</h4>
+              <h4 className="text-lg font-bold text-white border-b border-slate-800 pb-3">الخدمات النشطة حالياً</h4>
               
-              {/* 1. الإنشائية والمدنية */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-cyan-400">
                   <Layers className="w-5 h-5" />
-                  <h5 className="font-bold text-sm text-white">الخدمات الإنشائية والمدنية ({servicesData?.structural?.length || 0})</h5>
+                  <h5 className="font-bold text-sm text-white">1. الخدمات الإنشائية والمدنية ({servicesData?.structural?.length || 0})</h5>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {servicesData?.structural?.map(item => (
@@ -427,11 +404,10 @@ export default function AdminServicesDashboard() {
                 </div>
               </div>
 
-              {/* 2. المعمارية والتصميم */}
               <div className="space-y-3 pt-4">
                 <div className="flex items-center gap-2 text-blue-400">
                   <Compass className="w-5 h-5" />
-                  <h5 className="font-bold text-sm text-white">الهندسة المعمارية والتصميم ({servicesData?.architecture?.length || 0})</h5>
+                  <h5 className="font-bold text-sm text-white">2. الهندسة المعمارية والتصميم ({servicesData?.architecture?.length || 0})</h5>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {servicesData?.architecture?.map(item => (
@@ -449,11 +425,10 @@ export default function AdminServicesDashboard() {
                 </div>
               </div>
 
-              {/* 3. Smart Tech */}
               <div className="space-y-3 pt-4">
                 <div className="flex items-center gap-2 text-purple-400">
                   <Cpu className="w-5 h-5" />
-                  <h5 className="font-bold text-sm text-white">التحول الرقمي وأتمتة الهندسة Smart Tech ({servicesData?.smartTech?.length || 0})</h5>
+                  <h5 className="font-bold text-sm text-white">3. التحول الرقمي وأتمتة الهندسة ({servicesData?.smartTech?.length || 0})</h5>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {servicesData?.smartTech?.map(item => (
@@ -471,11 +446,10 @@ export default function AdminServicesDashboard() {
                 </div>
               </div>
 
-              {/* 4. Academy */}
               <div className="space-y-3 pt-4">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <GraduationCap className="w-5 h-5" />
-                  <h5 className="font-bold text-sm text-white">التدريب والتطوير المهني Academy ({servicesData?.academy?.length || 0})</h5>
+                  <h5 className="font-bold text-sm text-white">4. التدريب والتطوير المهني ({servicesData?.academy?.length || 0})</h5>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {servicesData?.academy?.map(item => (

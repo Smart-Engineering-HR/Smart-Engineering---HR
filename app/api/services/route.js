@@ -21,15 +21,12 @@ const OFFICIAL_EMAILS = [
   'smartengineering.hr.global@gmail.com'
 ];
 
-// الذاكرة المؤقتة للحاوية الحالية
 if (!global._servicesDataCache) global._servicesDataCache = null;
-if (!global._requestsDataCache) global._requestsDataCache = null;
+if (!global._requestsDataCache) global._requestsDataCache = [];
 
-// تنفيذ أوامر Upstash Redis السحابية
 async function redisCommand(commandArray) {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
   if (!url || !token) return null;
 
   try {
@@ -45,12 +42,10 @@ async function redisCommand(commandArray) {
     const data = await res.json();
     return data.result;
   } catch (err) {
-    console.error('Upstash Redis Command Error:', err);
     return null;
   }
 }
 
-// جلب الخدمات من السحابة والذاكرة بآمان
 async function getServicesData() {
   const rawResult = await redisCommand(['GET', 'app_services_data']);
   if (rawResult) {
@@ -60,9 +55,7 @@ async function getServicesData() {
         global._servicesDataCache = parsed;
         return parsed;
       }
-    } catch (e) {
-      console.error('Error parsing cloud services data:', e);
-    }
+    } catch (e) {}
   }
 
   if (global._servicesDataCache) return global._servicesDataCache;
@@ -75,26 +68,20 @@ async function getServicesData() {
         return parsed;
       }
     }
-  } catch (e) {
-    console.error('Error reading tmp services:', e);
-  }
+  } catch (e) {}
 
   return defaultServicesData;
 }
 
-// حفظ الخدمات سحابياً ومحلياً
 async function saveServicesData(data) {
   if (!data || typeof data !== 'object') return;
   global._servicesDataCache = data;
   await redisCommand(['SET', 'app_services_data', JSON.stringify(data)]);
   try {
     fs.writeFileSync(tmpDataFilePath, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Error writing tmp services:', e);
-  }
+  } catch (e) {}
 }
 
-// جلب طلبات العملاء بآمان تام
 async function getRequestsData() {
   const rawResult = await redisCommand(['GET', 'app_requests_data']);
   if (rawResult) {
@@ -104,40 +91,33 @@ async function getRequestsData() {
         global._requestsDataCache = parsed;
         return parsed;
       }
-    } catch (e) {
-      console.error('Error parsing cloud requests:', e);
-    }
+    } catch (e) {}
   }
 
-  if (global._requestsDataCache && Array.isArray(global._requestsDataCache)) {
+  if (global._requestsDataCache && global._requestsDataCache.length > 0) {
     return global._requestsDataCache;
   }
 
   try {
     if (fs.existsSync(tmpRequestsFilePath)) {
       const parsed = JSON.parse(fs.readFileSync(tmpRequestsFilePath, 'utf-8'));
-      if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         global._requestsDataCache = parsed;
         return parsed;
       }
     }
-  } catch (e) {
-    console.error('Error reading tmp requests:', e);
-  }
+  } catch (e) {}
 
-  return [];
+  return global._requestsDataCache || [];
 }
 
-// حفظ طلبات العملاء بشكل مؤكد
 async function saveRequestsData(requests) {
   if (!Array.isArray(requests)) return;
   global._requestsDataCache = requests;
   await redisCommand(['SET', 'app_requests_data', JSON.stringify(requests)]);
   try {
     fs.writeFileSync(tmpRequestsFilePath, JSON.stringify(requests, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Error writing tmp requests:', e);
-  }
+  } catch (e) {}
 }
 
 export async function GET() {
@@ -165,7 +145,7 @@ export async function POST(request) {
 
     if (action === 'UPDATE_SERVICES') {
       if (servicesData) await saveServicesData(servicesData);
-      return NextResponse.json({ success: true, message: 'تم تحديث ونشر الخدمات بنجاح!', data: servicesData }, { status: 200 });
+      return NextResponse.json({ success: true, message: 'تم تحديث الخدمات بنجاح', data: servicesData });
     }
 
     if (action === 'SUBMIT_REQUEST') {
@@ -173,66 +153,71 @@ export async function POST(request) {
       const updatedRequests = [requestData, ...currentRequests];
       await saveRequestsData(updatedRequests);
 
-      // إرسال البريد الإلكتروني في الخلفية
+      // إرسال الإيميل مع await المؤكد لضمان التسليم في بيئة Vercel
       if (process.env.EMAIL_PASS) {
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: process.env.EMAIL_USER || 'smartengineering.hr.global@gmail.com',
-            pass: process.env.EMAIL_PASS
-          }
-        });
+        try {
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.EMAIL_USER || 'smartengineering.hr.global@gmail.com',
+              pass: process.env.EMAIL_PASS
+            }
+          });
 
-        const mailSubject = `[طلب خدمة/استشارة جديدة] - ${requestData.subject === 'اخر' ? requestData.customSubject : requestData.subject}`;
-        const mailBody = `
-==============================================
-طلب خدمة جديدة من منصة الهندسة الذكية
-==============================================
+          const mailSubject = `[طلب جديد] ${requestData.type} - ${requestData.fullName}`;
+          const mailBody = `
+تفاصيل الطلب المستلم من المنصة:
+--------------------------------
 نوع الطلب: ${requestData.type}
 القسم: ${requestData.serviceCategory}
-الخدمة المطلوبة: ${requestData.serviceName}
+الخدمة: ${requestData.serviceName}
+الاسم: ${requestData.fullName}
+البريد الإلكتروني: ${requestData.email}
+الهاتف/الواتساب: ${requestData.phone}
+الموعد: ${requestData.dateTime || 'غير محدد'}
+الموضوع: ${requestData.subject === 'اخر' ? requestData.customSubject : requestData.subject}
 
-بيانات التواصل:
-- الاسم: ${requestData.fullName}
-- البريد: ${requestData.email}
-- الهاتف/واتساب: ${requestData.phone}
-${requestData.dateTime ? `- الموعد المفضل: ${requestData.dateTime}` : ''}
-
-الرسالة:
+نص الرسالة:
 ${requestData.message}
-==============================================
-        `;
+          `;
 
-        transporter.sendMail({
-          from: `"Smart Engineering Platform" <smartengineering.hr.global@gmail.com>`,
-          to: OFFICIAL_EMAILS.join(','),
-          subject: mailSubject,
-          text: mailBody
-        }).catch(err => console.error("Nodemailer Async Error:", err));
+          await transporter.sendMail({
+            from: `"منصة الهندسة الذكية" <${process.env.EMAIL_USER || 'smartengineering.hr.global@gmail.com'}>`,
+            to: OFFICIAL_EMAILS.join(','),
+            subject: mailSubject,
+            text: mailBody
+          });
+        } catch (mailError) {
+          console.error("Nodemailer Sending Failed:", mailError);
+        }
       }
 
-      return NextResponse.json({ success: true, message: 'تم إرسال وحفظ الطلب بنجاح.' }, { status: 200 });
+      return NextResponse.json({ success: true, message: 'تم الحفظ والإرسال بنجاح' });
     }
 
     if (action === 'DELETE_REQUEST') {
       const currentRequests = await getRequestsData();
       const filteredRequests = currentRequests.filter(req => req.id !== requestId);
       await saveRequestsData(filteredRequests);
-      return NextResponse.json({ success: true, requests: filteredRequests }, { status: 200 });
+      return NextResponse.json({ success: true, requests: filteredRequests });
     }
 
-    // استعادة ومزامنة نسخ احتياطية
     if (action === 'SYNC_BACKUP_REQUESTS' && Array.isArray(backupRequests)) {
-      await saveRequestsData(backupRequests);
-      return NextResponse.json({ success: true, requests: backupRequests }, { status: 200 });
+      const currentRequests = await getRequestsData();
+      // دمج الطلبات المحفوظة محلياً مع السيرفر بدون تكرار
+      const map = new Map();
+      [...currentRequests, ...backupRequests].forEach(item => map.set(item.id, item));
+      const mergedRequests = Array.from(map.values());
+      await saveRequestsData(mergedRequests);
+      return NextResponse.json({ success: true, requests: mergedRequests });
     }
 
     if (action === 'SYNC_BACKUP_SERVICES' && backupServices) {
       await saveServicesData(backupServices);
-      return NextResponse.json({ success: true, data: backupServices }, { status: 200 });
+      return NextResponse.json({ success: true, data: backupServices });
     }
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
