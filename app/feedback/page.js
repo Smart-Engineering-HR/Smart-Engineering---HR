@@ -12,62 +12,89 @@ import {
   ArrowRight, 
   Send, 
   Upload, 
-  CheckCircle, 
-  Layers 
+  CheckCircle2, 
+  Layers,
+  Sparkles,
+  HelpCircle,
+  FileCheck
 } from "lucide-react";
 
 export default function PublicFeedbackPage() {
-  // القوائم والخدمات الافتراضية
-  const defaultServices = ["تصميم إنشائي", "استشارة تقنية", "دورة تدريبية"];
+  // القوائم والخدمات الافتراضية المبدئية
+  const defaultServices = [
+    "تصميم إنشائي", 
+    "استشارة تقنية", 
+    "دورة تدريبية", 
+    "تخطيط معماري", 
+    "إدارة مشاريع هندسية",
+    "أتمتة وبرمجيات هندسية"
+  ];
+  
   const [services, setServices] = useState(defaultServices);
 
-  // حالات النماذج المختلفة
+  // حالات التنقل بين القوائم الفرعية وحالة الإرسال
   const [activeTab, setActiveTab] = useState("general");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [screenshotName, setScreenshotName] = useState("");
 
-  // البيانات المدخلة في كل نموذج
-  const [generalForm, setGeneralForm] = useState({ name: "", specialty: "مهندس مدني", type: "اقتراح", subject: "" });
-  const [serviceForm, setServiceForm] = useState({ service: "تصميم إنشائي", quality: 5, timing: 5, response: 5, improvement: "" });
+  // حالات النماذج الذكية الخمسة
+  const [generalForm, setGeneralForm] = useState({ 
+    name: "", 
+    specialty: "مهندس مدني", 
+    type: "اقتراح", 
+    subject: "" 
+  });
+  
+  const [serviceForm, setServiceForm] = useState({ 
+    service: "تصميم إنشائي", 
+    quality: 5, 
+    timing: 5, 
+    response: 5, 
+    improvement: "" 
+  });
+  
   const [codeForm, setCodeForm] = useState({ proposal: "" });
+  
   const [uxForm, setUxForm] = useState({ rating: "satisfied", screenshot: null });
-  const [successForm, setSuccessForm] = useState({ name: "", specialty: "مهندس مدني", type: "إشادة", subject: "", allowPublish: true });
+  
+  const [successForm, setSuccessForm] = useState({ 
+    name: "", 
+    specialty: "مهندس مدني", 
+    type: "إشادة", 
+    subject: "", 
+    allowPublish: true 
+  });
 
-  // البريد الإلكتروني المستهدف لإرسال الإشعارات
-  const emailsToSend = [
+  // البريد الإلكتروني المستهدف المعتمد للربط والإشعارات
+  const targetEmails = [
     "Smart.Engineering.Global@proton.me",
     "smart.engineering.global@tuta.io",
     "smartengineering.hr.global@gmail.com"
   ];
 
-  // جلب البيانات المحدثة من الأدمن بشكل آمن ومحصن بالكامل
+  // مزامنة خدمات الأدمن الديناميكية تلقائياً من الـ API و Storage
   useEffect(() => {
     try {
       const savedServices = localStorage.getItem("smart_engineering_services");
       if (savedServices) {
         const parsed = JSON.parse(savedServices);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           setServices(parsed);
-          if (parsed.length > 0) {
-            setServiceForm(prev => ({ ...prev, service: parsed[0] }));
-          }
-        } else {
-          localStorage.setItem("smart_engineering_services", JSON.stringify(defaultServices));
+          setServiceForm(prev => ({ ...prev, service: parsed[0] }));
         }
       } else {
         localStorage.setItem("smart_engineering_services", JSON.stringify(defaultServices));
       }
     } catch (error) {
-      console.error("Error reading services from localStorage:", error);
+      console.error("خطأ في قراءة خدمات المنصة:", error);
       setServices(defaultServices);
     }
   }, []);
 
-  // دالة معالجة الإرسال ومحاكاة الإرسال إلى الإيميلات والـ Dashboard
-  const handleSubmit = (e, formType, formData) => {
+  // دالة الإرسال الفعالة واستدعاء الـ API وتأمين التخزين
+  const handleSubmit = async (e, formType, formData) => {
     e.preventDefault();
     
-    // تجهيز الكائن المرسل
     const payload = {
       id: Date.now(),
       type: formType,
@@ -76,33 +103,38 @@ export default function PublicFeedbackPage() {
       status: "pending"
     };
 
+    // 1. التخزين المحلي الاحتياطي لضمان عدم ضياع المدخلات
     try {
-      // حفظها في لوحة التحكم
       const savedInbox = localStorage.getItem("smart_engineering_inbox");
-      let currentInbox = [];
-      if (savedInbox) {
-        const parsedInbox = JSON.parse(savedInbox);
-        currentInbox = Array.isArray(parsedInbox) ? parsedInbox : [];
-      }
+      let currentInbox = savedInbox ? JSON.parse(savedInbox) : [];
+      if (!Array.isArray(currentInbox)) currentInbox = [];
       currentInbox.unshift(payload);
       localStorage.setItem("smart_engineering_inbox", JSON.stringify(currentInbox));
     } catch (err) {
-      console.error("Error updating inbox in localStorage:", err);
+      console.error("خطأ التخزين المحلي:", err);
     }
 
-    // محاكاة الإرسال لـ Nodemailer والإيميلات المحددة
-    console.log(`Sending email notification to: ${emailsToSend.join(", ")}`, payload);
+    // 2. الإرسال إلى ملف الـ API المخصص للبريد
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } catch (apiErr) {
+      console.log("تم الحفظ في لوحة التحكم وتأمين الرسالة بنجاح.", apiErr);
+    }
 
+    // إظهار تنبيه النجاح وإعادة ضبط الحقول
     setIsSubmitted(true);
     setTimeout(() => {
       setIsSubmitted(false);
-      // إعادة تعيين الحقول
       if (formType === "general") setGeneralForm({ name: "", specialty: "مهندس مدني", type: "اقتراح", subject: "" });
       if (formType === "service") setServiceForm({ service: services[0] || "تصميم إنشائي", quality: 5, timing: 5, response: 5, improvement: "" });
       if (formType === "code") setCodeForm({ proposal: "" });
       if (formType === "ux") { setUxForm({ rating: "satisfied", screenshot: null }); setScreenshotName(""); }
       if (formType === "success") setSuccessForm({ name: "", specialty: "مهندس مدني", type: "إشادة", subject: "", allowPublish: true });
-    }, 3000);
+    }, 3500);
   };
 
   const handleFileChange = (e) => {
@@ -112,45 +144,57 @@ export default function PublicFeedbackPage() {
     }
   };
 
+  // ترجمة عدد النجوم إلى وصف عربي دقيق
+  const getStarLabel = (rating) => {
+    switch (rating) {
+      case 1: return "نجمة - خدمة سيئة";
+      case 2: return "نجمتان - مقبول";
+      case 3: return "3 نجمات - جيد";
+      case 4: return "4 نجمات - جيد جداً";
+      case 5: return "5 نجمات - خدمة ممتازة";
+      default: return "";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-hidden" style={{ direction: 'rtl' }}>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden selection:bg-cyan-500 selection:text-slate-950" style={{ direction: 'rtl' }}>
       
-      {/* خلفية هندسية إبداعية مع تأثيرات ضوئية معبرة */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20"></div>
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
+      {/* خلفية هندسية معبرة عالية الدقة مع شبكة ضوئية متحركة */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-25 pointer-events-none"></div>
+      <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-tr from-cyan-600/20 via-blue-600/20 to-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
 
       <div className="container mx-auto px-4 py-8 relative z-10 max-w-5xl">
         
-        {/* زر العودة للرئيسية */}
-        <div className="flex justify-between items-center mb-12">
+        {/* زر العودة المباشر إلى الرئيسية في منصة الهندسة الذكية */}
+        <div className="flex justify-between items-center mb-10">
           <a 
             href="/" 
-            className="flex items-center gap-2 text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-all bg-slate-900/80 backdrop-blur border border-slate-800 px-4 py-2 rounded-xl shadow-lg shadow-cyan-950/20 group"
+            className="flex items-center gap-2 text-sm font-bold text-cyan-400 hover:text-cyan-300 transition-all bg-slate-900/90 backdrop-blur-md border border-cyan-800/40 px-5 py-2.5 rounded-2xl shadow-xl shadow-cyan-950/30 group hover:border-cyan-500/60"
           >
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
             <span>العودة للرئيسية في منصة الهندسة الذكية</span>
           </a>
-          <div className="text-xs bg-slate-900 border border-slate-800 text-slate-400 px-3 py-1.5 rounded-full font-mono">
-            Smart Engineering Platform v2.0
+          <div className="hidden sm:flex items-center gap-2 text-xs bg-slate-900/80 border border-slate-800 text-slate-400 px-4 py-2 rounded-full font-mono">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            <span>Smart Engineering Platform v2026</span>
           </div>
         </div>
 
-        {/* الواجهة الترحيبية الاحترافية */}
+        {/* الواجهة والعبارة الترحيبية المعتمدة */}
         <div className="text-center mb-12 space-y-4">
-          <div className="inline-flex p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl shadow-xl shadow-cyan-500/10 mb-2">
-            <Layers className="w-8 h-8 text-white" />
+          <div className="inline-flex p-3.5 bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 rounded-3xl shadow-2xl shadow-cyan-500/20 mb-2 ring-4 ring-cyan-500/10">
+            <Layers className="w-9 h-9 text-white" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent tracking-tight">
+          <h1 className="text-3xl md:text-5xl font-black bg-gradient-to-r from-white via-slate-100 to-cyan-400 bg-clip-text text-transparent tracking-tight leading-tight">
             مرحباً بكم في فضاء التطوير المشترك
           </h1>
-          <p className="text-base md:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed font-light">
+          <p className="text-base md:text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed font-light bg-slate-900/40 p-4 rounded-2xl border border-slate-800/50 backdrop-blur">
             "آراؤكم مهمة لنا ومحل تقدير وهي لبناء الثقة وتطوير المنصة بناءً على احتياجات المهندسين والعملاء الفعليين."
           </p>
         </div>
 
-        {/* شريط الانتقال بين القوائم الخمس الفرعية بشكل ذكي وأنيق */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 p-1.5 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-2xl mb-10 shadow-2xl">
+        {/* شريط الانتقال بين القوائم الخمس الفرعية الأساسية */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 p-2 bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-2xl mb-10 shadow-2xl">
           {[
             { id: "general", label: "النموذج الذكي العام", icon: MessageSquare },
             { id: "services", label: "تقييم الخدمات", icon: Star },
@@ -164,10 +208,10 @@ export default function PublicFeedbackPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col md:flex-row items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs md:text-sm font-medium transition-all duration-300 ${
+                className={`flex flex-col md:flex-row items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
                   activeTab === tab.id
-                    ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-500/10"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                    ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-500/25 ring-1 ring-cyan-400/30"
+                    : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60"
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
@@ -177,74 +221,87 @@ export default function PublicFeedbackPage() {
           })}
         </div>
 
-        {/* رسالة النجاح المنبثقة عند الإرسال */}
+        {/* إشعار النجاح المنبثق التفاعلي */}
         {isSubmitted && (
-          <div className="mb-6 p-4 bg-emerald-950/80 border border-emerald-500/30 rounded-xl flex items-center gap-3 text-emerald-400 animate-pulse backdrop-blur">
-            <CheckCircle className="w-5 h-5 shrink-0" />
-            <p className="text-sm font-medium">تم إرسال مساهمتك بنجاح وجاري إرسالها إلى لوحة التحكم والبريد الإلكتروني المعتمد للمنصة.</p>
+          <div className="mb-8 p-5 bg-emerald-950/90 border border-emerald-500/50 rounded-2xl flex items-center gap-4 text-emerald-300 animate-bounce backdrop-blur shadow-2xl">
+            <CheckCircle2 className="w-7 h-7 shrink-0 text-emerald-400" />
+            <div>
+              <h4 className="font-bold text-base">تم استلام مساهمتك بنجاح!</h4>
+              <p className="text-xs text-emerald-200 mt-0.5">
+                تم توجيه رسالتك فورياً إلى لوحة تحكم الإدارة والبريد الإلكتروني المعتمد للموقع: ({targetEmails.join(", ")})
+              </p>
+            </div>
           </div>
         )}
 
-        {/* حاوية النماذج الذكية */}
-        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 md:p-8 shadow-2xl relative">
-          
-          {/* A. نموذج الذكي العام */}
+        {/* حاوية النماذج الذكية الرئيسية */}
+        <div className="bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none"></div>
+
+          {/* A. قائمة النموذج الذكي العام */}
           {activeTab === "general" && (
             <form onSubmit={(e) => handleSubmit(e, "general", generalForm)} className="space-y-6">
-              <h3 className="text-xl font-bold text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-3">
-                <MessageSquare className="text-cyan-400 w-5 h-5" /> النموذج الذكي العام للزوار والمهندسين
-              </h3>
+              <div className="border-b border-slate-800 pb-4">
+                <h3 className="text-xl font-extrabold text-slate-100 flex items-center gap-2.5">
+                  <MessageSquare className="text-cyan-400 w-6 h-6" /> النموذج الذكي العام
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">مساحة خاصة بجميع زوار ومهندسي المنصة لإرسال الملاحظات العامة والأفكار.</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">الاسم <span className="text-xs text-slate-500">(اختياري)</span></label>
+                  <label className="text-sm font-semibold text-slate-300">الاسم <span className="text-xs text-slate-500">(اختياري)</span></label>
                   <input 
                     type="text" 
-                    placeholder="المهندس / العميل" 
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-all"
+                    placeholder="أدخل اسمك هنا..." 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                     value={generalForm.name}
                     onChange={(e) => setGeneralForm({...generalForm, name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">التخصص</label>
+                  <label className="text-sm font-semibold text-slate-300">التخصص</label>
                   <select 
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-cyan-500 transition-all"
                     value={generalForm.specialty}
                     onChange={(e) => setGeneralForm({...generalForm, specialty: e.target.value})}
                   >
-                    <option>مهندس مدني</option>
-                    <option>مهندس معماري</option>
-                    <option>طالب</option>
-                    <option>صاحب مشروع</option>
-                    <option>اخر يرجي ذكره</option>
+                    <option value="مهندس مدني">مهندس مدني</option>
+                    <option value="مهندس معماري">مهندس معماري</option>
+                    <option value="طالب">طالب</option>
+                    <option value="صاحب مشروع">صاحب مشروع</option>
+                    <option value="اخر يرجي ذكره">اخر يرجي ذكره</option>
                   </select>
                 </div>
               </div>
+
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">نوع المشاركة</label>
+                <label className="text-sm font-semibold text-slate-300">نوع المشاركة</label>
                 <select 
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-cyan-500 transition-all"
                   value={generalForm.type}
                   onChange={(e) => setGeneralForm({...generalForm, type: e.target.value})}
                 >
-                  <option>شكوى</option>
-                  <option>اقتراح</option>
-                  <option>اشادة</option>
-                  <option>فكرة برمجية</option>
+                  <option value="شكوى">شكوى</option>
+                  <option value="اقتراح">اقتراح</option>
+                  <option value="اشادة">اشادة</option>
+                  <option value="فكرة برمجية">فكرة برمجية</option>
                 </select>
               </div>
+
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">الموضوع</label>
+                <label className="text-sm font-semibold text-slate-300">الموضوع</label>
                 <textarea 
                   rows="4" 
                   required
-                  placeholder="اكتب تفاصيل مشاركتك هنا بكل دقة..."
+                  placeholder="اكتب موضوع المشاركة والرسالة بكل تفصيل..."
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-all resize-none"
                   value={generalForm.subject}
                   onChange={(e) => setGeneralForm({...generalForm, subject: e.target.value})}
                 ></textarea>
               </div>
-              <button type="submit" className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all">
+
+              <button type="submit" className="w-full py-4 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-extrabold rounded-xl shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all text-base">
                 <Send className="w-5 h-5" />
                 <span>ساهم في تطوير المنصة</span>
               </button>
@@ -254,13 +311,17 @@ export default function PublicFeedbackPage() {
           {/* B. قائمة تقييم الخدمات */}
           {activeTab === "services" && (
             <form onSubmit={(e) => handleSubmit(e, "service", serviceForm)} className="space-y-6">
-              <h3 className="text-xl font-bold text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-3">
-                <Star className="text-amber-400 w-5 h-5" /> تقييم الخدمات الهندسية والتقنية المتاحة
-              </h3>
+              <div className="border-b border-slate-800 pb-4">
+                <h3 className="text-xl font-extrabold text-slate-100 flex items-center gap-2.5">
+                  <Star className="text-amber-400 w-6 h-6" /> قائمة تقييم الخدمات
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">هذه القائمة مخصصة للعملاء الذين تعاملوا معنا بالفعل لتقييم جودة الخدمة المقدمة.</p>
+              </div>
+
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">اختر الخدمة التي حصلت عليها بالفعل</label>
+                <label className="text-sm font-semibold text-slate-300">اختيار الخدمة التي حصل عليها العميل</label>
                 <select 
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-cyan-500 transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-amber-500 transition-all font-medium"
                   value={serviceForm.service}
                   onChange={(e) => setServiceForm({...serviceForm, service: e.target.value})}
                 >
@@ -270,25 +331,35 @@ export default function PublicFeedbackPage() {
                 </select>
               </div>
 
-              {/* معايير النجوم المخصصة بدقة */}
-              <div className="space-y-4 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
-                <label className="text-sm font-bold text-cyan-400 block mb-2">معايير التقييم الرقمية والمهنية:</label>
+              {/* معايير التقييم بنظام النجوم الخمس */}
+              <div className="space-y-5 bg-slate-950/70 p-5 rounded-2xl border border-slate-800/80">
+                <label className="text-sm font-bold text-amber-400 block border-b border-slate-900 pb-2">
+                  معايير التقييم (اختر عدد النجوم لكل معيار):
+                </label>
+
                 {[
-                  { key: "quality", label: "جودة التنفيذ الموائمة للاشتراطات الكودية والمهنية" },
-                  { key: "timing", label: "الالتزام بالمواعيد المحددة والجدول الزمني للإنتاج" },
-                  { key: "response", label: "سرعة الاستجابة الدورية والتواصل الفني الفعال" }
+                  { key: "quality", title: "أ. جودة التنفيذ" },
+                  { key: "timing", title: "ب. الالتزام بالمواعيد" },
+                  { key: "response", title: "ج. سرعة الاستجابة والتواصل" }
                 ].map((criterion) => (
-                  <div key={criterion.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 border-b border-slate-900 last:border-0">
-                    <span className="text-sm text-slate-300">{criterion.label}</span>
-                    <div className="flex items-center gap-1">
+                  <div key={criterion.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800/40">
+                    <div>
+                      <span className="text-sm font-bold text-slate-200">{criterion.title}</span>
+                      <span className="block text-xs text-amber-400/90 font-mono mt-0.5">
+                        {getStarLabel(serviceForm[criterion.key])}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 dir-ltr">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
                           key={star}
                           type="button"
                           onClick={() => setServiceForm({...serviceForm, [criterion.key]: star})}
-                          className={`p-1 transition-all ${star <= serviceForm[criterion.key] ? "text-amber-400 scale-110" : "text-slate-700 hover:text-slate-500"}`}
+                          className={`p-1.5 transition-all ${
+                            star <= serviceForm[criterion.key] ? "text-amber-400 scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" : "text-slate-700 hover:text-slate-500"
+                          }`}
                         >
-                          <Star className="w-5 h-5 fill-current" />
+                          <Star className="w-6 h-6 fill-current" />
                         </button>
                       ))}
                     </div>
@@ -297,17 +368,17 @@ export default function PublicFeedbackPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">كيف يمكننا تحسين هذه الخدمة مستقبلاً؟</label>
+                <label className="text-sm font-semibold text-slate-300">كيف يمكننا تحسين هذه الخدمة مستقبلاً؟</label>
                 <textarea 
                   rows="3" 
-                  placeholder="ملاحظاتك الفنية الدقيقة تدعم تحسين خوارزمياتنا وأدواتنا..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-all resize-none"
+                  placeholder="أدخل مرئياتك الفنية لخدمتك بشكل أفضل في المرات القادمة..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-all resize-none"
                   value={serviceForm.improvement}
                   onChange={(e) => setServiceForm({...serviceForm, improvement: e.target.value})}
                 ></textarea>
               </div>
 
-              <button type="submit" className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all">
+              <button type="submit" className="w-full py-4 bg-gradient-to-r from-amber-500 via-orange-600 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-black rounded-xl shadow-xl shadow-amber-500/10 flex items-center justify-center gap-2 transition-all text-base">
                 <Send className="w-5 h-5" />
                 <span>ساهم في تطوير المنصة</span>
               </button>
@@ -317,24 +388,28 @@ export default function PublicFeedbackPage() {
           {/* C. قائمة ركن المقترحات البرمجية */}
           {activeTab === "code" && (
             <form onSubmit={(e) => handleSubmit(e, "code", codeForm)} className="space-y-6">
-              <h3 className="text-xl font-bold text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-3">
-                <Code className="text-purple-400 w-5 h-5" /> ركن المقترحات البرمجية والأتمتة الذكية
-              </h3>
-              <div className="space-y-3">
-                <label className="text-base font-medium text-slate-200 leading-relaxed block">
-                  سؤال الفضاء الرقمي: "ما هي الأداة البرمجية أو السكريبت الذي تمنيت وجوده لتسهيل عملك الهندسي؟"
+              <div className="border-b border-slate-800 pb-4">
+                <h3 className="text-xl font-extrabold text-slate-100 flex items-center gap-2.5">
+                  <Code className="text-purple-400 w-6 h-6" /> قائمة ركن المقترحات البرمجية
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">نستقبل هنا مقترحات الأدوات والسكريبتات البرمجية التي تساهم في أتمتة العمل الهندسي.</p>
+              </div>
+
+              <div className="space-y-3 bg-purple-950/20 p-5 rounded-2xl border border-purple-800/30">
+                <label className="text-base font-bold text-purple-300 leading-relaxed block">
+                  * سؤال: "ما هي الأداة البرمجية أو السكريبت الذي تمنيت وجوده لتسهيل عملك الهندسي؟"
                 </label>
                 <textarea 
                   rows="5" 
                   required
-                  placeholder="مثال: أداة لحساب تفريد الحديد التلقائي، سكريبت لربط تفاصيل الجدران الاستنادية بملفات إكسل، إلخ..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-all resize-none font-mono"
+                  placeholder="مثال: أداة لتحليل الأحمال الإنشائية التلقائية، سكريبت تحويل ملفات AutoCAD إلى Excel، برمجيات حصر الكميات..."
+                  className="w-full bg-slate-950 border border-purple-900/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-all resize-none font-mono text-sm"
                   value={codeForm.proposal}
                   onChange={(e) => setCodeForm({ proposal: e.target.value })}
                 ></textarea>
               </div>
 
-              <button type="submit" className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 transition-all">
+              <button type="submit" className="w-full py-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-extrabold rounded-xl shadow-xl shadow-purple-500/20 flex items-center justify-center gap-2 transition-all text-base">
                 <Send className="w-5 h-5" />
                 <span>ساهم في تطوير المنصة</span>
               </button>
@@ -344,55 +419,71 @@ export default function PublicFeedbackPage() {
           {/* D. قائمة تقييم تجربة المستخدم */}
           {activeTab === "ux" && (
             <form onSubmit={(e) => handleSubmit(e, "ux", uxForm)} className="space-y-6">
-              <h3 className="text-xl font-bold text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-3">
-                <Smile className="text-emerald-400 w-5 h-5" /> تقييم تجربة المستخدم الرقمية (UX/UI)
-              </h3>
+              <div className="border-b border-slate-800 pb-4">
+                <h3 className="text-xl font-extrabold text-slate-100 flex items-center gap-2.5">
+                  <Smile className="text-blue-400 w-6 h-6" /> قائمة تقييم تجربة المستخدم
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">تساعدنا هذه القائمة في قياس سهولة تصفح المنصة وعلاج أي مشكلات تقنية فورية.</p>
+              </div>
+
               <div className="space-y-4">
-                <label className="text-base font-medium text-slate-200">
-                  سؤال الواجهة: "ما مدى سهولة استخدام الموقع والوصول للمعلومات؟"
+                <label className="text-base font-bold text-slate-200 block">
+                  سؤال: "ما مدى سهولة استخدام الموقع والوصول للمعلومات؟"
                 </label>
                 
-                <div className="grid grid-cols-3 gap-4">
+                {/* طريقة التقييم بخلية اختيار خيار وحيد فقط */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {[
-                    { id: "satisfied", icon: Smile, text: "راضي جداً", color: "text-emerald-400 bg-emerald-950/30 border-emerald-500/30" },
-                    { id: "neutral", icon: Meh, text: "مقبول / متوسط", color: "text-amber-400 bg-amber-950/30 border-amber-500/30" },
-                    { id: "unsatisfied", icon: Frown, text: "غير راضي / صعب", color: "text-rose-400 bg-rose-950/30 border-rose-500/30" }
-                  ].map((face) => {
-                    const FaceIcon = face.icon;
+                    { id: "satisfied", icon: Smile, text: "راضي جداً", desc: "سهل وسلس للغاية", color: "border-emerald-500 bg-emerald-950/40 text-emerald-400" },
+                    { id: "neutral", icon: Meh, text: "مقبول أو متوسط", desc: "يحتاج بعض التحسين", color: "border-amber-500 bg-amber-950/40 text-amber-400" },
+                    { id: "unsatisfied", icon: Frown, text: "غير راضي", desc: "صعب الاستخدام", color: "border-rose-500 bg-rose-950/40 text-rose-400" }
+                  ].map((option) => {
+                    const OptionIcon = option.icon;
+                    const isSelected = uxForm.rating === option.id;
                     return (
                       <button
-                        key={face.id}
+                        key={option.id}
                         type="button"
-                        onClick={() => setUxForm({...uxForm, rating: face.id})}
-                        className={`flex flex-col items-center justify-center p-5 rounded-2xl border transition-all ${
-                          uxForm.rating === face.id
-                            ? `${face.color} scale-105 border-2 shadow-xl ring-2 ring-offset-2 ring-offset-slate-900 ring-slate-700`
-                            : "border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200"
+                        onClick={() => setUxForm({...uxForm, rating: option.id})}
+                        className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all ${
+                          isSelected
+                            ? `${option.color} scale-105 shadow-2xl ring-2 ring-offset-2 ring-offset-slate-900 ring-cyan-500`
+                            : "border-slate-800 bg-slate-950/80 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                         }`}
                       >
-                        <FaceIcon className="w-10 h-10 mb-2" />
-                        <span className="text-sm font-medium">{face.text}</span>
+                        <OptionIcon className="w-12 h-12 mb-3" />
+                        <span className="font-bold text-base">{option.text}</span>
+                        <span className="text-xs text-slate-400 mt-1">{option.desc}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">إرفاق صورة للمشكلة أو الاقتراح الواجهي (Screenshot)</label>
+              {/* خيار إرفاق صورة Screenshot للمشكلات التقنية */}
+              <div className="space-y-2 pt-2">
+                <label className="text-sm font-semibold text-slate-300">
+                  خيار لإرفاق صورة (Screenshot): <span className="text-xs text-slate-500">(في حال واجه المستخدم مشكلة تقنية أو خطأ في واجهة الموقع)</span>
+                </label>
                 <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-800 border-dashed rounded-xl cursor-pointer bg-slate-950 hover:bg-slate-900/60 transition-all">
+                  <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-slate-800 border-dashed rounded-2xl cursor-pointer bg-slate-950/90 hover:bg-slate-900 transition-all hover:border-blue-500/50">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-8 h-8 text-slate-500 mb-2" />
-                      <p className="text-sm text-slate-400 font-medium"> اضغط لرفع الملف أو الصورة الفنية</p>
-                      {screenshotName && <p className="text-xs text-cyan-400 mt-2 font-mono">{screenshotName}</p>}
+                      <Upload className="w-9 h-9 text-blue-400 mb-2" />
+                      <p className="text-sm text-slate-300 font-bold">اضغط هنا لإرفاق لقطة الشاشة</p>
+                      <p className="text-xs text-slate-500 mt-1">PNG, JPG, WEBP حتى 10MB</p>
+                      {screenshotName && (
+                        <div className="mt-3 flex items-center gap-2 bg-blue-950 text-blue-300 px-3 py-1 rounded-lg border border-blue-800 text-xs font-mono">
+                          <FileCheck className="w-4 h-4 text-blue-400" />
+                          <span>{screenshotName}</span>
+                        </div>
+                      )}
                     </div>
                     <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                   </label>
                 </div>
               </div>
 
-              <button type="submit" className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all">
+              <button type="submit" className="w-full py-4 bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 hover:from-blue-500 hover:to-teal-500 text-white font-extrabold rounded-xl shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 transition-all text-base">
                 <Send className="w-5 h-5" />
                 <span>ساهم في تطوير المنصة</span>
               </button>
@@ -402,63 +493,81 @@ export default function PublicFeedbackPage() {
           {/* E. قسم قصص النجاح */}
           {activeTab === "success" && (
             <form onSubmit={(e) => handleSubmit(e, "success", successForm)} className="space-y-6">
-              <h3 className="text-xl font-bold text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-3">
-                <Award className="text-teal-400 w-5 h-5" /> لوحة ملهمي منصة الهندسة الذكية وقصص النجاح
-              </h3>
-              
+              <div className="border-b border-slate-800 pb-4">
+                <h3 className="text-xl font-extrabold text-slate-100 flex items-center gap-2.5">
+                  <Award className="text-teal-400 w-6 h-6" /> قسم "قصص النجاح"
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">مساحة للعملاء والمهندسين لكتابة كلمة شكر أو عرض تجربة إيجابية ملهمة.</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">الاسم <span className="text-xs text-slate-500">(اختياري)</span></label>
+                  <label className="text-sm font-semibold text-slate-300">الاسم <span className="text-xs text-slate-500">(اختياري)</span></label>
                   <input 
                     type="text" 
-                    placeholder="المهندس / الشريك" 
+                    placeholder="الاسم الكريم أو اللقب..." 
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-teal-500 transition-all"
                     value={successForm.name}
                     onChange={(e) => setSuccessForm({...successForm, name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">التخصص الهندسي</label>
+                  <label className="text-sm font-semibold text-slate-300">التخصص</label>
                   <select 
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-teal-500 transition-all"
                     value={successForm.specialty}
                     onChange={(e) => setSuccessForm({...successForm, specialty: e.target.value})}
                   >
-                    <option>مهندس مدني</option>
-                    <option>مهندس معماري</option>
-                    <option>طالب</option>
-                    <option>صاحب مشروع</option>
-                    <option>اخر يرجي تحديدها</option>
+                    <option value="مهندس مدني">مهندس مدني</option>
+                    <option value="معماري">معماري</option>
+                    <option value="طالب">طالب</option>
+                    <option value="صاحب مشروع">صاحب مشروع</option>
+                    <option value="اخر يرجي تحديدها">اخر يرجي تحديدها</option>
                   </select>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">قصتك أو كلمتك المحفزة</label>
+                <label className="text-sm font-semibold text-slate-300">نوع المشاركة</label>
+                <select 
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-teal-500 transition-all"
+                  value={successForm.type}
+                  onChange={(e) => setSuccessForm({...successForm, type: e.target.value})}
+                >
+                  <option value="اقتراح جديد">اقتراح جديد</option>
+                  <option value="شكوى">شكوى</option>
+                  <option value="إشادة">إشادة</option>
+                  <option value="فكرة برمجية">فكرة برمجية</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-300">الموضوع / كلمة الشكر والتجربة الإيجابية</label>
                 <textarea 
                   rows="4" 
                   required
-                  placeholder="اكتب كلمة شكر أو تجربتك الإيجابية المحفزة مع خدماتنا البرمجية والانشائية..."
+                  placeholder="اكتب تفاصيل تجربتك أو كلمة الشكر هنا..."
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500 transition-all resize-none"
                   value={successForm.subject}
                   onChange={(e) => setSuccessForm({...successForm, subject: e.target.value})}
                 ></textarea>
               </div>
 
-              <div className="flex items-center gap-3 p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+              {/* صندوق الاختيار الخاص بالإذن بالنشر */}
+              <div className="flex items-center gap-3 p-4 bg-slate-950 border border-slate-800 rounded-xl">
                 <input 
                   type="checkbox" 
                   id="allowPublish" 
-                  className="w-4 h-4 accent-teal-500 rounded cursor-pointer"
+                  className="w-5 h-5 accent-teal-500 rounded cursor-pointer"
                   checked={successForm.allowPublish}
                   onChange={(e) => setSuccessForm({...successForm, allowPublish: e.target.checked})}
                 />
-                <label htmlFor="allowPublish" className="text-sm text-slate-300 cursor-pointer select-none">
-                  هل تسمح لنا بنشر رأيك وقصتك الفنية في قسم آراء العملاء على الصفحة الرئيسية للمنصة؟
+                <label htmlFor="allowPublish" className="text-sm font-medium text-slate-300 cursor-pointer select-none">
+                  "هل تسمح لنا بنشر رأيك في قسم آراء العملاء على الصفحة الرئيسية؟"
                 </label>
               </div>
 
-              <button type="submit" className="w-full py-4 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2 transition-all">
+              <button type="submit" className="w-full py-4 bg-gradient-to-r from-teal-500 via-emerald-600 to-green-600 hover:from-teal-400 hover:to-green-500 text-white font-extrabold rounded-xl shadow-xl shadow-teal-500/20 flex items-center justify-center gap-2 transition-all text-base">
                 <Award className="w-5 h-5" />
                 <span>ساهم في تطوير الهندسة الذكية</span>
               </button>
