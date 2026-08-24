@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
-  Plus, 
   Trash2, 
   Edit3, 
   Save, 
@@ -42,6 +41,7 @@ export default function AdminInsights() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const officialEmails = [
     "Smart.Engineering.Global@proton.me",
@@ -57,17 +57,16 @@ export default function AdminInsights() {
 
   const fetchAdminArticles = async () => {
     try {
-      const res = await fetch("/api/insights", { 
-        cache: "no-store",
-        headers: { "Pragma": "no-cache" }
-      });
+      setLoading(true);
+      const res = await fetch("/api/insights", { cache: "no-store" });
       const json = await res.json();
-      
       if (json.success && Array.isArray(json.data)) {
         setArticles(json.data);
       }
     } catch (e) {
-      console.error("Failed to load admin list:", e);
+      console.error("خطأ في الجلب من قاعدة البيانات", e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -84,7 +83,7 @@ export default function AdminInsights() {
     }
 
     const payload = {
-      id: isEditing ? id : Date.now().toString(),
+      id: isEditing ? id : undefined,
       category, title, shortDesc, difficulty, specialty, problem, science, smartIdea, application, codeSnippet, toolLink, hasCalculator, calcType
     };
 
@@ -99,13 +98,13 @@ export default function AdminInsights() {
 
       if (json.success && json.fullData) {
         setArticles(json.fullData);
-        showStatus(isEditing ? "تم تعديل المادة وحفظها دائماً!" : "تمت إضافة المادة ونشرها للجمهور بتمكين كامل!");
+        showStatus(isEditing ? "تم حفظ التعديل دائمياً بقاعدة البيانات!" : "تمت الإضافة الدائمة إلى قاعدة البيانات!");
         resetForm();
       } else {
-        alert("حدث خطأ أثناء الاتصال بالسيرفر للحفظ.");
+        alert("فشلت العملية: " + (json.error || "خطأ غير معروف"));
       }
     } catch (err) {
-      alert("فشل حفظ المنشور في قواعد البيانات.");
+      alert("تعذر الاتصال بالخادم، تحقق من كلمة المرور وقاعدة البيانات.");
     }
   };
 
@@ -129,16 +128,18 @@ export default function AdminInsights() {
   };
 
   const handleDelete = async (targetId) => {
-    if (confirm("هل أنت متأكد من حذف هذه المادة/الفكرة نهائياً من العرض العام؟")) {
+    if (confirm("هل أنت متأكد من حذف هذه المادة نهائياً من قاعدة البيانات؟")) {
       try {
         const res = await fetch(`/api/insights?id=${targetId}`, { method: "DELETE" });
         const json = await res.json();
         if (json.success && json.fullData) {
           setArticles(json.fullData);
-          showStatus("تم حذف المادة بنجاح ولن تظهر للجمهور بعد الآن.");
+          showStatus("تم الحذف نهائياً من قاعدة البيانات.");
+        } else {
+          alert("فشل الحذف: " + (json.error || "خطأ غير معروف"));
         }
       } catch (e) {
-        alert("فشل في حذف المنشور من السيرفر.");
+        alert("تعذر حذف العنصر من قاعدة البيانات.");
       }
     }
   };
@@ -224,7 +225,6 @@ export default function AdminInsights() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased" dir="rtl">
-      
       <div className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center max-w-7xl">
           <div className="flex items-center gap-3">
@@ -232,8 +232,8 @@ export default function AdminInsights() {
               <FolderPlus className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h1 className="text-lg font-black text-white">لوحة التحكم التامة | قائمة أفكار وعلوم</h1>
-              <p className="text-xs text-slate-400">الإضافة والإعادة والتعديل والحذف من قبل الأدمن حصراً</p>
+              <h1 className="text-lg font-black text-white">لوحة التحكم التامة | قاعدة البيانات المباشرة</h1>
+              <p className="text-xs text-slate-400">إدارة الأفكار والعلوم بصورة دائمة ومحفوظة في PostgreSQL</p>
             </div>
           </div>
           
@@ -251,7 +251,6 @@ export default function AdminInsights() {
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
         <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
           <h2 className="text-base font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-800 pb-3">
             <Edit3 className="w-5 h-5 text-emerald-400" />
@@ -439,7 +438,7 @@ export default function AdminInsights() {
                 className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-6 py-3 rounded-xl transition-all text-xs md:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
               >
                 <Save className="w-4 h-4" />
-                <span>{isEditing ? "تحديث وحفظ التعديلات" : "نشر المادة للجمهور"}</span>
+                <span>{isEditing ? "تحديث وحفظ التعديلات" : "نشر المادة وقيدها بالداتابيز"}</span>
               </button>
 
               {isEditing && (
@@ -458,43 +457,54 @@ export default function AdminInsights() {
 
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
-              <RefreshCw className="w-4 h-4 text-emerald-400" />
-              <span>المواد المنشورة حالياً ({articles.length})</span>
+            <h3 className="text-sm font-bold text-white flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+              <span className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-emerald-400" />
+                <span>المواد بالداتابيز ({articles.length})</span>
+              </span>
+              <button 
+                onClick={fetchAdminArticles}
+                className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded"
+              >
+                تحديث القائمة
+              </button>
             </h3>
 
-            <div className="space-y-3 max-h-[55vh] overflow-y-auto pl-1 custom-scrollbar">
-              {articles.map((item) => (
-                <div key={item.id} className="bg-slate-950 border border-slate-850 rounded-2xl p-4 flex flex-col justify-between gap-2 hover:border-slate-700 transition-colors">
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] bg-slate-900 text-emerald-400 px-2 py-0.5 rounded font-mono border border-slate-800">
-                        {item.category}
-                      </span>
-                      <span className="text-[10px] text-slate-600 font-mono">#{item.id}</span>
+            {loading ? (
+              <p className="text-center text-xs text-slate-500 py-4">جاري التحميل من PostgreSQL...</p>
+            ) : (
+              <div className="space-y-3 max-h-[55vh] overflow-y-auto pl-1 custom-scrollbar">
+                {articles.map((item) => (
+                  <div key={item.id} className="bg-slate-950 border border-slate-850 rounded-2xl p-4 flex flex-col justify-between gap-2 hover:border-slate-700 transition-colors">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[10px] bg-slate-900 text-emerald-400 px-2 py-0.5 rounded font-mono border border-slate-800">
+                          {item.category}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-bold text-white line-clamp-1">{item.title}</h4>
                     </div>
-                    <h4 className="text-xs font-bold text-white line-clamp-1">{item.title}</h4>
-                  </div>
 
-                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-900">
-                    <button
-                      onClick={() => handleEditSelect(item)}
-                      className="inline-flex items-center gap-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 text-[11px] font-bold px-3 py-1 rounded-lg transition-colors border border-sky-500/20"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>تعديل</span>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="inline-flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[11px] font-bold px-3 py-1 rounded-lg transition-colors border border-rose-500/20"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>حذف</span>
-                    </button>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-900">
+                      <button
+                        onClick={() => handleEditSelect(item)}
+                        className="inline-flex items-center gap-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 text-[11px] font-bold px-3 py-1 rounded-lg transition-colors border border-sky-500/20"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>تعديل</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="inline-flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[11px] font-bold px-3 py-1 rounded-lg transition-colors border border-rose-500/20"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>حذف</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3">

@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { PrismaClient } from '@prisma/client';
+
+const globalForPrisma = global;
+const prisma = globalForPrisma.prisma || new PrismaClient();
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// مسار حفظ البيانات الدائم في جذر المشروع
-const dataFilePath = path.join(process.cwd(), 'data', 'insights.json');
-
 const initialData = [
   {
-    id: "1",
     category: "FUTURE_ENG",
     title: "الذكاء الاصطناعي والتنبؤ بانهيار التربة",
     shortDesc: "تطبيقات Machine Learning للتنبؤ بانهيار التربة وتحسين تكلفة المنشآت الجيوتقنية.",
@@ -26,7 +25,6 @@ const initialData = [
     calcType: "soil_safety"
   },
   {
-    id: "2",
     category: "FUTURE_ENG",
     title: "الطباعة ثلاثية الأبعاد للمنازل بالخرسانة المطبوعة",
     shortDesc: "أحدث الأبحاث في بناء المنازل بالخرسانة المطبوعة لتقليل الفقد والوقت الإنشائي.",
@@ -42,7 +40,6 @@ const initialData = [
     calcType: "soil_safety"
   },
   {
-    id: "3",
     category: "FUTURE_ENG",
     title: "التوأم الرقمي (Digital Twin) وربط حسّاسات BIM",
     shortDesc: "شرح كيفية ربط حساسات الموقع بنموذج الـ BIM لمراقبة المبنى لحظياً.",
@@ -58,7 +55,6 @@ const initialData = [
     calcType: "soil_safety"
   },
   {
-    id: "4",
     category: "EXECUTION_SECRETS",
     title: "هندسة القيمة في العناصر الإنشائية",
     shortDesc: "أفكار وحلول ذكية لتقليل التكاليف الإجمالية للمشروع دون المساس بالجودة والسلامة.",
@@ -74,15 +70,14 @@ const initialData = [
     calcType: "value_eng"
   },
   {
-    id: "5",
     category: "EXECUTION_SECRETS",
     title: "إدارة الهالك وتقليل الفواقد بالخوارزميات",
     shortDesc: "علوم تقليل الفواقد في المواد باستخدام الخوارزميات البرمجية والتسليح المثالي.",
     difficulty: "متقدم",
     specialty: "إدارة تشييد",
     problem: "هدر كميات كبيرة من حديد التسليح عند تقطيع الأسياخ بالطرق العشوائية بالموقع.",
-    science: "استخدام خوارزمية التتقطيع أحادية البعد (1D Cutting Stock Problem) القائمة على البرمجة الخطية.",
-    smartIdea: "إدخال جدول أطوال الأسياخ المطلوبة للبرنامج للحصول على خريطة التتقطيع التي تحقق أقل نسبة هالك ممكنة.",
+    science: "استخدام خوارزمية التقطيع أحادية البعد (1D Cutting Stock Problem) القائمة على البرمجة الخطية.",
+    smartIdea: "إدخال جدول أطوال الأسياخ المطلوبة للبرنامج للحصول على خريطة التقطيع التي تحقق أقل نسبة هالك ممكنة.",
     application: "تصدير جدول التقطيع للمشرف الإنشائي بالموقع والتنفيذ وفق المخطط الخوارزمي.",
     codeSnippet: "# Python Linear Optimizer Logic Sample\ncut_lengths = [3.5, 4.2, 2.8]\nstock_length = 12.0\n# Computes optimal combinations to approach 12.0m",
     toolLink: "/software/waste-minimizer",
@@ -90,7 +85,6 @@ const initialData = [
     calcType: "soil_safety"
   },
   {
-    id: "6",
     category: "EXECUTION_SECRETS",
     title: "تحليل الانهيارات والأخطاء الإنشائية برمجياً",
     shortDesc: "دروس مستفادة من أخطاء هندسية عالمية وكيفية تجنبها وتفاديها خوارزمياً.",
@@ -106,7 +100,6 @@ const initialData = [
     calcType: "soil_safety"
   },
   {
-    id: "7",
     category: "PROG_FOR_ENG",
     title: "أتمتة التصميم الإنشائي باستخدام Python",
     shortDesc: "دروس حول استخدام Python لتنفيذ مهام التصميم التي تستغرق ساعات في دقائق معدودة.",
@@ -122,7 +115,6 @@ const initialData = [
     calcType: "soil_safety"
   },
   {
-    id: "8",
     category: "SIMPLIFIED_PAPERS",
     title: "ملخص الأبحاث العالمية: استخدام الخرسانة ذاتية الترميم",
     shortDesc: "تلخيص لأحدث الأبحاث العالمية من الجامعات وتحويلها إلى نقاط عملية للموقع.",
@@ -139,101 +131,87 @@ const initialData = [
   }
 ];
 
-// دالة قراءة البيانات المسجلة على القرص الصلب
-function readStoredData() {
-  try {
-    const dirPath = path.dirname(dataFilePath);
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-    if (!fs.existsSync(dataFilePath)) {
-      fs.writeFileSync(dataFilePath, JSON.stringify(initialData, null, 2), 'utf-8');
-      return initialData;
-    }
-    const fileContent = fs.readFileSync(dataFilePath, 'utf-8');
-    return JSON.parse(fileContent);
-  } catch (error) {
-    console.error("Error reading file database:", error);
-    return initialData;
-  }
-}
-
-// دالة كتابة وتثبيت البيانات على القرص الصلب
-function writeStoredData(data) {
-  try {
-    const dirPath = path.dirname(dataFilePath);
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-    fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (error) {
-    console.error("Error writing to file database:", error);
-  }
-}
-
 export async function GET() {
-  const currentArticles = readStoredData();
-  return NextResponse.json({ success: true, data: currentArticles }, {
-    headers: {
-      'Cache-Control': 'no-store, max-age=0, must-revalidate'
+  try {
+    let articles = await prisma.insight.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (articles.length === 0) {
+      await prisma.insight.createMany({
+        data: initialData
+      });
+      articles = await prisma.insight.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
     }
-  });
+
+    return NextResponse.json({ success: true, data: articles }, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0, must-revalidate'
+      }
+    });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
 }
 
 export async function POST(req) {
   try {
     const body = await req.json();
-    const currentArticles = readStoredData();
-
-    const newArticle = {
-      id: body.id || Date.now().toString(),
-      category: body.category || "FUTURE_ENG",
-      title: body.title || "عنوان مادة علمية جديدة",
-      shortDesc: body.shortDesc || "",
-      difficulty: body.difficulty || "متقدم",
-      specialty: body.specialty || "هندسة عامة",
-      problem: body.problem || "",
-      science: body.science || "",
-      smartIdea: body.smartIdea || "",
-      application: body.application || "",
-      codeSnippet: body.codeSnippet || "",
-      toolLink: body.toolLink || "",
-      hasCalculator: body.hasCalculator || false,
-      calcType: body.calcType || "soil_safety"
-    };
-
-    const updatedData = [newArticle, ...currentArticles];
-    writeStoredData(updatedData);
-
-    return NextResponse.json({ 
-      success: true, 
-      message: "تمت الإضافة بنجاح", 
-      data: newArticle, 
-      fullData: updatedData 
+    const newArticle = await prisma.insight.create({
+      data: {
+        category: body.category || "FUTURE_ENG",
+        title: body.title || "عنوان مادة علمية جديدة",
+        shortDesc: body.shortDesc || "",
+        difficulty: body.difficulty || "متقدم",
+        specialty: body.specialty || "هندسة عامة",
+        problem: body.problem || "",
+        science: body.science || "",
+        smartIdea: body.smartIdea || "",
+        application: body.application || "",
+        codeSnippet: body.codeSnippet || "",
+        toolLink: body.toolLink || "",
+        hasCalculator: body.hasCalculator || false,
+        calcType: body.calcType || "soil_safety"
+      }
     });
+
+    const fullData = await prisma.insight.findMany({ orderBy: { createdAt: 'desc' } });
+    return NextResponse.json({ success: true, message: "تمت الإضافة بنجاح في قاعدة البيانات", data: newArticle, fullData });
   } catch (err) {
-    return NextResponse.json({ success: false, error: "فشل في إضافة المادة" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "فشل في إضافة المادة إلى قاعدة البيانات" }, { status: 500 });
   }
 }
 
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const currentArticles = readStoredData();
-
-    const index = currentArticles.findIndex(item => item.id === body.id);
-    if (index !== -1) {
-      currentArticles[index] = { ...currentArticles[index], ...body };
-      writeStoredData(currentArticles);
-      
-      return NextResponse.json({ 
-        success: true, 
-        message: "تم التعديل بنجاح", 
-        data: currentArticles[index], 
-        fullData: currentArticles 
-      });
+    if (!body.id) {
+      return NextResponse.json({ success: false, error: "معرف المادة مطلوب للتعديل" }, { status: 400 });
     }
-    return NextResponse.json({ success: false, error: "العنصر غير موجود" }, { status: 404 });
+
+    const updated = await prisma.insight.update({
+      where: { id: body.id },
+      data: {
+        category: body.category,
+        title: body.title,
+        shortDesc: body.shortDesc,
+        difficulty: body.difficulty,
+        specialty: body.specialty,
+        problem: body.problem,
+        science: body.science,
+        smartIdea: body.smartIdea,
+        application: body.application,
+        codeSnippet: body.codeSnippet,
+        toolLink: body.toolLink,
+        hasCalculator: body.hasCalculator,
+        calcType: body.calcType
+      }
+    });
+
+    const fullData = await prisma.insight.findMany({ orderBy: { createdAt: 'desc' } });
+    return NextResponse.json({ success: true, message: "تم التعديل بنجاح", data: updated, fullData });
   } catch (err) {
     return NextResponse.json({ success: false, error: "فشل في تعديل المادة" }, { status: 500 });
   }
@@ -243,18 +221,16 @@ export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (id) {
-      const currentArticles = readStoredData();
-      const updatedData = currentArticles.filter(item => item.id !== id);
-      writeStoredData(updatedData);
-
-      return NextResponse.json({ 
-        success: true, 
-        message: "تم الحذف بنجاح", 
-        fullData: updatedData 
-      });
+    if (!id) {
+      return NextResponse.json({ success: false, error: "لم يتم تقديم معرف الحذف" }, { status: 400 });
     }
-    return NextResponse.json({ success: false, error: "لم يتم تقديم معرف الحذف" }, { status: 400 });
+
+    await prisma.insight.delete({
+      where: { id }
+    });
+
+    const fullData = await prisma.insight.findMany({ orderBy: { createdAt: 'desc' } });
+    return NextResponse.json({ success: true, message: "تم الحذف بنجاح من قاعدة البيانات", fullData });
   } catch (err) {
     return NextResponse.json({ success: false, error: "فشل في عملية الحذف" }, { status: 500 });
   }

@@ -35,10 +35,7 @@ export default function InsightsPage() {
   const fetchArticles = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/insights", { 
-        cache: "no-store",
-        headers: { "Pragma": "no-cache" } 
-      });
+      const res = await fetch("/api/insights", { cache: "no-store" });
       const json = await res.json();
       
       if (json.success && Array.isArray(json.data)) {
@@ -48,7 +45,7 @@ export default function InsightsPage() {
         }
       }
     } catch (e) {
-      console.error("Failed to fetch insights:", e);
+      console.error("خطأ في الاتصال بقاعدة البيانات", e);
     } font-sans finally {
       setLoading(false);
     }
@@ -84,12 +81,10 @@ export default function InsightsPage() {
 
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 font-sans antialiased selection:bg-emerald-500 selection:text-white relative overflow-hidden" dir="rtl">
-      
       <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#070b14] to-[#04060c] pointer-events-none" />
       <div className="fixed inset-0 z-0 opacity-15 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:28px_28px] pointer-events-none" />
 
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
-        
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800/80 pb-6 mb-8 gap-4 backdrop-blur-xl bg-slate-900/40 p-6 rounded-3xl border border-slate-800/60 shadow-2xl">
           <div>
             <div className="flex items-center gap-2 text-emerald-400 font-bold tracking-wider text-xs mb-2">
@@ -117,7 +112,7 @@ export default function InsightsPage() {
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => { setActiveCategory(cat.id); }}
+              onClick={() => setActiveCategory(cat.id)}
               className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs md:text-sm font-bold transition-all duration-300 border ${
                 activeCategory === cat.id
                   ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow-lg shadow-emerald-500/20 scale-105"
@@ -131,19 +126,18 @@ export default function InsightsPage() {
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
           <div className="lg:col-span-5 space-y-4 max-h-[80vh] overflow-y-auto pr-1 custom-scrollbar">
             <h2 className="text-sm font-bold text-slate-400 flex items-center justify-between mb-3 px-1">
               <span className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-emerald-400" />
                 <span>الأفكار والمواد العلمية ({filteredArticles.length})</span>
               </span>
-              <span className="text-[11px] bg-slate-900 text-slate-500 px-2.5 py-1 rounded-full border border-slate-800 font-mono">تحديث فوري ثابت</span>
+              <span className="text-[11px] bg-slate-900 text-slate-500 px-2.5 py-1 rounded-full border border-slate-800 font-mono">قاعدة بيانات مفعلة</span>
             </h2>
 
             {loading ? (
               <div className="bg-slate-900/50 p-8 rounded-2xl border border-slate-800 text-center text-slate-400 animate-pulse">
-                جاري جلب العلوم والأفكار الهندسية...
+                جاري الاتصال بقاعدة البيانات وجلب المواد العلمية...
               </div>
             ) : filteredArticles.length === 0 ? (
               <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-400">
@@ -176,7 +170,6 @@ export default function InsightsPage() {
                   
                   <div className="mt-4 flex justify-between items-center text-xs font-semibold text-emerald-400">
                     <span>قراءة تفاصيل الإنفوجرافيك ←</span>
-                    <span className="text-[10px] text-slate-600 font-mono">#{article.id}</span>
                   </div>
                 </div>
               ))
@@ -186,7 +179,6 @@ export default function InsightsPage() {
           <div className="lg:col-span-7">
             {selectedArticle ? (
               <article className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl animate-fadeIn">
-                
                 <div className="bg-gradient-to-r from-emerald-950/90 via-slate-900 to-slate-900 border-r-4 border-emerald-400 rounded-2xl p-5 mb-6 border border-slate-800/80 shadow-lg">
                   <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs mb-2 uppercase tracking-wider">
                     <Lightbulb className="w-4 h-4 text-amber-400 animate-pulse" />
@@ -288,7 +280,6 @@ export default function InsightsPage() {
                     </Link>
                   </div>
                 )}
-
               </article>
             ) : (
               <div className="h-full min-h-[400px] flex flex-col justify-center items-center p-8 bg-slate-900/40 border border-slate-800 border-dashed rounded-3xl text-slate-400 text-center">
@@ -300,7 +291,6 @@ export default function InsightsPage() {
               </div>
             )}
           </div>
-
         </div>
 
         <footer className="mt-16 pt-8 border-t border-slate-800/80 text-center text-xs text-slate-500 space-y-3">
@@ -313,7 +303,6 @@ export default function InsightsPage() {
             <span>smartengineering.hr.global@gmail.com</span>
           </div>
         </footer>
-
       </div>
     </div>
   );

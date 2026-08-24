@@ -63,8 +63,8 @@ model Advertisement {
   email         String
   address       String?
   website       String?
-  type          String?  // 👈 إرجاع العمود
-  is_published  Boolean? @default(false) // 👈 إرجاع العمود
+  type          String?  
+  is_published  Boolean? @default(false) 
   advertiseType String
   moreInfo      String?
   status        String   @default("PENDING")
@@ -79,14 +79,12 @@ model AcademyItem {
   category    String
   title       String
   subCategory String?
-  description String?  // 👈 إرجاع العمود لتجنب حذفه
+  description String?  
   details     String   @db.Text
   status      String   @default("APPROVED")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
-
-
 
 model TrainingItem {
   id            String                 @id @default(uuid())
@@ -141,7 +139,6 @@ model ScholarshipApplication {
   createdAt     DateTime    @default(now())
 }
 
-// 👈 أضف هذا الموديل الجديد هنا بنفس الحقول التي يطلبها الـ API
 model AcademyApplication {
   id              String   @id @default(uuid())
   fullName        String
@@ -159,7 +156,7 @@ model AcademyApplication {
 }
 
 // ==========================================
-// 6. المكتبة والبرمجيات (محدثة لدعم قاعدة البيانات الدائمة)
+// 6. المكتبة والبرمجيات
 // ==========================================
 
 model StructuralCode {
@@ -174,8 +171,8 @@ model SoftwareTool {
   id           String   @id @default(uuid())
   title        String
   category     String
-  stage        String   @default("design") // design, execution, technical-office
-  badge        String   @default("مجانية") // مجانية, تجريبية, Pro
+  stage        String   @default("design") 
+  badge        String   @default("مجانية") 
   aiPlatform   String   @default("محرك المنصة")
   description  String   @db.Text
   secretPrompt String?  @db.Text
@@ -203,7 +200,7 @@ model SoftwareToolRequest {
 
 model Service {
   id        String   @id @default(cuid())
-  category  String   // structural, architecture, smartTech, academy
+  category  String   
   title     String
   desc      String
   createdAt DateTime @default(now())
@@ -224,6 +221,7 @@ model ServiceRequest {
   dateTime        String?
   createdAt       DateTime @default(now())
 }
+
 // ==========================================
 // 8. التواصل، الدعم الفني وتجربة المستخدم
 // ==========================================
@@ -259,8 +257,31 @@ model ContactMessage {
 
 model ContactRequest {
   id        String   @id @default(uuid())
-  type      String   // "AD", "JOB_SEEKER", "SUPPLIER", "LOGIN"
-  data      String   // تخزين البيانات بصيغة JSON
+  type      String   
+  data      String   
   status    String   @default("PENDING")
   createdAt DateTime @default(now())
+}
+
+// ==========================================
+// 9. نموذج قسم أفكار وعلوم (المحتوى الدائم)
+// ==========================================
+
+model Insight {
+  id            String   @id @default(uuid())
+  category      String
+  title         String
+  shortDesc     String   @db.Text
+  difficulty    String   @default("متقدم")
+  specialty     String?
+  problem       String   @db.Text
+  science       String   @db.Text
+  smartIdea     String   @db.Text
+  application   String   @db.Text
+  codeSnippet   String?  @db.Text
+  toolLink      String?
+  hasCalculator Boolean  @default(false)
+  calcType      String   @default("soil_safety")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
