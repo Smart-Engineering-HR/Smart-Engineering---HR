@@ -268,20 +268,20 @@ model ContactRequest {
 // ==========================================
 
 model Insight {
-  id            String   @id @default(uuid())
-  category      String
+  id            String   @id @default(cuid())
   title         String
-  shortDesc     String   @db.Text
-  difficulty    String   @default("متقدم")
+  category      String   @default("ALL")
   specialty     String?
-  problem       String   @db.Text
-  science       String   @db.Text
-  smartIdea     String   @db.Text
-  application   String   @db.Text
-  codeSnippet   String?  @db.Text
-  toolLink      String?
+  difficulty    String?  @default("متقدم")
+  shortDesc     String?
+  problem       String?
+  science       String?
+  smartIdea     String?
+  application   String?
+  codeSnippet   String?
   hasCalculator Boolean  @default(false)
-  calcType      String   @default("soil_safety")
+  calcType      String?  @default("soil_safety")
+  toolLink      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
