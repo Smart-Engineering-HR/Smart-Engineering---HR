@@ -149,8 +149,8 @@ export default function AdminFeedbackDashboard() {
   // معالجة تسجيل دخول الأدمن
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    const correctEmail = "admin@smartengineering.com";
-    const correctPassword = "AdminPassword2026";
+    const correctEmail = "adminsmartaprotonc9@smfffartacademy.com";
+    const correctPassword = "AdminPass&^%$bbbbb2026%&^&^%$bbbbb2026%&^word2026";
 
     if (loginEmail === correctEmail && loginPassword === correctPassword) {
       localStorage.setItem("feedback_admin_logged_in", "true");
