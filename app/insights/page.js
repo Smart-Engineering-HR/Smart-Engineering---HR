@@ -46,7 +46,7 @@ export default function InsightsPage() {
       }
     } catch (e) {
       console.error("خطأ في الاتصال بقاعدة البيانات", e);
-    } font-sans finally {
+    } finally {
       setLoading(false);
     }
   };
