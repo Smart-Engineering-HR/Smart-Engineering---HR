@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+// مسار حفظ البيانات الدائم في جذر المشروع
+const dataFilePath = path.join(process.cwd(), 'data', 'insights.json');
 
 const initialData = [
   {
@@ -76,8 +81,8 @@ const initialData = [
     difficulty: "متقدم",
     specialty: "إدارة تشييد",
     problem: "هدر كميات كبيرة من حديد التسليح عند تقطيع الأسياخ بالطرق العشوائية بالموقع.",
-    science: "استخدام خوارزمية التقطيع أحادية البعد (1D Cutting Stock Problem) القائمة على البرمجة الخطية.",
-    smartIdea: "إدخال جدول أطوال الأسياخ المطلوبة للبرنامج للحصول على خريطة التقطيع التي تحقق أقل نسبة هالك ممكنة.",
+    science: "استخدام خوارزمية التتقطيع أحادية البعد (1D Cutting Stock Problem) القائمة على البرمجة الخطية.",
+    smartIdea: "إدخال جدول أطوال الأسياخ المطلوبة للبرنامج للحصول على خريطة التتقطيع التي تحقق أقل نسبة هالك ممكنة.",
     application: "تصدير جدول التقطيع للمشرف الإنشائي بالموقع والتنفيذ وفق المخطط الخوارزمي.",
     codeSnippet: "# Python Linear Optimizer Logic Sample\ncut_lengths = [3.5, 4.2, 2.8]\nstock_length = 12.0\n# Computes optimal combinations to approach 12.0m",
     toolLink: "/software/waste-minimizer",
@@ -134,12 +139,41 @@ const initialData = [
   }
 ];
 
-if (!globalThis.insightsDatabase) {
-  globalThis.insightsDatabase = [...initialData];
+// دالة قراءة البيانات المسجلة على القرص الصلب
+function readStoredData() {
+  try {
+    const dirPath = path.dirname(dataFilePath);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    if (!fs.existsSync(dataFilePath)) {
+      fs.writeFileSync(dataFilePath, JSON.stringify(initialData, null, 2), 'utf-8');
+      return initialData;
+    }
+    const fileContent = fs.readFileSync(dataFilePath, 'utf-8');
+    return JSON.parse(fileContent);
+  } catch (error) {
+    console.error("Error reading file database:", error);
+    return initialData;
+  }
+}
+
+// دالة كتابة وتثبيت البيانات على القرص الصلب
+function writeStoredData(data) {
+  try {
+    const dirPath = path.dirname(dataFilePath);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (error) {
+    console.error("Error writing to file database:", error);
+  }
 }
 
 export async function GET() {
-  return NextResponse.json({ success: true, data: globalThis.insightsDatabase }, {
+  const currentArticles = readStoredData();
+  return NextResponse.json({ success: true, data: currentArticles }, {
     headers: {
       'Cache-Control': 'no-store, max-age=0, must-revalidate'
     }
@@ -149,6 +183,8 @@ export async function GET() {
 export async function POST(req) {
   try {
     const body = await req.json();
+    const currentArticles = readStoredData();
+
     const newArticle = {
       id: body.id || Date.now().toString(),
       category: body.category || "FUTURE_ENG",
@@ -166,12 +202,15 @@ export async function POST(req) {
       calcType: body.calcType || "soil_safety"
     };
 
-    if (!globalThis.insightsDatabase) {
-      globalThis.insightsDatabase = [...initialData];
-    }
+    const updatedData = [newArticle, ...currentArticles];
+    writeStoredData(updatedData);
 
-    globalThis.insightsDatabase.unshift(newArticle);
-    return NextResponse.json({ success: true, message: "تمت الإضافة بنجاح", data: newArticle, fullData: globalThis.insightsDatabase });
+    return NextResponse.json({ 
+      success: true, 
+      message: "تمت الإضافة بنجاح", 
+      data: newArticle, 
+      fullData: updatedData 
+    });
   } catch (err) {
     return NextResponse.json({ success: false, error: "فشل في إضافة المادة" }, { status: 500 });
   }
@@ -180,13 +219,19 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    if (!globalThis.insightsDatabase) {
-      globalThis.insightsDatabase = [...initialData];
-    }
-    const index = globalThis.insightsDatabase.findIndex(item => item.id === body.id);
+    const currentArticles = readStoredData();
+
+    const index = currentArticles.findIndex(item => item.id === body.id);
     if (index !== -1) {
-      globalThis.insightsDatabase[index] = { ...globalThis.insightsDatabase[index], ...body };
-      return NextResponse.json({ success: true, message: "تم التعديل بنجاح", data: globalThis.insightsDatabase[index], fullData: globalThis.insightsDatabase });
+      currentArticles[index] = { ...currentArticles[index], ...body };
+      writeStoredData(currentArticles);
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: "تم التعديل بنجاح", 
+        data: currentArticles[index], 
+        fullData: currentArticles 
+      });
     }
     return NextResponse.json({ success: false, error: "العنصر غير موجود" }, { status: 404 });
   } catch (err) {
@@ -199,11 +244,15 @@ export async function DELETE(req) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (id) {
-      if (!globalThis.insightsDatabase) {
-        globalThis.insightsDatabase = [...initialData];
-      }
-      globalThis.insightsDatabase = globalThis.insightsDatabase.filter(item => item.id !== id);
-      return NextResponse.json({ success: true, message: "تم الحذف بنجاح", fullData: globalThis.insightsDatabase });
+      const currentArticles = readStoredData();
+      const updatedData = currentArticles.filter(item => item.id !== id);
+      writeStoredData(updatedData);
+
+      return NextResponse.json({ 
+        success: true, 
+        message: "تم الحذف بنجاح", 
+        fullData: updatedData 
+      });
     }
     return NextResponse.json({ success: false, error: "لم يتم تقديم معرف الحذف" }, { status: 400 });
   } catch (err) {

@@ -57,19 +57,17 @@ export default function AdminInsights() {
 
   const fetchAdminArticles = async () => {
     try {
-      const res = await fetch("/api/insights", { cache: "no-store" });
+      const res = await fetch("/api/insights", { 
+        cache: "no-store",
+        headers: { "Pragma": "no-cache" }
+      });
       const json = await res.json();
       
       if (json.success && Array.isArray(json.data)) {
         setArticles(json.data);
-        localStorage.setItem("smart_insights_articles", JSON.stringify(json.data));
-      } else {
-        const stored = localStorage.getItem("smart_insights_articles");
-        if (stored) setArticles(JSON.parse(stored));
       }
     } catch (e) {
-      const stored = localStorage.getItem("smart_insights_articles");
-      if (stored) setArticles(JSON.parse(stored));
+      console.error("Failed to load admin list:", e);
     }
   };
 
@@ -101,33 +99,13 @@ export default function AdminInsights() {
 
       if (json.success && json.fullData) {
         setArticles(json.fullData);
-        localStorage.setItem("smart_insights_articles", JSON.stringify(json.fullData));
+        showStatus(isEditing ? "تم تعديل المادة وحفظها دائماً!" : "تمت إضافة المادة ونشرها للجمهور بتمكين كامل!");
+        resetForm();
       } else {
-        let updatedList = [...articles];
-        if (isEditing) {
-          const idx = updatedList.findIndex(item => item.id === payload.id);
-          if (idx !== -1) updatedList[idx] = payload;
-        } else {
-          updatedList.unshift(payload);
-        }
-        setArticles(updatedList);
-        localStorage.setItem("smart_insights_articles", JSON.stringify(updatedList));
+        alert("حدث خطأ أثناء الاتصال بالسيرفر للحفظ.");
       }
-
-      showStatus(isEditing ? "تم تعديل المادة بنجاح ونشرها للجمهور!" : "تمت إضافة المادة ونشرها للجمهور فوراً!");
-      resetForm();
     } catch (err) {
-      let updatedList = [...articles];
-      if (isEditing) {
-        const idx = updatedList.findIndex(item => item.id === payload.id);
-        if (idx !== -1) updatedList[idx] = payload;
-      } else {
-        updatedList.unshift(payload);
-      }
-      setArticles(updatedList);
-      localStorage.setItem("smart_insights_articles", JSON.stringify(updatedList));
-      showStatus("تمت العملية وحفظ البيانات بنجاح.");
-      resetForm();
+      alert("فشل حفظ المنشور في قواعد البيانات.");
     }
   };
 
@@ -151,24 +129,17 @@ export default function AdminInsights() {
   };
 
   const handleDelete = async (targetId) => {
-    if (confirm("هل أنت متأكد من حذف هذه المادة/الفكرة نهائياً؟")) {
+    if (confirm("هل أنت متأكد من حذف هذه المادة/الفكرة نهائياً من العرض العام؟")) {
       try {
         const res = await fetch(`/api/insights?id=${targetId}`, { method: "DELETE" });
         const json = await res.json();
         if (json.success && json.fullData) {
           setArticles(json.fullData);
-          localStorage.setItem("smart_insights_articles", JSON.stringify(json.fullData));
-        } else {
-          const filtered = articles.filter(item => item.id !== targetId);
-          setArticles(filtered);
-          localStorage.setItem("smart_insights_articles", JSON.stringify(filtered));
+          showStatus("تم حذف المادة بنجاح ولن تظهر للجمهور بعد الآن.");
         }
       } catch (e) {
-        const filtered = articles.filter(item => item.id !== targetId);
-        setArticles(filtered);
-        localStorage.setItem("smart_insights_articles", JSON.stringify(filtered));
+        alert("فشل في حذف المنشور من السيرفر.");
       }
-      showStatus("تم حذف المادة بنجاح.");
     }
   };
 
@@ -262,7 +233,7 @@ export default function AdminInsights() {
             </div>
             <div>
               <h1 className="text-lg font-black text-white">لوحة التحكم التامة | قائمة أفكار وعلوم</h1>
-              <p className="text-xs text-slate-400">الإضافة والإعادة والتعديل والحذف لكافة الأقسام الفرعية</p>
+              <p className="text-xs text-slate-400">الإضافة والإعادة والتعديل والحذف من قبل الأدمن حصراً</p>
             </div>
           </div>
           

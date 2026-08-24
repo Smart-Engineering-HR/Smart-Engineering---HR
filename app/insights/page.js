@@ -35,7 +35,10 @@ export default function InsightsPage() {
   const fetchArticles = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/insights", { cache: "no-store" });
+      const res = await fetch("/api/insights", { 
+        cache: "no-store",
+        headers: { "Pragma": "no-cache" } 
+      });
       const json = await res.json();
       
       if (json.success && Array.isArray(json.data)) {
@@ -43,23 +46,10 @@ export default function InsightsPage() {
         if (json.data.length > 0) {
           setSelectedArticle(prev => prev ? (json.data.find(a => a.id === prev.id) || json.data[0]) : json.data[0]);
         }
-        localStorage.setItem("smart_insights_articles", JSON.stringify(json.data));
-      } else {
-        const stored = localStorage.getItem("smart_insights_articles");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          setArticles(parsed);
-          if (parsed.length > 0) setSelectedArticle(prev => prev ? (parsed.find(a => a.id === prev.id) || parsed[0]) : parsed[0]);
-        }
       }
     } catch (e) {
-      const stored = localStorage.getItem("smart_insights_articles");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setArticles(parsed);
-        if (parsed.length > 0) setSelectedArticle(prev => prev ? (parsed.find(a => a.id === prev.id) || parsed[0]) : parsed[0]);
-      }
-    } finally {
+      console.error("Failed to fetch insights:", e);
+    } font-sans finally {
       setLoading(false);
     }
   };
@@ -148,7 +138,7 @@ export default function InsightsPage() {
                 <FileText className="w-4 h-4 text-emerald-400" />
                 <span>الأفكار والمواد العلمية ({filteredArticles.length})</span>
               </span>
-              <span className="text-[11px] bg-slate-900 text-slate-500 px-2.5 py-1 rounded-full border border-slate-800 font-mono">تحديث مباشر</span>
+              <span className="text-[11px] bg-slate-900 text-slate-500 px-2.5 py-1 rounded-full border border-slate-800 font-mono">تحديث فوري ثابت</span>
             </h2>
 
             {loading ? (
