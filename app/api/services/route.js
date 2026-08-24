@@ -70,8 +70,10 @@ async function getServicesData() {
   try {
     if (fs.existsSync(tmpDataFilePath)) {
       const parsed = JSON.parse(fs.readFileSync(tmpDataFilePath, 'utf-8'));
-      global._servicesDataCache = parsed;
-      return parsed;
+      if (parsed && typeof parsed === 'object') {
+        global._servicesDataCache = parsed;
+        return parsed;
+      }
     }
   } catch (e) {
     console.error('Error reading tmp services:', e);
@@ -82,6 +84,7 @@ async function getServicesData() {
 
 // حفظ الخدمات سحابياً ومحلياً
 async function saveServicesData(data) {
+  if (!data || typeof data !== 'object') return;
   global._servicesDataCache = data;
   await redisCommand(['SET', 'app_services_data', JSON.stringify(data)]);
   try {

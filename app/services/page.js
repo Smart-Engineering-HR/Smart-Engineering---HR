@@ -17,6 +17,21 @@ import {
   Loader2
 } from 'lucide-react';
 
+const defaultServicesData = {
+  structural: [
+    { id: 's1', title: 'التصميم والتحليل الإنشائي', desc: 'إعداد المخططات الإنشائية الكاملة وفق الأكواد الدولية والمحلية.' }
+  ],
+  architecture: [],
+  smartTech: [],
+  academy: []
+};
+
+// دالة فحص ما إذا كانت البيانات هي البيانات الافتراضية
+const isDefaultServices = (data) => {
+  if (!data) return true;
+  return JSON.stringify(data) === JSON.stringify(defaultServicesData);
+};
+
 export default function ServicesPublicPage() {
   const [servicesData, setServicesData] = useState({
     structural: [],
@@ -26,7 +41,7 @@ export default function ServicesPublicPage() {
   });
   const [loading, setLoading] = useState(true);
 
-  // جلب البيانات مع إزالة الشرط الخاطئ > 1
+  // جلب البيانات مع المزامنة والحماية من مسح خدمات الأدمن
   const fetchServicesFromAPI = async () => {
     try {
       const res = await fetch('/api/services', { cache: 'no-store' });
@@ -34,18 +49,42 @@ export default function ServicesPublicPage() {
       
       let fetchedData = result.data;
       const cached = localStorage.getItem('smart_engineering_services_cache');
+      let parsedCache = null;
+      if (cached) {
+        try {
+          parsedCache = JSON.parse(cached);
+        } catch (e) {
+          parsedCache = null;
+        }
+      }
 
       if (fetchedData && typeof fetchedData === 'object' && ('structural' in fetchedData)) {
-        setServicesData(fetchedData);
-        localStorage.setItem('smart_engineering_services_cache', JSON.stringify(fetchedData));
-      } else if (cached) {
-        setServicesData(JSON.parse(cached));
+        const isFetchedDefault = isDefaultServices(fetchedData);
+        const isCacheCustom = parsedCache && !isDefaultServices(parsedCache) && typeof parsedCache === 'object' && ('structural' in parsedCache);
+
+        // إذا أعاد السيرفر البيانات الافتراضية ولكن لدى متصفح المستخدم كاش مخصص أنشأه الأدمن
+        if (isFetchedDefault && isCacheCustom) {
+          setServicesData(parsedCache);
+          // إعادة مزامنة البيانات المخصصة مع السيرفر فوراً
+          fetch('/api/services', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'SYNC_BACKUP_SERVICES', backupServices: parsedCache })
+          }).catch(err => console.error("Sync error:", err));
+        } else {
+          setServicesData(fetchedData);
+          localStorage.setItem('smart_engineering_services_cache', JSON.stringify(fetchedData));
+        }
+      } else if (parsedCache) {
+        setServicesData(parsedCache);
       }
     } catch (e) {
       console.error("Error fetching services:", e);
       const cached = localStorage.getItem('smart_engineering_services_cache');
       if (cached) {
-        setServicesData(JSON.parse(cached));
+        try {
+          setServicesData(JSON.parse(cached));
+        } catch (err) {}
       }
     } finally {
       setLoading(false);

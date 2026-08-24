@@ -29,6 +29,11 @@ const defaultServicesData = {
   academy: []
 };
 
+const isDefaultServices = (data) => {
+  if (!data) return true;
+  return JSON.stringify(data) === JSON.stringify(defaultServicesData);
+};
+
 export default function AdminServicesDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
@@ -59,16 +64,25 @@ export default function AdminServicesDashboard() {
       // 1. التعامل مع الخدمات مع المزامنة العكسية التلقائية
       if (result.data) {
         const cachedServices = localStorage.getItem('smart_engineering_services_cache');
-        const isDefault = JSON.stringify(result.data) === JSON.stringify(defaultServicesData);
-        
-        if (isDefault && cachedServices) {
-          const parsedCache = JSON.parse(cachedServices);
+        let parsedCache = null;
+        if (cachedServices) {
+          try {
+            parsedCache = JSON.parse(cachedServices);
+          } catch (e) {
+            parsedCache = null;
+          }
+        }
+
+        const isFetchedDefault = isDefaultServices(result.data);
+        const isCacheCustom = parsedCache && !isDefaultServices(parsedCache) && typeof parsedCache === 'object' && ('structural' in parsedCache);
+
+        if (isFetchedDefault && isCacheCustom) {
           setServicesData(parsedCache);
           fetch('/api/services', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'SYNC_BACKUP_SERVICES', backupServices: parsedCache })
-          });
+          }).catch(err => console.error("Sync error:", err));
         } else {
           setServicesData(result.data);
           localStorage.setItem('smart_engineering_services_cache', JSON.stringify(result.data));
@@ -79,15 +93,19 @@ export default function AdminServicesDashboard() {
       if (result.requests && Array.isArray(result.requests)) {
         const localBackup = localStorage.getItem('admin_requests_backup');
         if (result.requests.length === 0 && localBackup) {
-          const parsedBackup = JSON.parse(localBackup);
-          if (Array.isArray(parsedBackup) && parsedBackup.length > 0) {
-            setIncomingRequests(parsedBackup);
-            fetch('/api/services', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'SYNC_BACKUP_REQUESTS', backupRequests: parsedBackup })
-            });
-          } else {
+          try {
+            const parsedBackup = JSON.parse(localBackup);
+            if (Array.isArray(parsedBackup) && parsedBackup.length > 0) {
+              setIncomingRequests(parsedBackup);
+              fetch('/api/services', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'SYNC_BACKUP_REQUESTS', backupRequests: parsedBackup })
+              }).catch(err => console.error("Sync error:", err));
+            } else {
+              setIncomingRequests([]);
+            }
+          } catch (e) {
             setIncomingRequests([]);
           }
         } else {
@@ -98,9 +116,13 @@ export default function AdminServicesDashboard() {
     } catch (e) {
       console.error("Error loading data:", e);
       const localBackup = localStorage.getItem('admin_requests_backup');
-      if (localBackup) setIncomingRequests(JSON.parse(localBackup));
+      if (localBackup) {
+        try { setIncomingRequests(JSON.parse(localBackup)); } catch (err) {}
+      }
       const cachedServices = localStorage.getItem('smart_engineering_services_cache');
-      if (cachedServices) setServicesData(JSON.parse(cachedServices));
+      if (cachedServices) {
+        try { setServicesData(JSON.parse(cachedServices)); } catch (err) {}
+      }
     }
   };
 
