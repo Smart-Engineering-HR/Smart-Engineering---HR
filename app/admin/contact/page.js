@@ -154,8 +154,8 @@ export default function AdminContactControlPanel() {
   // دالة معالجة واستقبال بيانات تسجيل الدخول
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    const correctEmail = "admin@smartacademy.com"; // يمكنك تغييره
-    const correctPassword = "AdminPassword2026"; // يمكنك تغييره
+    const correctEmail = "admindf@sGH787martacademy.com"; // يمكنك تغييره
+    const correctPassword = "AdminPrvu&^$%*((&^assword2026"; // يمكنك تغييره
 
     if (loginEmail === correctEmail && loginPassword === correctPassword) {
       localStorage.setItem("contact_admin_logged_in", "true");
