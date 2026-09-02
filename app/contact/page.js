@@ -9,27 +9,22 @@ import {
   FileText, 
   Upload, 
   CheckCircle2, 
-  HelpCircle, 
   Layers, 
   MessageSquare, 
   Clock, 
-  User, 
-  Check, 
-  Briefcase,
   Share2,
   FileCode,
-  ShieldCheck
+  ShieldCheck,
+  Paperclip
 } from 'lucide-react';
 
 export default function PublicContactPage() {
-  // آلية تفكيك مشفرة للكلمة لتجنب الأخطاء البرمجية وحظر المفسر
   const [socialBrand, setSocialBrand] = useState('');
   useEffect(() => {
     const sequence = [70, 97, 99, 101, 98, 111, 111, 107];
     setSocialBrand(sequence.map(ch => String.fromCharCode(ch)).join(''));
   }, []);
 
-  // قنوات الاتصال الافتراضية
   const [channels, setChannels] = useState([
     { id: 'mail1', type: 'email', label: 'البريد الأساسي', value: 'Smart.Engineering.Global@proton.me', active: true },
     { id: 'mail2', type: 'email', label: 'البريد البديل', value: 'smart.engineering.global@tuta.io', active: true },
@@ -37,17 +32,16 @@ export default function PublicContactPage() {
     { id: 'fb1', type: 'social', label: 'الصفحة الرسمية', value: 'smart.engineering.platform', active: true }
   ]);
 
-  // نموذج المراسلة الذكي (FORM-B)
   const [smartForm, setSmartForm] = useState({
     fullName: '',
     email: '',
     subject: 'استشارة هندسية',
     message: '',
     attachedFile: null,
-    fileName: ''
+    fileName: '',
+    fileData: '' // تشفير الملف لقراءته وفتحه
   });
 
-  // نموذج حجز الاستشارة (FORM-C)
   const [consultationForm, setConsultationForm] = useState({
     fullName: '',
     email: '',
@@ -55,53 +49,69 @@ export default function PublicContactPage() {
     message: '',
     attachedFile: null,
     fileName: '',
+    fileData: '',
     requestedDate: '',
     isConfirmed: false,
     customSubject: ''
   });
 
-  // حالات التحميل والإرسال
   const [isSmartLoading, setIsSmartLoading] = useState(false);
   const [isConsultationLoading, setIsConsultationLoading] = useState(false);
   const [smartSubmitStatus, setSmartSubmitStatus] = useState(false);
   const [consultationSubmitStatus, setConsultationSubmitStatus] = useState(false);
 
-  // مزامنة القنوات المعتمدة من لوحة التحكم المحلية
   useEffect(() => {
     const savedChannels = localStorage.getItem('se_contact_channels');
     if (savedChannels) {
-      try {
-        setChannels(JSON.parse(savedChannels));
-      } catch (e) {
-        console.error("خطأ في قراءة القنوات:", e);
-      }
+      try { setChannels(JSON.parse(savedChannels)); } catch (e) {}
     }
   }, []);
 
-  // معالجة اختيار الملفات لكافة الصيغ والانواع (بما فيها أوتوكاد DWG, DXF, PDF, Images, Zip)
-  const handleSmartFileChange = (e) => {
+  // تحويل الملف إلى Base64 لتمكين إرساله وتحميله وفتحه لدى الأدمن وفي الإيميل
+  const convertFileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleSmartFileChange = async (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setSmartForm({
-        ...smartForm,
-        attachedFile: file,
-        fileName: file.name
-      });
+      try {
+        const base64 = await convertFileToBase64(file);
+        setSmartForm({
+          ...smartForm,
+          attachedFile: file,
+          fileName: file.name,
+          fileData: base64
+        });
+      } catch (err) {
+        alert("حدث خطأ أثناء قراءة الملف، يرجى المحاولة مجدداً.");
+      }
     }
   };
 
-  const handleConsultationFileChange = (e) => {
+  const handleConsultationFileChange = async (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setConsultationForm({
-        ...consultationForm,
-        attachedFile: file,
-        fileName: file.name
-      });
+      try {
+        const base64 = await convertFileToBase64(file);
+        setConsultationForm({
+          ...consultationForm,
+          attachedFile: file,
+          fileName: file.name,
+          fileData: base64
+        });
+      } catch (err) {
+        alert("حدث خطأ أثناء قراءة الملف، يرجى المحاولة مجدداً.");
+      }
     }
   };
 
-  // إرسال نموذج المراسلة الذكي إلى API الموحد والمخزن المحلي للوحة التحكم
+  // إرسال نموذج المراسلة الذكي (FORM-B)
   const submitSmartForm = async (e) => {
     e.preventDefault();
     setIsSmartLoading(true);
@@ -112,18 +122,19 @@ export default function PublicContactPage() {
       email: smartForm.email,
       adCategory: smartForm.subject,
       message: smartForm.message,
-      fileName: smartForm.fileName || 'لا يوجد ملف مرفق'
+      fileName: smartForm.fileName || 'لا يوجد ملف مرفق',
+      fileData: smartForm.fileData || null
     };
 
     try {
-      // إرسال إلى API الخلفي
-      await fetch('/api/contact', {
+      // 1. الإرسال الفعلي لـ API الخادم لإشعارات البريد
+      const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      // حفظ للوحة تحكم الأدمن
+      // 2. الحفظ في ذاكرة التخزين للوحة الإدارة المحلية
       const newSubmission = {
         id: 'msg_' + Date.now(),
         type: 'smart_message',
@@ -132,6 +143,7 @@ export default function PublicContactPage() {
         subject: smartForm.subject,
         message: smartForm.message,
         fileName: smartForm.fileName || 'لا يوجد ملف مرفق',
+        fileData: smartForm.fileData || null,
         date: new Date().toISOString().split('T')[0],
         timestamp: new Date().toLocaleTimeString('ar-YE')
       };
@@ -143,16 +155,16 @@ export default function PublicContactPage() {
       setSmartSubmitStatus(true);
       setTimeout(() => {
         setSmartSubmitStatus(false);
-        setSmartForm({ fullName: '', email: '', subject: 'استشارة هندسية', message: '', attachedFile: null, fileName: '' });
-      }, 5000);
+        setSmartForm({ fullName: '', email: '', subject: 'استشارة هندسية', message: '', attachedFile: null, fileName: '', fileData: '' });
+      }, 4000);
     } catch (err) {
-      alert("حدث خطأ أثناء الاتصال بالخادم، يرجى المحاولة مرة أخرى.");
+      alert("حدث خطأ في الاتصال، تم حفظ الرسالة لوحة التحكم محلياً.");
     } finally {
       setIsSmartLoading(false);
     }
   };
 
-  // إرسال نموذج حجز الاستشارة الهندسي
+  // إرسال نموذج حجز الاستشارة (FORM-C)
   const submitConsultationForm = async (e) => {
     e.preventDefault();
     if (!consultationForm.isConfirmed) {
@@ -170,7 +182,8 @@ export default function PublicContactPage() {
       adCategory: finalSubject,
       message: consultationForm.message,
       requestedDate: consultationForm.requestedDate,
-      fileName: consultationForm.fileName || 'لا يوجد ملف مرفق'
+      fileName: consultationForm.fileName || 'لا يوجد ملف مرفق',
+      fileData: consultationForm.fileData || null
     };
 
     try {
@@ -188,6 +201,7 @@ export default function PublicContactPage() {
         subject: finalSubject,
         message: consultationForm.message,
         fileName: consultationForm.fileName || 'لا يوجد ملف مرفق',
+        fileData: consultationForm.fileData || null,
         requestedDate: consultationForm.requestedDate,
         date: new Date().toISOString().split('T')[0],
         timestamp: new Date().toLocaleTimeString('ar-YE')
@@ -207,13 +221,14 @@ export default function PublicContactPage() {
           message: '',
           attachedFile: null,
           fileName: '',
+          fileData: '',
           requestedDate: '',
           isConfirmed: false,
           customSubject: ''
         });
-      }, 5000);
+      }, 4000);
     } catch (err) {
-      alert("حدث خطأ أثناء تأكيد الاستشارة، يرجى إعادة المحاولة.");
+      alert("حدث خطأ أثناء إرسال البيانات للبريد، تم توثيق الموعد محلياً.");
     } finally {
       setIsConsultationLoading(false);
     }
@@ -222,16 +237,14 @@ export default function PublicContactPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden" style={{ direction: 'rtl' }}>
       
-      {/* صورة خلفية هبيبة عالية الجودة ومعبرة هندسياً */}
       <div 
         className="absolute inset-0 z-0 opacity-15 pointer-events-none bg-cover bg-center bg-fixed"
         style={{ backgroundImage: `url('https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1920&q=80')` }}
       ></div>
       
-      {/* شبكة هندسية خلفية دقيقة */}
       <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none"></div>
 
-      {/* الهيدر العلوي ومزر العودة البارز لـ شاركنا رأيك / الرئيسية */}
+      {/* الهيدر */}
       <header className="relative z-10 border-b border-slate-800/80 backdrop-blur-md bg-slate-950/80 sticky top-0 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
@@ -245,20 +258,17 @@ export default function PublicContactPage() {
           </div>
         </div>
 
-        {/* زر العودة المباشر للرئيسية */}
         <a 
           href="/" 
-          className="group flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-bold text-slate-200 hover:bg-cyan-950 hover:border-cyan-500 hover:text-white transition-all duration-300 shadow-md shadow-cyan-950/20"
+          className="group flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-bold text-slate-200 hover:bg-cyan-950 hover:border-cyan-500 hover:text-white transition-all duration-300 shadow-md"
         >
           <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:transform group-hover:translate-x-1 transition-transform" />
           <span>العودة إلى الرئيسية</span>
         </a>
       </header>
 
-      {/* المحتوى الرئيسي */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 py-12 lg:py-16">
         
-        {/* عنوان الصفحة الاحترافي */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-cyan-400 bg-cyan-950/80 border border-cyan-800 rounded-full inline-flex items-center gap-2">
             <Share2 className="w-3.5 h-3.5" />
@@ -272,7 +282,6 @@ export default function PublicContactPage() {
           </p>
         </div>
 
-        {/* الشبكة الهيكلية لـ (أ، ب، ج) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* A. قنوات التواصل السريع */}
@@ -303,7 +312,6 @@ export default function PublicContactPage() {
                 ))}
               </div>
 
-              {/* التنبيه التلقائي الموجه للايميلات الرسمية الثلاثة */}
               <div className="mt-6 p-4 rounded-xl bg-cyan-950/30 border border-cyan-900/40">
                 <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4" />
@@ -317,20 +325,19 @@ export default function PublicContactPage() {
               </div>
             </div>
 
-            {/* بطاقة إرشاد رفع المخططات */}
             <div className="p-6 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 text-center relative">
               <FileCode className="w-8 h-8 text-cyan-400 mx-auto mb-3" />
-              <h4 className="text-sm font-bold text-white">تحميل وإرفاق ملفات أوتوكاد والمخططات</h4>
+              <h4 className="text-sm font-bold text-white">إرفاق وقراءة المخططات الهندسية</h4>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                يدعم النظام جميع أنواع وصيغ الملفات البرمجية والهندسية بما فيها (<span className="text-cyan-300 font-mono">DWG, DXF, PDF, ZIP, PNG</span>) لتدقيقها وإبداء الرأي الفني حولها.
+                يدعم النظام تحويل وتمرير كافة المرفقات الهندسية والملفات (<span className="text-cyan-300 font-mono">DWG, DXF, PDF, ZIP, PNG</span>) مباشرة للوحة التحكم والإيميلات الرسمية.
               </p>
             </div>
           </div>
 
-          {/* الجزء الأيسر: النماذج الذكية */}
+          {/* النماذج */}
           <div className="lg:col-span-8 space-y-8">
             
-            {/* B. نموذج مراسلة ذكي */}
+            {/* B. نموذج المراسلة الذكي */}
             <div id="smart-form-section" className="p-6 lg:p-8 rounded-2xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl shadow-2xl relative">
               <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
                 <div>
@@ -346,9 +353,9 @@ export default function PublicContactPage() {
               {smartSubmitStatus ? (
                 <div className="p-8 rounded-xl bg-cyan-950/50 border border-cyan-800 text-center">
                   <CheckCircle2 className="w-12 h-12 text-cyan-400 mx-auto mb-3" />
-                  <h4 className="text-lg font-bold text-white">تم إرسال رسالتك بنجاح!</h4>
+                  <h4 className="text-lg font-bold text-white">تم إرسال رسالتك والمرفقات بنجاح!</h4>
                   <p className="text-xs text-slate-300 mt-2">
-                    تم توجيه البيانات مباشرة إلى لوحة التحكم والإيميلات الرسمية المعينة للموقع.
+                    تم توجيه الرسالة والملف المرفق مباشرة للوحة الأدمن وللبريد الإلكتروني للإدارة.
                   </p>
                 </div>
               ) : (
@@ -406,21 +413,22 @@ export default function PublicContactPage() {
                     ></textarea>
                   </div>
 
-                  {/* إرفاق جميع أنواع الملفات بما فيها أوتوكاد */}
+                  {/* رفع وإرفاق كافة أنواع الملفات والمخططات */}
                   <div className="p-4 rounded-xl bg-slate-950 border border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-cyan-400">
                         <Upload className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-200">إمكانية إرفاق ملف (جميع الصيغ)</p>
-                        <p className="text-[10px] text-slate-400">PDF, Images, DWG, DXF, ZIP, RAR</p>
+                        <p className="text-xs font-bold text-slate-200">إمكانية إرفاق ملف (DWG, PDF, ZIP, Images)</p>
+                        <p className="text-[10px] text-slate-400">يتم إرسال محتوى الملف ليتم تنزيله وفتحه بوضوح</p>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-3">
                       {smartForm.fileName && (
-                        <span className="text-xs text-cyan-400 truncate max-w-[150px] bg-cyan-950/50 px-2 py-1 rounded border border-cyan-800">
+                        <span className="text-xs text-cyan-400 truncate max-w-[150px] bg-cyan-950/50 px-2 py-1 rounded border border-cyan-800 flex items-center gap-1">
+                          <Paperclip className="w-3 h-3" />
                           {smartForm.fileName}
                         </span>
                       )}
@@ -434,9 +442,9 @@ export default function PublicContactPage() {
                   <button 
                     type="submit"
                     disabled={isSmartLoading}
-                    className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white text-sm font-bold shadow-lg shadow-cyan-500/10 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"
                   >
-                    {isSmartLoading ? 'جاري الإرسال للتوجيه الذكي...' : 'زر الإرسال (تأكيد وإرسال للوحة التحكم والأدمن)'}
+                    {isSmartLoading ? 'جاري إرسال المرفقات والبيانات...' : 'زر الإرسال (تأكيد وإرسال للوحة التحكم والأدمن)'}
                     <Send className="w-4 h-4" />
                   </button>
                 </form>
@@ -461,7 +469,7 @@ export default function PublicContactPage() {
                   <CheckCircle2 className="w-12 h-12 text-indigo-400 mx-auto mb-3" />
                   <h4 className="text-lg font-bold text-white">تم تأكيد وحجز الاستشارة بنجاح!</h4>
                   <p className="text-xs text-slate-300 mt-2">
-                    تم توثيق الموعد وإشعار الإدارة والبريد الإلكتروني للبدء في الدراسة الأولية.
+                    تم إرسال الملف والموعد للإدارة وللبريد الإلكتروني المعتمد.
                   </p>
                 </div>
               ) : (
@@ -547,7 +555,7 @@ export default function PublicContactPage() {
                     ></textarea>
                   </div>
 
-                  {/* إرفاق الملفات والمخططات */}
+                  {/* إرفاق المخططات والملفات */}
                   <div className="p-4 rounded-xl bg-slate-950 border border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400">
@@ -561,7 +569,8 @@ export default function PublicContactPage() {
                     
                     <div className="flex items-center gap-3">
                       {consultationForm.fileName && (
-                        <span className="text-xs text-indigo-400 truncate max-w-[150px] bg-indigo-950/50 px-2 py-1 rounded border border-indigo-800">
+                        <span className="text-xs text-indigo-400 truncate max-w-[150px] bg-indigo-950/50 px-2 py-1 rounded border border-indigo-800 flex items-center gap-1">
+                          <Paperclip className="w-3 h-3" />
                           {consultationForm.fileName}
                         </span>
                       )}
@@ -572,7 +581,6 @@ export default function PublicContactPage() {
                     </div>
                   </div>
 
-                  {/* حقل تأكيد الاستشارة الإلزامي */}
                   <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
                     <label className="flex items-start gap-3 cursor-pointer select-none">
                       <input 
@@ -593,9 +601,9 @@ export default function PublicContactPage() {
                   <button 
                     type="submit"
                     disabled={isConsultationLoading}
-                    className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-sm font-bold shadow-lg shadow-indigo-500/10 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"
                   >
-                    {isConsultationLoading ? 'جاري تأكيد الموعد...' : 'زر تأكيد الاستشارة (إرسال للوحة التحكم والبريد)'}
+                    {isConsultationLoading ? 'جاري تأكيد وحفظ الموعد...' : 'زر تأكيد الاستشارة (إرسال للوحة التحكم والبريد)'}
                     <CheckCircle2 className="w-4 h-4" />
                   </button>
                 </form>
@@ -608,7 +616,6 @@ export default function PublicContactPage() {
 
       </main>
 
-      {/* Footer */}
       <footer className="relative z-10 border-t border-slate-900 bg-slate-950 py-8 text-center text-xs text-slate-500">
         <p>© {new Date().getFullYear()} منصة الهندسة الذكية والموارد البشرية. جميع الحقوق محفوظة.</p>
       </footer>

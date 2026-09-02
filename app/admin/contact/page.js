@@ -10,7 +10,6 @@ import {
   Mail, 
   MessageSquare, 
   Calendar, 
-  CheckCircle, 
   Layers, 
   ArrowLeft, 
   Sparkles, 
@@ -19,7 +18,9 @@ import {
   Clock, 
   FileCheck,
   LogOut,
-  ShieldAlert
+  ShieldAlert,
+  ExternalLink,
+  Paperclip
 } from 'lucide-react';
 
 export default function AdminContactControlPanel() {
@@ -28,7 +29,6 @@ export default function AdminContactControlPanel() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   
-  // فك تشفير الكلمة برمجياً لتفادي الأخطاء
   const [socialBrand, setSocialBrand] = useState('');
 
   useEffect(() => {
@@ -40,9 +40,8 @@ export default function AdminContactControlPanel() {
     setSocialBrand(sequence.map(code => String.fromCharCode(code)).join(''));
   }, []);
 
-  const [activeTab, setActiveTab] = useState('submissions'); // submissions | channels_config
+  const [activeTab, setActiveTab] = useState('submissions');
 
-  // قنوات العرض العامة التي يتحكم بها الأدمن
   const [channels, setChannels] = useState([
     { id: 'mail1', type: 'email', label: 'البريد الأساسي', value: 'Smart.Engineering.Global@proton.me', active: true },
     { id: 'mail2', type: 'email', label: 'البريد البديل', value: 'smart.engineering.global@tuta.io', active: true },
@@ -53,34 +52,8 @@ export default function AdminContactControlPanel() {
   const [newChannel, setNewChannel] = useState({ id: '', type: 'email', label: '', value: '', active: true });
   const [isEditing, setIsEditing] = useState(false);
 
-  // الرسائل والاستشارات الواردة
-  const [submissions, setSubmissions] = useState([
-    {
-      id: 'mock_1',
-      type: 'smart_message',
-      senderName: 'د. م. أحمد السقاف',
-      senderEmail: 'alsaqqaf.eng@gmail.com',
-      subject: 'استشارة هندسية',
-      message: 'نحتاج إلى مراجعة الحسابات الإنشائية الخاصة بالبرج التجاري. تم إرفاق ملف الأوتوكاد والمخطط الحسابي.',
-      fileName: 'Structural_Analysis_Tower.dwg',
-      date: '2026-08-28',
-      timestamp: '09:15 م'
-    },
-    {
-      id: 'mock_2',
-      type: 'consultation',
-      senderName: 'مكتب الرائد للمقاولات',
-      senderEmail: 'alraed.build@tuta.io',
-      subject: 'طلب تصميم',
-      message: 'يرجى حجز موعد لمناقشة التصاميم المعمارية والمخططات التنفيذية الإنشائية لمجمع سكني ذكي.',
-      fileName: 'Architectural_Layout.pdf',
-      requestedDate: '2026-09-05',
-      date: '2026-08-27',
-      timestamp: '11:40 ص'
-    }
-  ]);
+  const [submissions, setSubmissions] = useState([]);
 
-  // المزامنة مع المخزن المحلي
   useEffect(() => {
     const savedChannels = localStorage.getItem('se_contact_channels');
     if (savedChannels) {
@@ -92,8 +65,6 @@ export default function AdminContactControlPanel() {
     const savedSubmissions = localStorage.getItem('se_submissions');
     if (savedSubmissions) {
       try { setSubmissions(JSON.parse(savedSubmissions)); } catch(e) {}
-    } else {
-      localStorage.setItem('se_submissions', JSON.stringify(submissions));
     }
   }, []);
 
@@ -128,7 +99,7 @@ export default function AdminContactControlPanel() {
   };
 
   const handleDeleteChannel = (id) => {
-    if (confirm("هل أنت متأكد من رغبتك في حذف هذا المكون البرمجي لقائمة تواصل معنا بشكل نهائي؟")) {
+    if (confirm("هل أنت متأكد من رغبتك في حذف هذا المكون البرمجي؟")) {
       const filtered = channels.filter(c => c.id !== id);
       saveChannelsToStorage(filtered);
     }
@@ -140,11 +111,25 @@ export default function AdminContactControlPanel() {
   };
 
   const handleDeleteSubmission = (id) => {
-    if (confirm("هل تريد إزالة هذه الرسالة/الاستشارة نهائياً من سجلات لوحة الإدارة؟")) {
+    if (confirm("هل تريد إزالة هذه الرسالة نهائياً من سجلات الإدارة؟")) {
       const filtered = submissions.filter(s => s.id !== id);
       setSubmissions(filtered);
       localStorage.setItem('se_submissions', JSON.stringify(filtered));
     }
+  };
+
+  // فتح وتحميل الملف المرفق المرسل من الجمهور
+  const handleDownloadFile = (fileName, fileData) => {
+    if (!fileData) {
+      alert("لا يوجد ملف مرفق مخزن مع هذه الرسالة.");
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = fileData;
+    link.download = fileName || "attached_file";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleLoginSubmit = (e) => {
@@ -226,10 +211,10 @@ export default function AdminContactControlPanel() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-white">لوحة تحكم قائمة تواصل معنا والأدوات</h1>
+              <h1 className="text-xl font-black text-white">لوحة تحكم قائمة تواصل معنا واستقبال الملفات</h1>
               <span className="px-2 py-0.5 text-[10px] font-mono bg-amber-950 text-amber-400 border border-amber-800 rounded">ADMIN-PANEL</span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">التحكم المطلق والاستقبال الفوري للمراسلات والاستشارات</p>
+            <p className="text-xs text-slate-400 mt-0.5">استقبال المراسلات، فتح المرفقات، والتحكم المطلق بالقنوات</p>
           </div>
         </div>
 
@@ -252,13 +237,12 @@ export default function AdminContactControlPanel() {
         </div>
       </header>
 
-      {/* المحتوى الإداري */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 py-8">
         
         {/* المؤشرات */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-            <p className="text-xs font-bold text-slate-400">إجمالي الوارد</p>
+            <p className="text-xs font-bold text-slate-400">إجمالي الوارد المستلم</p>
             <p className="text-2xl font-black text-amber-400 mt-1">{submissions.length}</p>
           </div>
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
@@ -270,8 +254,8 @@ export default function AdminContactControlPanel() {
             <p className="text-2xl font-black text-indigo-400 mt-1">{submissions.filter(s => s.type === 'consultation').length}</p>
           </div>
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-            <p className="text-xs font-bold text-slate-400">القنوات المفعلة للجمهور</p>
-            <p className="text-2xl font-black text-emerald-400 mt-1">{channels.filter(c => c.active).length}</p>
+            <p className="text-xs font-bold text-slate-400">المرفقات الهندسية الواردة</p>
+            <p className="text-2xl font-black text-emerald-400 mt-1">{submissions.filter(s => s.fileData).length}</p>
           </div>
         </div>
 
@@ -283,7 +267,7 @@ export default function AdminContactControlPanel() {
           >
             <span className="flex items-center gap-2">
               <FileCheck className="w-4 h-4" />
-              <span>الوارد والمراسلات المستلمة</span>
+              <span>المراسلات الواردة والمرفقات ({submissions.length})</span>
             </span>
           </button>
           
@@ -293,18 +277,19 @@ export default function AdminContactControlPanel() {
           >
             <span className="flex items-center gap-2">
               <Layers className="w-4 h-4" />
-              <span>التحكم المطلق بالقنوات والمكونات</span>
+              <span>إدارة قنوات الاتصال</span>
             </span>
           </button>
         </div>
 
-        {/* تبويب الاستقبال */}
+        {/* قائمة الرسائل الواردة */}
         {activeTab === 'submissions' && (
           <div className="space-y-6">
             {submissions.length === 0 ? (
               <div className="p-12 text-center rounded-2xl bg-slate-950 border border-slate-800">
                 <MessageSquare className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                <h3 className="text-base font-bold text-slate-300">لا توجد رسائل أو استشارات مستلمة حالياً</h3>
+                <h3 className="text-base font-bold text-slate-300">لا توجد رسائل مستلمة حالياً</h3>
+                <p className="text-xs text-slate-500 mt-1">أي رسالة أو استشارة يقوم الجمهور بإرسالها ستظهر هنا فورياً وتصل للبريد الإلكتروني.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -313,7 +298,7 @@ export default function AdminContactControlPanel() {
                     <div>
                       <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-900">
                         <span className={`px-2.5 py-1 rounded text-[11px] font-bold ${sub.type === 'consultation' ? 'bg-indigo-950 text-indigo-400 border border-indigo-900' : 'bg-cyan-950 text-cyan-400 border border-cyan-900'}`}>
-                          {sub.type === 'consultation' ? 'حجز استشارة [FORM-C]' : 'نموذج مراسلة [FORM-B]'}
+                          {sub.type === 'consultation' ? 'حجز استشارة [FORM-C]' : 'رسالة ذكية [FORM-B]'}
                         </span>
                         <button onClick={() => handleDeleteSubmission(sub.id)} className="text-slate-500 hover:text-red-400 p-1">
                           <Trash2 className="w-4 h-4" />
@@ -336,10 +321,23 @@ export default function AdminContactControlPanel() {
                           <p className="text-xs text-slate-300 leading-relaxed">{sub.message}</p>
                         </div>
 
-                        <div className="flex items-center gap-2 text-xs bg-slate-900 p-2 rounded-lg border border-slate-850">
-                          <Download className="w-3.5 h-3.5 text-cyan-400" />
-                          <span className="text-slate-400">الملف المرفق:</span>
-                          <span className="text-cyan-400 font-mono truncate max-w-[200px]">{sub.fileName}</span>
+                        {/* قسم عرض وتنزيل الملف المرفق */}
+                        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs overflow-hidden">
+                            <Paperclip className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                            <span className="text-slate-400 flex-shrink-0">المرفق:</span>
+                            <span className="text-cyan-300 font-mono text-[11px] truncate">{sub.fileName || 'لا يوجد'}</span>
+                          </div>
+
+                          {sub.fileData && (
+                            <button 
+                              onClick={() => handleDownloadFile(sub.fileName, sub.fileData)}
+                              className="px-3 py-1.5 rounded-lg bg-cyan-950 border border-cyan-800 text-cyan-300 hover:bg-cyan-900 text-xs font-bold flex items-center gap-1.5 flex-shrink-0 transition-colors"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>تنزيل وفتح</span>
+                            </button>
+                          )}
                         </div>
 
                         {sub.requestedDate && (
