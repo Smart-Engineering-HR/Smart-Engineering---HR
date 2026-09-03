@@ -80,14 +80,14 @@ export default function HomePage() {
   }, [lang, t.dir]);
 
   const navIcons = [
-    <Home key="home" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
-    <Briefcase key="jobs" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
-    <GraduationCap key="academy" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
-    <Laptop key="software" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
-    <Layers key="services" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
-    <BookOpen key="science" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
-    <MessageSquare key="feedback" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
-    <PhoneCall key="contact" className="h-4 w-4 shrink-0 stroke-[2.8]" />
+    <Home key="home" className="h-3.5 w-3.5 xl:h-4 xl:w-4 shrink-0 stroke-[2.5]" />,
+    <Briefcase key="jobs" className="h-3.5 w-3.5 xl:h-4 xl:w-4 shrink-0 stroke-[2.5]" />,
+    <GraduationCap key="academy" className="h-3.5 w-3.5 xl:h-4 xl:w-4 shrink-0 stroke-[2.5]" />,
+    <Laptop key="software" className="h-3.5 w-3.5 xl:h-4 xl:w-4 shrink-0 stroke-[2.5]" />,
+    <Layers key="services" className="h-3.5 w-3.5 xl:h-4 xl:w-4 shrink-0 stroke-[2.5]" />,
+    <BookOpen key="science" className="h-3.5 w-3.5 xl:h-4 xl:w-4 shrink-0 stroke-[2.5]" />,
+    <MessageSquare key="feedback" className="h-3.5 w-3.5 xl:h-4 xl:w-4 shrink-0 stroke-[2.5]" />,
+    <PhoneCall key="contact" className="h-3.5 w-3.5 xl:h-4 xl:w-4 shrink-0 stroke-[2.5]" />
   ];
 
   const getTargetLink = (index) => {
@@ -120,14 +120,14 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-20"></div>
       </div>
 
-      {/* 1. الشريط العلوي - يستوعب كافة العناصر بنسبة مسافات متناسقة وبخط عريض ومقروء */}
+      {/* 1. الشريط العلوي - تصميم متناسق ومستجيب لشاشات الحاسوب بالكامل دون قص أي عنصر */}
       <header className="relative w-full bg-[#030d1a]/95 backdrop-blur-2xl border-b border-cyan-500/30 sticky top-0 z-50 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
-        <div className="w-full max-w-[1920px] mx-auto px-3 lg:px-6 py-2.5 flex items-center justify-between gap-2">
+        <div className="w-full px-2 sm:px-4 xl:px-6 py-2 flex items-center justify-between gap-1 xl:gap-2">
           
           {/* الشعار */}
-          <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <div className="p-2 bg-gradient-to-br from-cyan-500/30 to-blue-600/10 rounded-xl border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] flex items-center justify-center transition-all group-hover:scale-105">
-              <svg className="h-7 w-7 text-cyan-400" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <Link href="/" className="flex items-center gap-2 shrink-0 group">
+            <div className="p-1.5 bg-gradient-to-br from-cyan-500/30 to-blue-600/10 rounded-xl border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] flex items-center justify-center transition-all group-hover:scale-105">
+              <svg className="h-6 w-6 text-cyan-400" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M50 5 L90 85 L10 85 Z" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
                 <path d="M50 5 L50 85" stroke="currentColor" strokeWidth="4" />
                 <path d="M30 45 L70 45" stroke="currentColor" strokeWidth="4" />
@@ -136,27 +136,27 @@ export default function HomePage() {
               </svg>
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="font-black text-lg text-white tracking-wide">SMART ENG</span>
-              <span className="text-[10px] text-cyan-400 font-extrabold tracking-wider">
+              <span className="font-black text-base xl:text-lg text-white tracking-wide">SMART ENG</span>
+              <span className="text-[9px] xl:text-[10px] text-cyan-400 font-extrabold tracking-wider">
                 {lang === 'ar' ? 'الهندسة الذكية' : 'Smart Engineering'}
               </span>
             </div>
           </Link>
 
-          {/* جميع عناصر القائمة الرئيسية متراصة بالكامل في منتصف الشريط دون تداخل أو اختفاء */}
-          <nav className="hidden lg:flex items-center justify-center flex-1 px-1">
-            <ul className="flex items-center justify-center gap-1 xl:gap-1.5">
+          {/* جميع عناصر القائمة الرئيسية - أحجام متجاوبة تتكيف تلقائياً لتظهر كاملة وبشكل بارز */}
+          <nav className="hidden lg:flex items-center justify-center flex-1 mx-1 min-w-0">
+            <ul className="flex items-center justify-center gap-0.5 xl:gap-1.5 w-full">
               {t.nav.map((item, index) => {
                 const targetLink = getTargetLink(index);
                 const isMainActive = index === 0;
 
                 return (
-                  <li key={index}>
+                  <li key={index} className="shrink-0">
                     <Link
                       href={targetLink}
-                      className={`px-2.5 xl:px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap text-[13px] xl:text-[14px] font-black tracking-tight ${
+                      className={`px-1.5 lg:px-2 xl:px-2.5 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1 xl:gap-1.5 whitespace-nowrap text-[11px] lg:text-[12px] xl:text-[13px] 2xl:text-[14px] font-black tracking-tight ${
                         isMainActive
-                          ? 'bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/40 scale-105 border border-cyan-400'
+                          ? 'bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/40 border border-cyan-400'
                           : 'text-slate-100 hover:text-cyan-300 hover:bg-cyan-500/15 border border-transparent hover:border-cyan-500/30'
                       }`}
                     >
@@ -171,11 +171,11 @@ export default function HomePage() {
             </ul>
           </nav>
 
-          {/* أزرار تسجيل الدخول وتغيير اللغة */}
-          <div className="flex items-center gap-2 shrink-0 z-50">
+          {/* أزرار الدخول وتحديد اللغة - ثابتة وظاهرة دائماً بدون خروج من الشاشة */}
+          <div className="flex items-center gap-1.5 shrink-0 z-50">
             <Link 
               href="/jobs-tenders/login" 
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 text-xs font-black border border-cyan-500/50 rounded-xl bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 transition-all shadow-sm"
+              className="hidden sm:flex items-center gap-1 px-2.5 xl:px-3 py-1.5 text-xs font-black border border-cyan-500/50 rounded-xl bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 transition-all shadow-sm whitespace-nowrap"
             >
               <User className="h-3.5 w-3.5 stroke-[3]" />
               <span>{lang === 'ar' ? 'دخول' : 'Login'}</span>
@@ -185,11 +185,11 @@ export default function HomePage() {
             <div className="relative">
               <button
                 onClick={() => setLangListOpen(!langListOpen)}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-black border border-white/20 rounded-xl bg-slate-900/90 hover:border-cyan-500 text-white transition-all shadow-sm"
+                className="flex items-center gap-1 px-2.5 xl:px-3 py-1.5 text-xs font-black border border-white/20 rounded-xl bg-slate-900/90 hover:border-cyan-500 text-white transition-all shadow-sm whitespace-nowrap"
               >
                 <Globe className="h-3.5 w-3.5 text-cyan-400 stroke-[2.5]" />
                 <span>{lang === 'ar' ? 'العربية' : 'English'}</span>
-                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${langListOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${langListOpen ? 'rotate-180' : ''}`} />
               </button>
               
               {langListOpen && (
@@ -210,10 +210,10 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* زر الشاشات الصغيرة */}
+            {/* زر القائمة للشاشات الصغيرة */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-cyan-400 hover:text-white bg-slate-900 border border-cyan-500/30 rounded-xl"
+              className="lg:hidden p-1.5 text-cyan-400 hover:text-white bg-slate-900 border border-cyan-500/30 rounded-xl"
               aria-label="Toggle Menu"
             >
               {mobileMenuOpen ? <X className="h-5 w-5 stroke-[3]" /> : <Menu className="h-5 w-5 stroke-[3]" />}
@@ -250,7 +250,7 @@ export default function HomePage() {
 
       {/* 2. قسم Hero */}
       <main className="flex-grow flex flex-col justify-between relative z-10">
-        <section className="relative pt-20 pb-14 px-6 text-center flex-grow flex flex-col justify-center">
+        <section className="relative pt-16 pb-12 px-6 text-center flex-grow flex flex-col justify-center">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/15 rounded-full blur-[150px] pointer-events-none"></div>
           
           <div className="relative z-10 max-w-5xl mx-auto space-y-8">
