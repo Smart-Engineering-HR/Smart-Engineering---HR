@@ -1,22 +1,10 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
 
-// منع حاولات Next.js لإنشاء الصفحة كـ Static أثناء البناء
-export const dynamic = 'force-dynamic';
-
-// دالة آمنة لإنشاء عميل Supabase دون إيقاف الـ Build
-function getSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.warn("تنبيه: متغيرات Supabase غير متوفرة حالياً.");
-    return null;
-  }
-
-  return createClient(supabaseUrl, supabaseKey);
-}
+const tmpDataFilePath = path.join('/tmp', 'services.json');
+const tmpRequestsFilePath = path.join('/tmp', 'requests.json');
 
 const defaultServicesData = {
   structural: [
@@ -33,127 +21,103 @@ const OFFICIAL_EMAILS = [
   'smartengineering.hr.global@gmail.com'
 ];
 
-// دالة جلب الخدمات من جدول Service
+if (!global._servicesDataCache) global._servicesDataCache = null;
+if (!global._requestsDataCache) global._requestsDataCache = [];
+
+async function redisCommand(commandArray) {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(commandArray),
+      cache: 'no-store'
+    });
+    const data = await res.json();
+    return data.result;
+  } catch (err) {
+    return null;
+  }
+}
+
 async function getServicesData() {
-  try {
-    const supabase = getSupabase();
-    if (!supabase) return defaultServicesData;
-
-    const { data, error } = await supabase
-      .from('Service')
-      .select('*');
-
-    if (error || !data || data.length === 0) {
-      return defaultServicesData;
-    }
-
-    // تجميع الخدمات حسب الأقسام
-    const formattedData = {
-      structural: [],
-      architecture: [],
-      smartTech: [],
-      academy: []
-    };
-
-    data.forEach(item => {
-      const category = item.category || item.serviceCategory;
-      if (formattedData[category]) {
-        formattedData[category].push({
-          id: item.id,
-          title: item.title || item.name,
-          desc: item.desc || item.description
-        });
+  const rawResult = await redisCommand(['GET', 'app_services_data']);
+  if (rawResult) {
+    try {
+      const parsed = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult;
+      if (parsed && typeof parsed === 'object') {
+        global._servicesDataCache = parsed;
+        return parsed;
       }
-    });
-
-    return formattedData;
-  } catch (err) {
-    console.error('Error fetching services from Supabase:', err);
-    return defaultServicesData;
+    } catch (e) {}
   }
+
+  if (global._servicesDataCache) return global._servicesDataCache;
+
+  try {
+    if (fs.existsSync(tmpDataFilePath)) {
+      const parsed = JSON.parse(fs.readFileSync(tmpDataFilePath, 'utf-8'));
+      if (parsed && typeof parsed === 'object') {
+        global._servicesDataCache = parsed;
+        return parsed;
+      }
+    }
+  } catch (e) {}
+
+  return defaultServicesData;
 }
 
-// دالة حفظ/تحديث الخدمات في Supabase
-async function saveServicesData(servicesData) {
+async function saveServicesData(data) {
+  if (!data || typeof data !== 'object') return;
+  global._servicesDataCache = data;
+  await redisCommand(['SET', 'app_services_data', JSON.stringify(data)]);
   try {
-    const supabase = getSupabase();
-    if (!supabase) return;
-
-    const rowsToInsert = [];
-    Object.keys(servicesData).forEach(category => {
-      if (Array.isArray(servicesData[category])) {
-        servicesData[category].forEach(service => {
-          rowsToInsert.push({
-            id: service.id,
-            category: category,
-            title: service.title,
-            desc: service.desc
-          });
-        });
-      }
-    });
-
-    if (rowsToInsert.length > 0) {
-      await supabase.from('Service').upsert(rowsToInsert, { onConflict: 'id' });
-    }
-  } catch (err) {
-    console.error('Error saving services to Supabase:', err);
-  }
+    fs.writeFileSync(tmpDataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {}
 }
 
-// دالة جلب طلبات الخدمات من جدول ServiceRequest
 async function getRequestsData() {
-  try {
-    const supabase = getSupabase();
-    if (!supabase) return [];
-
-    const { data, error } = await supabase
-      .from('ServiceRequest')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching requests from Supabase:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (err) {
-    console.error('Error fetching requests:', err);
-    return [];
+  const rawResult = await redisCommand(['GET', 'app_requests_data']);
+  if (rawResult) {
+    try {
+      const parsed = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult;
+      if (Array.isArray(parsed)) {
+        global._requestsDataCache = parsed;
+        return parsed;
+      }
+    } catch (e) {}
   }
+
+  if (global._requestsDataCache && global._requestsDataCache.length > 0) {
+    return global._requestsDataCache;
+  }
+
+  try {
+    if (fs.existsSync(tmpRequestsFilePath)) {
+      const parsed = JSON.parse(fs.readFileSync(tmpRequestsFilePath, 'utf-8'));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        global._requestsDataCache = parsed;
+        return parsed;
+      }
+    }
+  } catch (e) {}
+
+  return global._requestsDataCache || [];
 }
 
-// دالة حفظ طلب خدمة جديد في جدول ServiceRequest
-async function saveSingleRequest(requestData) {
+async function saveRequestsData(requests) {
+  if (!Array.isArray(requests)) return;
+  global._requestsDataCache = requests;
+  await redisCommand(['SET', 'app_requests_data', JSON.stringify(requests)]);
   try {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-
-    const { data, error } = await supabase
-      .from('ServiceRequest')
-      .insert([
-        {
-          id: requestData.id || undefined,
-          type: requestData.type,
-          serviceCategory: requestData.serviceCategory,
-          serviceName: requestData.serviceName,
-          fullName: requestData.fullName,
-          email: requestData.email,
-          phone: requestData.phone,
-          dateTime: requestData.dateTime || null,
-          subject: requestData.subject === 'اخر' ? requestData.customSubject : requestData.subject,
-          message: requestData.message
-        }
-      ]);
-
-    if (error) {
-      console.error('Error inserting request to Supabase:', error);
-    }
-    return data;
-  } catch (err) {
-    console.error('Error saving request:', err);
-  }
+    fs.writeFileSync(tmpRequestsFilePath, JSON.stringify(requests, null, 2), 'utf-8');
+  } catch (e) {}
 }
 
 export async function GET() {
@@ -179,16 +143,17 @@ export async function POST(request) {
     const body = await request.json();
     const { action, servicesData, requestData, requestId, backupRequests, backupServices } = body;
 
-    // 1. تحديث الخدمات
     if (action === 'UPDATE_SERVICES') {
       if (servicesData) await saveServicesData(servicesData);
       return NextResponse.json({ success: true, message: 'تم تحديث الخدمات بنجاح', data: servicesData });
     }
 
-    // 2. تقديم طلب جديد
     if (action === 'SUBMIT_REQUEST') {
-      await saveSingleRequest(requestData);
+      const currentRequests = await getRequestsData();
+      const updatedRequests = [requestData, ...currentRequests];
+      await saveRequestsData(updatedRequests);
 
+      // إرسال الإيميل مع await المؤكد لضمان التسليم في بيئة Vercel
       if (process.env.EMAIL_PASS) {
         try {
           const transporter = nodemailer.createTransport({
@@ -205,7 +170,7 @@ export async function POST(request) {
 --------------------------------
 نوع الطلب: ${requestData.type}
 القسم: ${requestData.serviceCategory}
-الخدمة: ${requestName(requestData)}
+الخدمة: ${requestData.serviceName}
 الاسم: ${requestData.fullName}
 البريد الإلكتروني: ${requestData.email}
 الهاتف/الواتساب: ${requestData.phone}
@@ -230,26 +195,23 @@ ${requestData.message}
       return NextResponse.json({ success: true, message: 'تم الحفظ والإرسال بنجاح' });
     }
 
-    // 3. حذف طلب
     if (action === 'DELETE_REQUEST') {
-      const supabase = getSupabase();
-      if (requestId && supabase) {
-        await supabase.from('ServiceRequest').delete().eq('id', requestId);
-      }
-      const updatedRequests = await getRequestsData();
-      return NextResponse.json({ success: true, requests: updatedRequests });
+      const currentRequests = await getRequestsData();
+      const filteredRequests = currentRequests.filter(req => req.id !== requestId);
+      await saveRequestsData(filteredRequests);
+      return NextResponse.json({ success: true, requests: filteredRequests });
     }
 
-    // 4. مزامنة النسخ الاحتياطية للطلبات
     if (action === 'SYNC_BACKUP_REQUESTS' && Array.isArray(backupRequests)) {
-      for (const req of backupRequests) {
-        await saveSingleRequest(req);
-      }
-      const mergedRequests = await getRequestsData();
+      const currentRequests = await getRequestsData();
+      // دمج الطلبات المحفوظة محلياً مع السيرفر بدون تكرار
+      const map = new Map();
+      [...currentRequests, ...backupRequests].forEach(item => map.set(item.id, item));
+      const mergedRequests = Array.from(map.values());
+      await saveRequestsData(mergedRequests);
       return NextResponse.json({ success: true, requests: mergedRequests });
     }
 
-    // 5. مزامنة النسخ الاحتياطية للخدمات
     if (action === 'SYNC_BACKUP_SERVICES' && backupServices) {
       await saveServicesData(backupServices);
       return NextResponse.json({ success: true, data: backupServices });
@@ -259,8 +221,4 @@ ${requestData.message}
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
-}
-
-function requestName(req) {
-  return req.serviceName || req.service || 'غير محدد';
 }
