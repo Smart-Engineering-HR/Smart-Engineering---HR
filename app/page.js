@@ -80,14 +80,14 @@ export default function HomePage() {
   }, [lang, t.dir]);
 
   const navIcons = [
-    <Home key="home" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
-    <Briefcase key="jobs" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
-    <GraduationCap key="academy" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
-    <Laptop key="software" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
-    <Layers key="services" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
-    <BookOpen key="science" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
-    <MessageSquare key="feedback" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
-    <PhoneCall key="contact" className="h-5 w-5 shrink-0 stroke-[2.5]" />
+    <Home key="home" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
+    <Briefcase key="jobs" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
+    <GraduationCap key="academy" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
+    <Laptop key="software" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
+    <Layers key="services" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
+    <BookOpen key="science" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
+    <MessageSquare key="feedback" className="h-4 w-4 shrink-0 stroke-[2.8]" />,
+    <PhoneCall key="contact" className="h-4 w-4 shrink-0 stroke-[2.8]" />
   ];
 
   const getTargetLink = (index) => {
@@ -107,7 +107,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen text-white flex flex-col justify-between overflow-x-hidden antialiased select-none font-black relative bg-slate-950">
       
-      {/* خلفية الصفحة مع تباين عالي الجودة */}
+      {/* خلفية الصفحة */}
       <div className="fixed inset-0 z-0">
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000"
@@ -116,18 +116,18 @@ export default function HomePage() {
             filter: "brightness(0.55) contrast(1.2)"
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#040d1a]/85 via-[#08162a]/55 to-[#0c203e]/95 backdrop-blur-[1px]"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-25"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-[#040d1a]/90 via-[#08162a]/60 to-[#0c203e]/95 backdrop-blur-[1px]"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-20"></div>
       </div>
 
-      {/* 1. الشريط العلوي (Header) - تمت إزاحة الشعار لأقصى اليمين وتكبير خط القوائم */}
-      <header className="relative w-full bg-[#030d1a]/95 backdrop-blur-2xl border-b border-cyan-500/40 sticky top-0 z-50 shadow-[0_10px_35px_rgba(0,0,0,0.8)]">
-        <div className="w-full max-w-[1850px] mx-auto px-4 sm:px-8 lg:px-10 py-3.5 flex items-center justify-between gap-4">
+      {/* 1. الشريط العلوي - يستوعب كافة العناصر بنسبة مسافات متناسقة وبخط عريض ومقروء */}
+      <header className="relative w-full bg-[#030d1a]/95 backdrop-blur-2xl border-b border-cyan-500/30 sticky top-0 z-50 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+        <div className="w-full max-w-[1920px] mx-auto px-3 lg:px-6 py-2.5 flex items-center justify-between gap-2">
           
-          {/* اللوجو والعلامة التجارية (مُزاح بالكامل لأقصى اليمين) */}
-          <Link href="/" className="flex items-center gap-3.5 shrink-0 group">
-            <div className="relative p-2.5 bg-gradient-to-br from-cyan-500/30 to-blue-600/10 rounded-2xl border-2 border-cyan-400/60 shadow-[0_0_25px_rgba(6,182,212,0.4)] flex items-center justify-center transition-all group-hover:scale-105">
-              <svg className="h-9 w-9 text-cyan-400" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* الشعار */}
+          <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
+            <div className="p-2 bg-gradient-to-br from-cyan-500/30 to-blue-600/10 rounded-xl border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] flex items-center justify-center transition-all group-hover:scale-105">
+              <svg className="h-7 w-7 text-cyan-400" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M50 5 L90 85 L10 85 Z" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
                 <path d="M50 5 L50 85" stroke="currentColor" strokeWidth="4" />
                 <path d="M30 45 L70 45" stroke="currentColor" strokeWidth="4" />
@@ -136,16 +136,16 @@ export default function HomePage() {
               </svg>
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="font-black text-2xl text-white tracking-wide drop-shadow-md">SMART ENG</span>
-              <span className="text-[12px] text-cyan-400 font-extrabold tracking-widest mt-0.5">
+              <span className="font-black text-lg text-white tracking-wide">SMART ENG</span>
+              <span className="text-[10px] text-cyan-400 font-extrabold tracking-wider">
                 {lang === 'ar' ? 'الهندسة الذكية' : 'Smart Engineering'}
               </span>
             </div>
           </Link>
 
-          {/* القائمة الرئيسية - خط كبير، سميك، أنيق، ومُوزّع بشكل منظم */}
-          <nav className="hidden xl:flex items-center justify-center flex-1 px-4">
-            <ul className="flex items-center justify-center gap-2.5">
+          {/* جميع عناصر القائمة الرئيسية متراصة بالكامل في منتصف الشريط دون تداخل أو اختفاء */}
+          <nav className="hidden lg:flex items-center justify-center flex-1 px-1">
+            <ul className="flex items-center justify-center gap-1 xl:gap-1.5">
               {t.nav.map((item, index) => {
                 const targetLink = getTargetLink(index);
                 const isMainActive = index === 0;
@@ -154,10 +154,10 @@ export default function HomePage() {
                   <li key={index}>
                     <Link
                       href={targetLink}
-                      className={`px-4 py-2.5 rounded-2xl transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap text-[16px] font-black tracking-wide ${
+                      className={`px-2.5 xl:px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap text-[13px] xl:text-[14px] font-black tracking-tight ${
                         isMainActive
-                          ? 'bg-cyan-500 text-slate-950 font-black shadow-lg shadow-cyan-500/50 scale-105 border-2 border-cyan-400'
-                          : 'text-white hover:text-cyan-300 hover:bg-cyan-500/15 border-2 border-transparent hover:border-cyan-500/30'
+                          ? 'bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/40 scale-105 border border-cyan-400'
+                          : 'text-slate-100 hover:text-cyan-300 hover:bg-cyan-500/15 border border-transparent hover:border-cyan-500/30'
                       }`}
                     >
                       <span className={isMainActive ? 'text-slate-950' : 'text-cyan-400'}>
@@ -171,13 +171,13 @@ export default function HomePage() {
             </ul>
           </nav>
 
-          {/* أزرار التحكم (تسجيل الدخول ومحول اللغة) */}
-          <div className="flex items-center gap-3 shrink-0 z-50">
+          {/* أزرار تسجيل الدخول وتغيير اللغة */}
+          <div className="flex items-center gap-2 shrink-0 z-50">
             <Link 
               href="/jobs-tenders/login" 
-              className="hidden sm:flex items-center gap-2 px-5 py-2.5 text-sm font-black border-2 border-cyan-500/50 rounded-2xl bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 transition-all shadow-lg"
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 text-xs font-black border border-cyan-500/50 rounded-xl bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 transition-all shadow-sm"
             >
-              <User className="h-4 w-4 stroke-[3]" />
+              <User className="h-3.5 w-3.5 stroke-[3]" />
               <span>{lang === 'ar' ? 'دخول' : 'Login'}</span>
             </Link>
 
@@ -185,24 +185,24 @@ export default function HomePage() {
             <div className="relative">
               <button
                 onClick={() => setLangListOpen(!langListOpen)}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-black border-2 border-white/20 rounded-2xl bg-slate-900/90 hover:border-cyan-500 text-white transition-all shadow-md"
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-black border border-white/20 rounded-xl bg-slate-900/90 hover:border-cyan-500 text-white transition-all shadow-sm"
               >
-                <Globe className="h-4 w-4 text-cyan-400 stroke-[2.5]" />
+                <Globe className="h-3.5 w-3.5 text-cyan-400 stroke-[2.5]" />
                 <span>{lang === 'ar' ? 'العربية' : 'English'}</span>
-                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${langListOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${langListOpen ? 'rotate-180' : ''}`} />
               </button>
               
               {langListOpen && (
-                <div className={`${t.dir === 'rtl' ? 'left-0' : 'right-0'} absolute mt-2 w-40 bg-slate-900 border-2 border-cyan-500/30 rounded-2xl shadow-2xl p-1.5 z-50`}>
+                <div className={`${t.dir === 'rtl' ? 'left-0' : 'right-0'} absolute mt-2 w-36 bg-slate-900 border border-cyan-500/30 rounded-xl shadow-2xl p-1 z-50`}>
                   <button
                     onClick={() => { setLang('ar'); setLangListOpen(false); }}
-                    className="flex items-center gap-2 w-full px-3.5 py-2.5 text-sm font-black text-slate-200 rounded-xl hover:bg-cyan-500 hover:text-slate-950 transition-all"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs font-black text-slate-200 rounded-lg hover:bg-cyan-500 hover:text-slate-950 transition-all"
                   >
                     <span>العربية</span>
                   </button>
                   <button
                     onClick={() => { setLang('en'); setLangListOpen(false); }}
-                    className="flex items-center gap-2 w-full px-3.5 py-2.5 text-sm font-black text-slate-200 rounded-xl hover:bg-cyan-500 hover:text-slate-950 transition-all border-t border-white/10"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs font-black text-slate-200 rounded-lg hover:bg-cyan-500 hover:text-slate-950 transition-all border-t border-white/10"
                   >
                     <span>English</span>
                   </button>
@@ -210,27 +210,27 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* زر القائمة للشاشات الصغيرة */}
+            {/* زر الشاشات الصغيرة */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="xl:hidden p-2.5 text-cyan-400 hover:text-white bg-slate-900 border-2 border-cyan-500/30 rounded-2xl"
+              className="lg:hidden p-2 text-cyan-400 hover:text-white bg-slate-900 border border-cyan-500/30 rounded-xl"
               aria-label="Toggle Menu"
             >
-              {mobileMenuOpen ? <X className="h-6 w-6 stroke-[3]" /> : <Menu className="h-6 w-6 stroke-[3]" />}
+              {mobileMenuOpen ? <X className="h-5 w-5 stroke-[3]" /> : <Menu className="h-5 w-5 stroke-[3]" />}
             </button>
           </div>
         </div>
 
-        {/* قائمة الموبايل المنسدلة بخط عريض واضح */}
+        {/* قائمة الأجهزة المحمولة */}
         {mobileMenuOpen && (
-          <div className="xl:hidden border-t-2 border-cyan-500/30 bg-[#040d1a]/98 px-5 py-5 grid grid-cols-2 gap-3 text-sm">
+          <div className="lg:hidden border-t border-cyan-500/30 bg-[#040d1a]/98 px-4 py-4 grid grid-cols-2 gap-2 text-xs">
             {t.nav.map((item, index) => (
               <Link
                 key={index}
                 href={getTargetLink(index)}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`p-3.5 rounded-2xl flex items-center gap-2.5 font-black text-[15px] transition-all ${
-                  index === 0 ? 'bg-cyan-500 text-slate-950 col-span-2 justify-center shadow-lg' : 'text-slate-100 bg-white/5 border border-white/10 hover:bg-cyan-500/20'
+                className={`p-3 rounded-xl flex items-center gap-2 font-black text-xs transition-all ${
+                  index === 0 ? 'bg-cyan-500 text-slate-950 col-span-2 justify-center shadow-md' : 'text-slate-100 bg-white/5 border border-white/10 hover:bg-cyan-500/20'
                 }`}
               >
                 <span className={index === 0 ? 'text-slate-950' : 'text-cyan-400'}>{navIcons[index]}</span>
@@ -240,7 +240,7 @@ export default function HomePage() {
             <Link
               href="/jobs-tenders/login"
               onClick={() => setMobileMenuOpen(false)}
-              className="col-span-2 p-3.5 mt-2 rounded-2xl border-2 border-cyan-500/50 text-center font-black text-cyan-400 bg-cyan-500/10 text-base"
+              className="col-span-2 p-3 mt-1 rounded-xl border border-cyan-500/50 text-center font-black text-cyan-400 bg-cyan-500/10 text-sm"
             >
               {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
             </Link>
@@ -248,7 +248,7 @@ export default function HomePage() {
         )}
       </header>
 
-      {/* 2. قسم الرئيسية (Hero Section) */}
+      {/* 2. قسم Hero */}
       <main className="flex-grow flex flex-col justify-between relative z-10">
         <section className="relative pt-20 pb-14 px-6 text-center flex-grow flex flex-col justify-center">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/15 rounded-full blur-[150px] pointer-events-none"></div>
@@ -280,7 +280,7 @@ export default function HomePage() {
         <section className="relative px-4 sm:px-8 pb-14 z-20 mt-auto">
           <div className="max-w-[1350px] mx-auto bg-slate-900/95 backdrop-blur-3xl rounded-[36px] p-6 sm:p-10 border-2 border-slate-800 shadow-2xl flex flex-col lg:flex-row gap-8">
             
-            {/* البطاقة 1: الوظائف */}
+            {/* البطاقة 1 */}
             <div className="flex-1 bg-slate-950/70 p-7 rounded-3xl border-2 border-slate-800/80 hover:border-cyan-500/50 transition-all">
               <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4 mb-6">
                 <h2 className="text-2xl font-black text-white flex items-center gap-3">
@@ -302,7 +302,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* البطاقة 2: الأكاديمية */}
+            {/* البطاقة 2 */}
             <div className="flex-1 bg-slate-950/70 p-7 rounded-3xl border-2 border-slate-800/80 hover:border-cyan-500/50 transition-all">
               <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4 mb-6">
                 <h2 className="text-2xl font-black text-white flex items-center gap-3">
@@ -323,7 +323,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* البطاقة 3: البرمجيات */}
+            {/* البطاقة 3 */}
             <div className="flex-1 bg-slate-950/70 p-7 rounded-3xl border-2 border-slate-800/80 hover:border-cyan-500/50 transition-all relative overflow-hidden">
               <div className="relative z-10">
                 <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4 mb-6">
