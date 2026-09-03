@@ -80,14 +80,14 @@ export default function HomePage() {
   }, [lang, t.dir]);
 
   const navIcons = [
-    <Home key="home" className="h-4 w-4 shrink-0 stroke-[2.5]" />,
-    <Briefcase key="jobs" className="h-4 w-4 shrink-0 stroke-[2.5]" />,
-    <GraduationCap key="academy" className="h-4 w-4 shrink-0 stroke-[2.5]" />,
-    <Laptop key="software" className="h-4 w-4 shrink-0 stroke-[2.5]" />,
-    <Layers key="services" className="h-4 w-4 shrink-0 stroke-[2.5]" />,
-    <BookOpen key="science" className="h-4 w-4 shrink-0 stroke-[2.5]" />,
-    <MessageSquare key="feedback" className="h-4 w-4 shrink-0 stroke-[2.5]" />,
-    <PhoneCall key="contact" className="h-4 w-4 shrink-0 stroke-[2.5]" />
+    <Home key="home" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
+    <Briefcase key="jobs" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
+    <GraduationCap key="academy" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
+    <Laptop key="software" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
+    <Layers key="services" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
+    <BookOpen key="science" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
+    <MessageSquare key="feedback" className="h-5 w-5 shrink-0 stroke-[2.5]" />,
+    <PhoneCall key="contact" className="h-5 w-5 shrink-0 stroke-[2.5]" />
   ];
 
   const getTargetLink = (index) => {
@@ -107,7 +107,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen text-white flex flex-col justify-between overflow-x-hidden antialiased select-none font-bold relative bg-slate-950">
       
-      {/* خلفية الصفحة مع تباين محسن */}
+      {/* خلفية الصفحة */}
       <div className="fixed inset-0 z-0">
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000"
@@ -120,14 +120,14 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-25"></div>
       </div>
 
-      {/* 1. الشريط العلوي (الهيدر) - عرض كامل بدون سحب */}
+      {/* 1. الشريط العلوي (الهيدر) - تم عمل إزاحة الشعار لأقصى اليمين وتكبير خط القوائم */}
       <header className="relative w-full bg-[#030d1a]/90 backdrop-blur-2xl border-b border-cyan-500/30 sticky top-0 z-50 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-3 flex items-center justify-between gap-4">
+        <div className="w-full max-w-[1700px] mx-auto px-4 sm:px-8 lg:px-10 py-3.5 flex items-center justify-between gap-6">
           
-          {/* اللوجو والعلامة التجارية */}
-          <Link href="/" className="flex items-center gap-3 shrink-0 group">
-            <div className="relative p-2 bg-gradient-to-br from-cyan-500/30 to-blue-600/10 rounded-xl border border-cyan-400/50 shadow-[0_0_20px_rgba(6,182,212,0.3)] flex items-center justify-center transition-all group-hover:scale-105">
-              <svg className="h-8 w-8 text-cyan-400" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* الشعار (تم عمل إزاحة كاملة لليمين باتجاه السهم) */}
+          <Link href="/" className="flex items-center gap-3.5 shrink-0 group">
+            <div className="relative p-2.5 bg-gradient-to-br from-cyan-500/30 to-blue-600/10 rounded-2xl border border-cyan-400/50 shadow-[0_0_20px_rgba(6,182,212,0.3)] flex items-center justify-center transition-all group-hover:scale-105">
+              <svg className="h-9 w-9 text-cyan-400" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M50 5 L90 85 L10 85 Z" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
                 <path d="M50 5 L50 85" stroke="currentColor" strokeWidth="4" />
                 <path d="M30 45 L70 45" stroke="currentColor" strokeWidth="4" />
@@ -136,16 +136,16 @@ export default function HomePage() {
               </svg>
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="font-black text-xl text-white tracking-tight">SMART ENG</span>
-              <span className="text-[11px] text-cyan-400 font-bold tracking-wider">
+              <span className="font-black text-2xl text-white tracking-tight drop-shadow-md">SMART ENG</span>
+              <span className="text-[12px] text-cyan-400 font-extrabold tracking-wider mt-0.5">
                 {lang === 'ar' ? 'الهندسة الذكية' : 'Smart Engineering'}
               </span>
             </div>
           </Link>
 
-          {/* القائمة الرئيسية - مرتبة ومباشرة بدون سحب */}
-          <nav className="hidden lg:flex items-center justify-center flex-1 px-2">
-            <ul className="flex items-center justify-center gap-1 xl:gap-2 text-[13px] font-bold">
+          {/* القائمة الرئيسية - تم تكبير الخط وإعطاء مساحة متناسقة ومريحة للنظر */}
+          <nav className="hidden lg:flex items-center justify-center flex-1 px-4">
+            <ul className="flex items-center justify-center gap-1.5 xl:gap-3">
               {t.nav.map((item, index) => {
                 const targetLink = getTargetLink(index);
                 const isMainActive = index === 0;
@@ -154,10 +154,10 @@ export default function HomePage() {
                   <li key={index}>
                     <Link
                       href={targetLink}
-                      className={`px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
+                      className={`px-3.5 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2.5 whitespace-nowrap text-[15px] xl:text-[16px] font-black ${
                         isMainActive
-                          ? 'bg-cyan-500 text-slate-950 font-black shadow-lg shadow-cyan-500/30'
-                          : 'text-slate-200 hover:text-cyan-300 hover:bg-white/10'
+                          ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/30'
+                          : 'text-slate-100 hover:text-cyan-300 hover:bg-white/10 border border-transparent hover:border-cyan-500/20'
                       }`}
                     >
                       <span className={isMainActive ? 'text-slate-950' : 'text-cyan-400'}>
@@ -171,11 +171,11 @@ export default function HomePage() {
             </ul>
           </nav>
 
-          {/* أدوات التحكم (تسجيل الدخول والتغيير اللغة والموبايل) */}
-          <div className="flex items-center gap-2 shrink-0 z-50">
+          {/* أزرار التحكم واللغة والتسجيل */}
+          <div className="flex items-center gap-3 shrink-0 z-50">
             <Link 
               href="/jobs-tenders/login" 
-              className="hidden sm:flex items-center gap-2 px-4 py-2 text-xs font-bold border border-cyan-500/40 rounded-xl bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 transition-all shadow-md"
+              className="hidden sm:flex items-center gap-2 px-5 py-2.5 text-sm font-black border border-cyan-500/40 rounded-xl bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 transition-all shadow-md"
             >
               <User className="h-4 w-4" />
               <span>{lang === 'ar' ? 'دخول' : 'Login'}</span>
@@ -185,24 +185,24 @@ export default function HomePage() {
             <div className="relative">
               <button
                 onClick={() => setLangListOpen(!langListOpen)}
-                className="flex items-center gap-2 px-3 py-2 text-xs font-bold border border-white/20 rounded-xl bg-slate-900/90 hover:border-cyan-500 text-white transition-all"
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-black border border-white/20 rounded-xl bg-slate-900/90 hover:border-cyan-500 text-white transition-all"
               >
                 <Globe className="h-4 w-4 text-cyan-400" />
                 <span>{lang === 'ar' ? 'العربية' : 'English'}</span>
-                <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${langListOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${langListOpen ? 'rotate-180' : ''}`} />
               </button>
               
               {langListOpen && (
-                <div className={`${t.dir === 'rtl' ? 'left-0' : 'right-0'} absolute mt-2 w-36 bg-slate-900 border border-white/10 rounded-xl shadow-2xl p-1 z-50`}>
+                <div className={`${t.dir === 'rtl' ? 'left-0' : 'right-0'} absolute mt-2 w-40 bg-slate-900 border border-white/10 rounded-xl shadow-2xl p-1.5 z-50`}>
                   <button
                     onClick={() => { setLang('ar'); setLangListOpen(false); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold text-slate-200 rounded-lg hover:bg-cyan-500 hover:text-slate-950 transition-all"
+                    className="flex items-center gap-2 w-full px-3 py-2.5 text-xs font-black text-slate-200 rounded-lg hover:bg-cyan-500 hover:text-slate-950 transition-all"
                   >
                     <span>العربية</span>
                   </button>
                   <button
                     onClick={() => { setLang('en'); setLangListOpen(false); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-xs font-bold text-slate-200 rounded-lg hover:bg-cyan-500 hover:text-slate-950 transition-all border-t border-white/5"
+                    className="flex items-center gap-2 w-full px-3 py-2.5 text-xs font-black text-slate-200 rounded-lg hover:bg-cyan-500 hover:text-slate-950 transition-all border-t border-white/5"
                   >
                     <span>English</span>
                   </button>
@@ -213,7 +213,7 @@ export default function HomePage() {
             {/* زر القائمة للشاشات الصغيرة */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-cyan-400 hover:text-white bg-slate-900 border border-white/10 rounded-xl"
+              className="lg:hidden p-2.5 text-cyan-400 hover:text-white bg-slate-900 border border-white/10 rounded-xl"
               aria-label="Toggle Menu"
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -221,16 +221,16 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* قائمة الموبايل المنسدلة - تظهر جميع القوائم دفعة واحدة في شبكة بدون سحب */}
+        {/* قائمة الجوال المنسدلة بخط عريض وواضح */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-cyan-500/20 bg-[#040d1a]/98 px-4 py-4 grid grid-cols-2 gap-2 text-xs">
+          <div className="lg:hidden border-t border-cyan-500/20 bg-[#040d1a]/98 px-4 py-4 grid grid-cols-2 gap-2 text-sm font-black">
             {t.nav.map((item, index) => (
               <Link
                 key={index}
                 href={getTargetLink(index)}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`p-3 rounded-xl flex items-center gap-2 font-bold transition-all ${
-                  index === 0 ? 'bg-cyan-500 text-slate-950 col-span-2 justify-center' : 'text-slate-200 bg-white/5 hover:bg-cyan-500/20'
+                className={`p-3 rounded-xl flex items-center gap-2.5 transition-all ${
+                  index === 0 ? 'bg-cyan-500 text-slate-950 col-span-2 justify-center' : 'text-slate-100 bg-white/5 hover:bg-cyan-500/20'
                 }`}
               >
                 <span className={index === 0 ? 'text-slate-950' : 'text-cyan-400'}>{navIcons[index]}</span>
@@ -240,7 +240,7 @@ export default function HomePage() {
             <Link
               href="/jobs-tenders/login"
               onClick={() => setMobileMenuOpen(false)}
-              className="col-span-2 p-3 mt-2 rounded-xl border border-cyan-500/40 text-center font-bold text-cyan-400 bg-cyan-500/10"
+              className="col-span-2 p-3 mt-2 rounded-xl border border-cyan-500/40 text-center text-cyan-400 bg-cyan-500/10"
             >
               {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
             </Link>
@@ -258,7 +258,7 @@ export default function HomePage() {
               {t.heroH1}
               <span className="block text-cyan-400 mt-2 font-black drop-shadow-[0_0_20px_rgba(6,182,212,0.5)]">{t.heroH1Span}</span>
             </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-slate-200 max-w-3xl mx-auto leading-relaxed font-semibold">
+            <p className="text-lg sm:text-xl md:text-2xl text-slate-200 max-w-3xl mx-auto leading-relaxed font-bold">
               {t.heroP}
             </p>
             
@@ -283,11 +283,11 @@ export default function HomePage() {
             {/* البطاقة 1: الوظائف */}
             <div className="flex-1 bg-slate-950/60 p-6 rounded-2xl border border-slate-800 hover:border-cyan-500/50 transition-all">
               <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                <h2 className="text-xl font-black text-white flex items-center gap-3">
                   <Briefcase className="h-6 w-6 text-cyan-400 shrink-0" />
                   <span>{t.card1}</span>
                 </h2>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Careers</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Careers</span>
               </div>
               <div className="space-y-3">
                 {["BIM Engineer + Python", "Structural Engineer + Python"].map((job, idx) => (
@@ -305,11 +305,11 @@ export default function HomePage() {
             {/* البطاقة 2: الأكاديمية */}
             <div className="flex-1 bg-slate-950/60 p-6 rounded-2xl border border-slate-800 hover:border-cyan-500/50 transition-all">
               <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                <h2 className="text-xl font-black text-white flex items-center gap-3">
                   <GraduationCap className="h-6 w-6 text-cyan-400 shrink-0" />
                   <span>{t.card2}</span>
                 </h2>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Academy</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Academy</span>
               </div>
               <div className="space-y-4">
                 {t.training.map((item, index) => (
@@ -327,11 +327,11 @@ export default function HomePage() {
             <div className="flex-1 bg-slate-950/60 p-6 rounded-2xl border border-slate-800 hover:border-cyan-500/50 transition-all relative overflow-hidden">
               <div className="relative z-10">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                  <h2 className="text-xl font-black text-white flex items-center gap-3">
                     <Laptop className="h-6 w-6 text-cyan-400 shrink-0" />
                     <span>{t.card3}</span>
                   </h2>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tech</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tech</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-center">
