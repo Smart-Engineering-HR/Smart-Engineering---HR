@@ -2,10 +2,21 @@ import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 
-// تهيئة عميل Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// منع حاولات Next.js لإنشاء الصفحة كـ Static أثناء البناء
+export const dynamic = 'force-dynamic';
+
+// دالة آمنة لإنشاء عميل Supabase دون إيقاف الـ Build
+function getSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn("تنبيه: متغيرات Supabase غير متوفرة حالياً.");
+    return null;
+  }
+
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 const defaultServicesData = {
   structural: [
@@ -25,6 +36,9 @@ const OFFICIAL_EMAILS = [
 // دالة جلب الخدمات من جدول Service
 async function getServicesData() {
   try {
+    const supabase = getSupabase();
+    if (!supabase) return defaultServicesData;
+
     const { data, error } = await supabase
       .from('Service')
       .select('*');
@@ -62,6 +76,9 @@ async function getServicesData() {
 // دالة حفظ/تحديث الخدمات في Supabase
 async function saveServicesData(servicesData) {
   try {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
     const rowsToInsert = [];
     Object.keys(servicesData).forEach(category => {
       if (Array.isArray(servicesData[category])) {
@@ -87,6 +104,9 @@ async function saveServicesData(servicesData) {
 // دالة جلب طلبات الخدمات من جدول ServiceRequest
 async function getRequestsData() {
   try {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
     const { data, error } = await supabase
       .from('ServiceRequest')
       .select('*')
@@ -107,6 +127,9 @@ async function getRequestsData() {
 // دالة حفظ طلب خدمة جديد في جدول ServiceRequest
 async function saveSingleRequest(requestData) {
   try {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
     const { data, error } = await supabase
       .from('ServiceRequest')
       .insert([
@@ -164,10 +187,8 @@ export async function POST(request) {
 
     // 2. تقديم طلب جديد
     if (action === 'SUBMIT_REQUEST') {
-      // حفظ الطلب في جدول ServiceRequest بـ Supabase
       await saveSingleRequest(requestData);
 
-      // إرسال البريد الإلكتروني
       if (process.env.EMAIL_PASS) {
         try {
           const transporter = nodemailer.createTransport({
@@ -211,7 +232,8 @@ ${requestData.message}
 
     // 3. حذف طلب
     if (action === 'DELETE_REQUEST') {
-      if (requestId) {
+      const supabase = getSupabase();
+      if (requestId && supabase) {
         await supabase.from('ServiceRequest').delete().eq('id', requestId);
       }
       const updatedRequests = await getRequestsData();
